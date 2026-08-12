@@ -1,0 +1,440 @@
+@import url('https://fonts.googleapis.com/css2?family=Geist:wght@300;500&family=Space+Grotesk:wght@700&display=swap');
+@import 'tailwindcss';
+
+/* Token values below are taken verbatim from the approved MoodPlayer Intro
+   frames (Mobile 430x932, Desktop 1440x1024). Nothing is rounded or invented. */
+@theme {
+  --font-display: 'Space Grotesk', sans-serif;
+  --font-sans: 'Geist', sans-serif;
+
+  --color-bg-base: #050a18;
+  --color-text-primary: #ffffff;
+  --color-text-secondary: #f1f1f1;
+
+  --color-cta-from: #c43a86;
+  --color-cta-via: #963a9a;
+  --color-cta-to: #5c63c8;
+  --color-cta-border: rgb(255 255 255 / 0.25);
+  --color-play-glyph: #7351bb;
+
+  /* Ambient glow hues. The glow layers themselves carry the exact Figma
+     gradient payloads; these are the underlying colors for later reuse. */
+  --color-glow-navy: #172044;
+  --color-glow-purple: #57206f;
+  --color-glow-magenta: #8a255f;
+  --color-glow-magenta-deep: #6e1d55;
+  --color-glow-blue: #173b69;
+
+  --text-wordmark: 54px;
+  --text-wordmark--line-height: 0.9;
+  --text-wordmark--letter-spacing: -3px;
+  --text-wordmark-lg: 140px;
+  --text-wordmark-lg--line-height: 0.9;
+  --text-wordmark-lg--letter-spacing: -3px;
+
+  --text-tagline: 20px;
+  --text-tagline--line-height: 1.4;
+  --text-tagline--letter-spacing: -0.5px;
+  --text-tagline-lg: 28px;
+  --text-tagline-lg--line-height: 1.4;
+  --text-tagline-lg--letter-spacing: -0.5px;
+
+  --text-cta: 20px;
+  --text-cta--line-height: normal;
+
+  --spacing-stack-gap: 20px;
+  --spacing-hero-gap: 48px;
+  --spacing-hero-top: 212px;
+  --spacing-hero-top-lg: 172px;
+  --spacing-cta-gap: 16px;
+  --spacing-cta-x: 36px;
+  --spacing-cta-y: 20px;
+  --spacing-frame-w: 430px;
+  --spacing-frame-w-lg: 1440px;
+  --spacing-frame-h: 932px;
+  --spacing-frame-h-lg: 1024px;
+  --spacing-tagline-w: 228px;
+  --spacing-tagline-w-lg: 600px;
+  --spacing-cta-w: 320px;
+  --spacing-cta-w-lg: 380px;
+
+  --container-content: 430px;
+  --container-content-lg: 800px;
+
+  --radius-pill: 200px;
+
+  --drop-shadow-cta: 0 12px 12px rgb(255 255 255 / 0.1);
+
+  --blur-glow: 60px;
+  --blur-cta: 20px;
+}
+
+/*
+ * CTA hover animation (`CtaPill.tsx`) — a single restrained, Desktop-only
+ * effect driven by `:hover` / `:focus-visible` on the button itself so
+ * pointer-leave and blur cleanly restore the exact idle appearance with no
+ * JS state involved:
+ *
+ * `.cta-border-svg` / `.cta-border-svg__track` — a true SVG stroke-path
+ * animation: a rounded-rect `<rect>` (in `CtaPill.tsx`, two breakpoint-
+ * matched variants) traced with `pathLength={100}`, so the
+ * `stroke-dasharray` / `stroke-dashoffset` values below are identical
+ * regardless of the button's actual pixel width. `:hover` animates
+ * `stroke-dashoffset` from 100 to 0 — one continuous lap of the real path —
+ * so the highlight travels at constant (`linear`) speed through the
+ * straight sides AND the rounded ends alike, with no angular distortion or
+ * dead zones (the failure mode of the earlier conic-gradient approach,
+ * which mapped a wedge angle onto a non-square box and so moved unevenly).
+ * A CSS animation only (re)starts when its selector freshly matches, so
+ * leaving and re-entering the button replays it with no JS.
+ *
+ * The play icon (`.cta-icon`) is purely a layout wrapper now — no hover
+ * animation of any kind. Keyboard focus and `prefers-reduced-motion` both
+ * get a static brighter border instead of the moving stroke
+ * (`.cta-pill:focus-visible` below), per the accessibility requirement that
+ * neither may depend on motion.
+ *
+ * `:active` press feedback — a plain `transform: scale(0.98)` on the button
+ * itself (it carries no other transform, so nothing needed composing) that
+ * eases back to `scale(1)` on release via the same `transition` below.
+ * `:active` never matches from keyboard focus alone, only real press/touch
+ * (or keyboard activation, which is a genuine press), so tabbing to the
+ * button never triggers it. Reduced motion keeps the pressed state (still
+ * communicates "pressed") but drops its transition, so it snaps rather than
+ * animates — no *new* motion is introduced for that preference.
+ */
+.cta-pill {
+  transition: border-color 250ms ease, transform 110ms ease-out;
+}
+
+.cta-pill:focus-visible {
+  border-color: rgb(255 255 255 / 0.55);
+}
+
+.cta-pill:active {
+  transform: scale(0.98);
+}
+
+.cta-border-svg__track {
+  fill: none;
+  stroke: #d8b9ff;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-dasharray: 11 89;
+  stroke-dashoffset: 100;
+  opacity: 0;
+}
+
+@keyframes cta-border-travel {
+  0% {
+    stroke-dashoffset: 100;
+    opacity: 0;
+  }
+  6% {
+    opacity: 0.55;
+  }
+  94% {
+    opacity: 0.55;
+  }
+  100% {
+    stroke-dashoffset: 0;
+    opacity: 0;
+  }
+}
+
+.cta-icon {
+  display: inline-flex;
+}
+
+/* Hover-triggered effects require a real hover-capable, fine pointer — never
+   touch — so touch devices see none of this and keep the plain idle button. */
+@media (hover: hover) and (pointer: fine) {
+  .cta-pill:hover .cta-border-svg__track {
+    animation: cta-border-travel 600ms linear;
+  }
+}
+
+/* Reduced motion drops the moving stroke entirely. */
+@media (prefers-reduced-motion: reduce) {
+  .cta-border-svg {
+    display: none;
+  }
+}
+
+/* Reduced-motion fallback for hover: the same static brighter border used
+   for keyboard focus, in place of the (now-hidden) moving stroke. */
+@media (prefers-reduced-motion: reduce) and (hover: hover) and (pointer: fine) {
+  .cta-pill:hover {
+    border-color: rgb(255 255 255 / 0.55);
+  }
+}
+
+/* Reduced motion: the pressed state itself still applies (it communicates
+   "pressed"), but with no transition — an instant snap, not a new
+   animation, so `transform` is dropped from the transitioned property list. */
+@media (prefers-reduced-motion: reduce) {
+  .cta-pill {
+    transition: border-color 250ms ease;
+  }
+}
+
+/*
+ * Idle bubble float (`MoodBubble.tsx`) — a calm, deterministic ambient drift
+ * for the decorative mood bubbles. Lives on its own wrapper layer
+ * (`.bubble-float`), separate from:
+ *   - the outer placement div, whose `-translate-x-1/2 -translate-y-1/2`
+ *     transform centres the bubble on its approved (dx, dy) point and must
+ *     never carry additional animated transforms;
+ *   - the existing inner "motion" div (`--bubble-shift-x` / `--bubble-shift-y`,
+ *     both `0px` today), reserved for a future cursor-repulsion feature and
+ *     left untouched so that feature can compose with this idle drift rather
+ *     than replace it.
+ * Amplitude (`--bubble-float-x` / `--bubble-float-y`) and timing
+ * (`animation-duration` / `animation-delay`) are set inline per bubble in
+ * `MoodBubble.tsx`, derived deterministically from each bubble's own size and
+ * its stable array index — never `Math.random()` — so the composition is
+ * identical on every reload. Three keyframe variants (`bubble-float-1/2/3`),
+ * chosen by `index % 3`, trace slightly different 2D paths (translate3d only
+ * — no rotation, scale, or opacity) so bubbles don't read as one synchronized
+ * group; the duration/delay spread further desyncs their phase. Enabled on
+ * Desktop wherever a real hover-capable, fine pointer is available, and on
+ * Mobile at any input capability (gated by the same `lg` 1024px structural
+ * breakpoint the rest of the Intro layout uses, not by hover/pointer, since
+ * Mobile is normally touch-only) — disabled outright under
+ * `prefers-reduced-motion` regardless of which of those matched. The
+ * Mobile-only amplitude reduction (`isMobile` prop) lives in `MoodBubble.tsx`,
+ * not here; every rule below still shares the one keyframe/property system.
+ */
+.bubble-float {
+  animation-name: none;
+  animation-duration: 0s;
+  animation-timing-function: ease-in-out;
+  animation-iteration-count: infinite;
+}
+
+@keyframes bubble-float-1 {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0);
+  }
+  25% {
+    transform: translate3d(
+      var(--bubble-float-x, 0px),
+      calc(var(--bubble-float-y, 0px) * -0.6),
+      0
+    );
+  }
+  50% {
+    transform: translate3d(
+      calc(var(--bubble-float-x, 0px) * 0.2),
+      var(--bubble-float-y, 0px),
+      0
+    );
+  }
+  75% {
+    transform: translate3d(
+      calc(var(--bubble-float-x, 0px) * -1),
+      calc(var(--bubble-float-y, 0px) * 0.4),
+      0
+    );
+  }
+}
+
+@keyframes bubble-float-2 {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0);
+  }
+  30% {
+    transform: translate3d(
+      calc(var(--bubble-float-x, 0px) * -0.8),
+      calc(var(--bubble-float-y, 0px) * 0.7),
+      0
+    );
+  }
+  65% {
+    transform: translate3d(
+      calc(var(--bubble-float-x, 0px) * 0.9),
+      calc(var(--bubble-float-y, 0px) * -0.5),
+      0
+    );
+  }
+}
+
+@keyframes bubble-float-3 {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0);
+  }
+  20% {
+    transform: translate3d(
+      calc(var(--bubble-float-x, 0px) * 0.6),
+      calc(var(--bubble-float-y, 0px) * 0.8),
+      0
+    );
+  }
+  55% {
+    transform: translate3d(
+      calc(var(--bubble-float-x, 0px) * -1),
+      calc(var(--bubble-float-y, 0px) * -0.3),
+      0
+    );
+  }
+  80% {
+    transform: translate3d(
+      calc(var(--bubble-float-x, 0px) * 0.3),
+      calc(var(--bubble-float-y, 0px) * -0.9),
+      0
+    );
+  }
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .bubble-float-1 {
+    animation-name: bubble-float-1;
+  }
+  .bubble-float-2 {
+    animation-name: bubble-float-2;
+  }
+  .bubble-float-3 {
+    animation-name: bubble-float-3;
+  }
+}
+
+/* Mobile (below the `lg` 1024px structural breakpoint): float runs
+   regardless of input capability, since Mobile viewports are normally touch
+   and have no `hover: hover` to match the Desktop rule above. Desktop's own
+   rule above is untouched by this — the two conditions don't overlap. */
+@media (max-width: 1023.98px) {
+  .bubble-float-1 {
+    animation-name: bubble-float-1;
+  }
+  .bubble-float-2 {
+    animation-name: bubble-float-2;
+  }
+  .bubble-float-3 {
+    animation-name: bubble-float-3;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bubble-float-1,
+  .bubble-float-2,
+  .bubble-float-3 {
+    animation-name: none;
+  }
+}
+
+/*
+ * Intro → Camera Permission screen transition (`App.tsx`) — a minimal,
+ * strictly sequential fade: Intro fades out completely, *then* the screen
+ * is swapped (Intro unmounts, Camera Permission mounts), *then* Camera
+ * Permission fades in. Never both screens fading at once — no crossfade,
+ * no transform of any kind.
+ *
+ * Confirmed root cause of the previous white/light flash: neither
+ * `index.html` nor any global rule here gives `html`/`body`/`#root` a
+ * background — only each screen's own `<main>` carries `bg-bg-base`. The
+ * earlier crossfade animated `opacity` on the whole screen wrapper, which
+ * fades that `<main>`'s own background along with it; with both screens
+ * simultaneously below full opacity for part of the transition, the
+ * browser's default white canvas showed through underneath both. Fixed
+ * here by wrapping the transition in a `bg-bg-base` container (`App.tsx`)
+ * whose own opacity is never animated — only the single currently-mounted
+ * screen inside it fades — so that dark background is always solid behind
+ * the fade, using the exact existing token both screens already use, not
+ * a new color.
+ */
+.app-screen-fade-exit {
+  opacity: 1;
+  transition: opacity 150ms ease-out;
+}
+
+.app-screen-fade-exit--active {
+  opacity: 0;
+}
+
+.app-screen-fade-enter {
+  opacity: 0;
+  transition: opacity 170ms ease-out;
+}
+
+.app-screen-fade-enter--active {
+  opacity: 1;
+}
+
+/* Reduced motion: still an opacity-only fade (never a transform, same as
+   the full-motion version above), just much shorter on both sides. */
+@media (prefers-reduced-motion: reduce) {
+  .app-screen-fade-exit,
+  .app-screen-fade-enter {
+    transition: opacity 80ms linear;
+  }
+}
+
+/*
+ * Scanning CTA's 3-dot in-progress indicator (`ScanningCta.tsx`) — a
+ * slow, restrained staggered pulse (opacity + a 2px lift), not a bounce
+ * or a spin, so it reads as "quietly working" rather than "loading
+ * spinner". Each dot's `animation-delay` staggers the same keyframe so
+ * they ripple left-to-right rather than pulsing in unison.
+ */
+.scanning-dot {
+  animation: scanning-dot-pulse 1.4s ease-in-out infinite;
+}
+
+.scanning-dot:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+.scanning-dot:nth-child(3) {
+  animation-delay: 0.4s;
+}
+
+@keyframes scanning-dot-pulse {
+  0%,
+  80%,
+  100% {
+    opacity: 0.3;
+    transform: translateY(0);
+  }
+  40% {
+    opacity: 1;
+    transform: translateY(-2px);
+  }
+}
+
+/* Reduced motion: a steady, dimmed dot communicates "in progress" without
+   any motion at all — no new animation is substituted. */
+@media (prefers-reduced-motion: reduce) {
+  .scanning-dot {
+    animation: none;
+    opacity: 0.7;
+  }
+}
+
+/*
+ * Scanning CTA's progress fill (`ScanningCta.tsx`) — its `width` and
+ * right-side `border-radius` are both set directly from accumulated
+ * valid-scanning progress (`useScanProgress`), this transition only
+ * smooths the visual sweep/corner-round between updates rather than
+ * driving either value itself, so the underlying feedback survives even
+ * if the transition below is removed.
+ */
+.scan-progress-fill {
+  transition:
+    width 200ms linear,
+    border-radius 200ms linear;
+}
+
+/* Reduced motion: an instant snap to the new width/corner radius, not a
+   swept fill or a gradual round — the value itself (and therefore the
+   feedback it conveys) is unchanged, only the animated transition
+   between values is dropped, matching how `.scanning-dot` is handled
+   just above. Per this milestone's own brief, an immediate radius change
+   right at completion is an accepted trade-off here. */
+@media (prefers-reduced-motion: reduce) {
+  .scan-progress-fill {
+    transition: none;
+  }
+}

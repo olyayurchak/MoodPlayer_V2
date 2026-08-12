@@ -1,0 +1,10 @@
+{
+  "description": "Streamline music discovery and playback with an intuitive interface designed for seamless desktop and mobile listening experiences.",
+  "robots": {
+    "index": false
+  },
+  "accessibility": {
+    "addBypassLinks": false,
+    "ignoreReducedMotion": false
+  }
+}
