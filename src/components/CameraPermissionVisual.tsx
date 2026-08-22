@@ -91,7 +91,10 @@ const PANEL_FILL_GRADIENT =
 // CTA gradient uses, top-to-bottom, painted as the *second* background
 // layer (clipped to `border-box`, the full element) so it only shows
 // through the transparent-bordered ring the first layer doesn't cover.
-const BORDER_GRADIENT = "linear-gradient(180deg, #c43a86, #963a9a, #5c63c8)"
+// Exported so other screens needing this exact "MoodPlayer gradient" as a
+// border (e.g. `VibeResultScreen`'s selected mood tab) reuse it verbatim
+// rather than re-deriving the same stops.
+export const BORDER_GRADIENT = "linear-gradient(180deg, #c43a86, #963a9a, #5c63c8)"
 
 /** Shared by both breakpoints below — only the border width differs.
  *  Exported so `ScanningVisual` (the post-permission scanning state) can

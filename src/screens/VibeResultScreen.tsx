@@ -9,18 +9,63 @@ import portraitDesktop from "../imports/VibeResult/portrait-desktop.png"
 import portraitMobile from "../imports/VibeResult/portrait-mobile.png"
 import reloadDesktop from "../imports/VibeResult/reload-desktop.png"
 import reloadMobile from "../imports/VibeResult/reload-mobile.png"
-import moodBadgePhotoChill from "../imports/VibeResult/mood-badge-photo-desktop.png"
-import moodBadgePhotoHappy from "../imports/VibeResult/mood-badge-photo-happy-desktop.png"
 
-/** Per-mood circular badge next to the mood name — see the doc comment on
- *  the badge `<img>` below for why this is a lookup rather than one shared
- *  constant now. `melancholic` still has no Figma reference of its own, so
- *  it keeps reusing Chill's badge — the same documented gap as before
- *  Happy had its own real asset, just narrower now that Happy is covered. */
-const moodBadgePhotos: Record<MoodId, string> = {
-  chill: moodBadgePhotoChill,
-  happy: moodBadgePhotoHappy,
-  melancholic: moodBadgePhotoChill,
+/** The selected mood pill's gradient border.
+ *
+ *  Two earlier attempts at this both actually painted the gradient
+ *  *behind* the pill's translucent interior rather than beside it, so it
+ *  showed through:
+ *  - a `background-clip: padding-box, border-box` two-layer trick, whose
+ *    single `background-origin` value doesn't reliably pair per-layer with
+ *    a two-value `background-clip` list;
+ *  - an outer-gradient-button + inset-translucent-child structure, where
+ *    the child's own `backdrop-blur(20px)` sampled the *outer button's own
+ *    gradient* sitting directly behind it (its nearest painted layer) and
+ *    smeared that gradient color across the whole interior before the 8%
+ *    white tint composited on top — invisible to `getComputedStyle`
+ *    (which only reports declared properties, not rendered pixels) but
+ *    very visible on screen.
+ *
+ *  This version avoids both: the pill itself is byte-for-byte the same
+ *  `bg-[rgba(255,255,255,0.08)]` + `backdrop-blur-[20px]` treatment as an
+ *  inactive pill (`border-[1.5px] border-transparent` reserves the same
+ *  1.5px the inactive pills' visible border does, so dimensions match) —
+ *  its `backdrop-blur` therefore samples the real app background behind
+ *  it, exactly like an inactive pill, never a gradient. The gradient
+ *  itself lives on a separate absolutely-positioned overlay `<span>`
+ *  layered on top (`aria-hidden`, `pointer-events-none`, painted after the
+ *  label so it doesn't intercept clicks or block the text), masked with
+ *  the standard `mask-composite: exclude` two-layer technique — one mask
+ *  layer covering the full box, one covering only its `content-box` (i.e.
+ *  inset by this style's own `padding`) — so only the ring between them,
+ *  exactly `padding`-wide, is left visible. That overlay has no
+ *  `backdrop-filter` of its own, so there is nothing left to smear.
+ *
+ *  Direction fixed against the Figma frame (`284:2584`, pill node
+ *  `284:2653`, itself named "cta-pill" in Figma): the design-context
+ *  export reports this border as a flat `#8b3cb5` (Figma's tooling has no
+ *  "gradient border" output primitive, so it just samples one point — the
+ *  same known lossy simplification `CameraPermissionVisual.tsx` documents
+ *  for its own gradient border), so direction can't be read from that
+ *  export and has to come from the rendered pixels instead. Sampling the
+ *  exported PNG's actual border pixels (correlating each one's position
+ *  against its R/B channel) showed a strong horizontal trend — pink-heavy
+ *  on the left fading to blue-heavy on the right (x↔red correlation ≈
+ *  -0.76) — and only a weak vertical one (y↔red ≈ -0.22), i.e. this
+ *  border runs left-to-right, not top-to-bottom. That also matches this
+ *  node's own Figma layer name, "cta-pill", the same name/gradient
+ *  direction as the actual CTA button below it (`bg-linear-to-r
+ *  from-cta-from via-cta-via to-cta-to`) — unlike the *vertical*
+ *  `BORDER_GRADIENT` `CameraPermissionVisual.tsx` exports for the
+ *  unrelated Camera/Scanning panels, which this pill was previously (and
+ *  incorrectly) reusing verbatim. Reuses the same three existing
+ *  `--color-cta-from/via/to` tokens either way — only the angle changes. */
+const SELECTED_MOOD_PILL_RING_STYLE = {
+  padding: "1.5px",
+  background: "linear-gradient(90deg, var(--color-cta-from), var(--color-cta-via), var(--color-cta-to))",
+  WebkitMask: "linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0)",
+  WebkitMaskComposite: "xor",
+  maskComposite: "exclude" as const,
 }
 
 type VibeResultScreenProps = {
@@ -90,18 +135,11 @@ type VibeResultScreenProps = {
  * for that, and this screen never keeps a live video feed running either
  * way, only the one already-frozen image.
  *
- * The circular mood badge next to the mood name is now a per-mood lookup
- * (`moodBadgePhotos` above) — Chill and Happy each have their own real
- * Figma export (frames `284:2584` and `284:2656`); Figma's own mask for
- * both is a plain circle (`mood-badge-mask-*.svg` / the equivalent mask
- * group in `284:2656`, literally just a circle), so both are reproduced
- * here as an ordinary `rounded-full overflow-hidden` crop rather than a
- * CSS `mask-image`, which gets the identical visual result without
- * depending on an external mask asset for a shape this simple. No Figma
- * reference exists yet for what "melancholic" should look like here —
- * reusing Chill's image for it is a known, reported gap (see this
- * project's task report), not a silent assumption — narrower now than
- * before Happy had its own asset, not resolved.
+ * The circular mood badge that used to sit immediately before the large
+ * mood name has been removed for all three moods per this task's request
+ * (no replacement icon/decoration) — the mood name now sits directly under
+ * `vibeResult.heading`, left-aligned with it and with the description text
+ * below on both breakpoints, instead of in its own icon+name row.
  *
  * Manual mood selection (`selectedMood`) is local UI state, not mood
  * classification — clicking a pill just changes which of the three
@@ -225,16 +263,26 @@ export default function VibeResultScreen({
                   <p className="text-center text-[24px] font-medium leading-[1.4] text-[#f1f1f1] lg:text-left lg:text-[28px]">
                     {t.vibeResult.heading}
                   </p>
-                  <div className="flex items-center gap-[12px] lg:gap-[24px]">
-                    <img
-                      src={moodBadgePhotos[selectedMood]}
-                      alt=""
-                      className="size-[52px] shrink-0 rounded-full object-cover lg:size-[72px]"
-                    />
-                    <p className="text-center text-[36px] font-medium leading-[1.2] text-white lg:text-left lg:text-[60px]">
-                      {activeMood.name}
-                    </p>
-                  </div>
+                  {/* Gradient text treatment per Figma node `284:2640` — its
+                      own design-context export reports an actual 2-stop
+                      `bg-gradient-to-r from-[#c23a86] to-[#5e62c6]`
+                      text-fill (unlike a gradient *border*, a gradient
+                      *fill* has a real Figma→code output primitive, so this
+                      one isn't a lossy single-color simplification like the
+                      mood-pill border was). Those two stops are the same
+                      (±1-2 rounding) as this project's existing
+                      `--color-cta-from`/`--color-cta-to` tokens, reused
+                      here verbatim via `from-cta-from to-cta-to` — but
+                      deliberately *without* the middle `via-cta-via` stop
+                      the CTA button/pill border use elsewhere: Figma's own
+                      export for this specific node has only two stops, and
+                      adding a third would visibly shift this large (60px)
+                      heading's color curve away from that reference.
+                      Direction is `bg-gradient-to-r` (left-to-right) in
+                      Figma's export, i.e. this project's `bg-linear-to-r`. */}
+                  <p className="bg-linear-to-r from-cta-from to-cta-to bg-clip-text text-center text-[36px] font-medium leading-[1.2] text-transparent lg:text-left lg:text-[60px]">
+                    {activeMood.name}
+                  </p>
                 </div>
                 <p className="w-full text-center text-[18px] font-light leading-[1.4] text-[#f1f1f1] lg:w-[382px] lg:text-left">
                   {activeMood.description}
@@ -309,17 +357,36 @@ export default function VibeResultScreen({
               <div className="flex w-full flex-wrap items-center justify-center gap-[12px] lg:justify-start">
                 {MOOD_IDS.map((moodId) => {
                   const isSelected = moodId === selectedMood
+                  const label = t.vibeResult.moods[moodId].name
+
+                  if (isSelected) {
+                    return (
+                      <button
+                        key={moodId}
+                        type="button"
+                        onClick={() => setSelectedMood(moodId)}
+                        aria-pressed="true"
+                        className="relative shrink-0 rounded-pill border-[1.5px] border-transparent bg-[rgba(255,255,255,0.08)] px-[24px] py-[12px] text-[16px] font-medium text-white backdrop-blur-[20px] shadow-[0px_12px_24px_0px_rgba(255,255,255,0.08)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+                      >
+                        {label}
+                        <span
+                          aria-hidden="true"
+                          style={SELECTED_MOOD_PILL_RING_STYLE}
+                          className="pointer-events-none absolute inset-0 rounded-pill"
+                        />
+                      </button>
+                    )
+                  }
+
                   return (
                     <button
                       key={moodId}
                       type="button"
                       onClick={() => setSelectedMood(moodId)}
-                      aria-pressed={isSelected}
-                      className={`shrink-0 rounded-pill border-[1.5px] bg-[rgba(255,255,255,0.08)] px-[24px] py-[12px] text-[16px] font-medium text-white backdrop-blur-[20px] shadow-[0px_12px_24px_0px_rgba(255,255,255,0.08)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white ${
-                        isSelected ? "border-[#8b3cb5]" : "border-[rgba(255,255,255,0.12)]"
-                      }`}
+                      aria-pressed="false"
+                      className="shrink-0 rounded-pill border-[1.5px] border-[rgba(255,255,255,0.12)] bg-[rgba(255,255,255,0.08)] px-[24px] py-[12px] text-[16px] font-medium text-white backdrop-blur-[20px] shadow-[0px_12px_24px_0px_rgba(255,255,255,0.08)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
                     >
-                      {t.vibeResult.moods[moodId].name}
+                      {label}
                     </button>
                   )
                 })}
