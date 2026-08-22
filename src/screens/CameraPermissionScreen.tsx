@@ -205,7 +205,24 @@ export default function CameraPermissionScreen({
                 </p>
               </div>
 
-              <ul className="flex w-[280px] list-none flex-col items-start gap-[16px]">
+              {/* `w-[280px]` (was) → `w-[322px]`. The third bullet's copy
+                  ("We don't save your photos or videos" / "Ми не
+                  зберігаємо твої фото чи відео") no longer fits this
+                  column's original width on one line at the approved
+                  16px/font-light size — measured natural (unwrapped) text
+                  width is ~260px EN / ~272px UA, plus this row's own fixed
+                  24px icon + 24px icon-to-text gap (48px), so the column
+                  needs ≥~320px; UA is the longer of the two and sets the
+                  floor. 322px clears that with a couple px to spare while
+                  staying safely inside the available column width (327px
+                  measured at the narrowest supported viewport, 375px) —
+                  the widest this can go without pushing into the panel's
+                  own edge, which would be an overall-layout change this
+                  task is explicit is out of scope. Only this one list's
+                  width changed — the vertical `gap-[16px]` *between*
+                  bullets, icons, typography, and every other element on
+                  this screen are untouched. */}
+              <ul className="flex w-[322px] list-none flex-col items-start gap-[16px]">
                 {cameraPermissionFeatures.map((feature) => (
                   <li key={feature.id} className="flex w-full items-center gap-[24px]">
                     <img src={feature.icon} alt="" className="size-[24px] shrink-0" />

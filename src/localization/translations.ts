@@ -108,7 +108,13 @@ export const translations: Record<Language, Translations> = {
       wordmark: "MoodPlayer",
     },
     intro: {
-      tagline: "Every mood has its sound. Let's find yours.",
+      // Literal `\n` between the two sentences, same technique/reason as
+      // the Ukrainian tagline below — `TextStack`'s tagline `<p>` has
+      // `whitespace-pre-line` so this renders as an actual line break
+      // instead of the browser's own wrap. Copy itself is this task's own
+      // explicit replacement text (was "Every mood has its sound. Let's
+      // find yours.") — not a Figma-sourced string.
+      tagline: "Every mood has its own sound.\nWe’ll find yours.",
       ctaLabel: "Turn on Your Music",
     },
     cameraPermission: {
@@ -118,7 +124,7 @@ export const translations: Record<Language, Translations> = {
       features: {
         "facial-cues": "Analyzes facial cues",
         "on-device": "Works on your device",
-        "not-recorded": "Nothing is recorded or uploaded",
+        "not-recorded": "We don’t save your photos or videos",
       },
       scanningCtaLabel: "Scanning",
       scanningInitializing: "Preparing scan…",
@@ -163,7 +169,12 @@ export const translations: Record<Language, Translations> = {
       wordmark: "MoodPlayer",
     },
     intro: {
-      tagline: "Кожен настрій має своє звучання. Знайдемо твоє.",
+      // Literal `\n` between the two sentences — `TextStack`'s tagline
+      // `<p>` has `whitespace-pre-line` specifically so this renders as an
+      // actual line break there, instead of the browser's own wrap
+      // landing on the lone word "твоє" per this task's explicit request.
+      // Copy itself is unchanged from the plain-space version.
+      tagline: "Кожен настрій має своє звучання.\nЗнайдемо твоє.",
       ctaLabel: "Увімкнути музику",
     },
     cameraPermission: {
@@ -173,7 +184,7 @@ export const translations: Record<Language, Translations> = {
       features: {
         "facial-cues": "Аналізує міміку",
         "on-device": "Працює на твоєму пристрої",
-        "not-recorded": "Нічого не записується й не завантажується",
+        "not-recorded": "Ми не зберігаємо твої фото чи відео",
       },
       scanningCtaLabel: "Скануємо",
       scanningInitializing: "Готуємо скан…",
