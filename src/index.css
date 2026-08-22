@@ -48,7 +48,25 @@
   --spacing-hero-top-lg: 172px;
   --spacing-cta-gap: 16px;
   --spacing-cta-x: 36px;
-  --spacing-cta-y: 20px;
+  /* Every primary CTA (Intro `CtaPill`, `CameraPermissionCta`,
+     `ScanningCta`, Vibe Result's own inline CTA) shares this height as
+     `h-cta-h` instead of deriving it from `py-*` + `text-cta`'s own
+     line-height. That padding-driven approach used to produce a real,
+     externally-reported bug: `--text-cta--line-height` is the CSS
+     keyword `normal`, which resolves from whichever font is *actually
+     rendered* — not a fixed px value — so the same padding could (and
+     did) render a different final height depending on the browser/font-
+     loading state. A plain `height` here is immune to that: it's the
+     single source of truth for every CTA's box height, verified by
+     `getBoundingClientRect()` rather than back-derived arithmetic. Set to
+     `60px` (previously an unlabeled ad-hoc `68px`/`74px` split across the
+     four CTAs, `74px` for Intro's specifically because its play icon
+     stretched that padding-driven box taller than the icon-less ones) —
+     an explicit height governs all four identically regardless of
+     whether a given CTA has an icon or not. The now-unused former
+     `--spacing-cta-y` (20px vertical padding) token was removed; nothing
+     else referenced it. */
+  --spacing-cta-h: 60px;
   --spacing-frame-w: 430px;
   --spacing-frame-w-lg: 1440px;
   --spacing-frame-h: 932px;

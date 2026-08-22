@@ -1,5 +1,6 @@
 import AppBackground from "../components/AppBackground"
 import CtaPill from "../components/CtaPill"
+import LanguageSwitcher from "../components/LanguageSwitcher"
 import MoodBubbleCluster from "../components/MoodBubbleCluster"
 import TextStack from "../components/TextStack"
 
@@ -21,6 +22,22 @@ import TextStack from "../components/TextStack"
  * `onCtaClick` is forwarded straight to the CTA's `onClick` — this screen
  * doesn't know or care what happens next (that's `App.tsx`'s job); it just
  * reports the click, the same way `CtaPill` itself does.
+ *
+ * The `LanguageSwitcher` (Figma node `437:90`, same component/markup the
+ * Camera Permission and Vibe Result screens already use — imported, not
+ * re-implemented) sits absolutely positioned in the top-right corner
+ * rather than in a shared header row like those screens have, since Intro
+ * has no such row of its own (`TextStack`'s `<h1>` wordmark is the hero
+ * heading, not a header logo). `right-[24px] top-[24px]` on Mobile matches
+ * this project's own established corner-inset convention elsewhere
+ * (`p-[24px]` on other screens' `<main>`); `lg:right-[64px] lg:top-[64px]`
+ * matches Figma's own Desktop offset exactly (node `437:90` sits at
+ * `x:1304 y:64` inside a `1440×1024` frame → margins of `1440-1304-72=64`
+ * / `64`). Placed after `MoodBubbleCluster` in this tree so it paints on
+ * top of the background/bubble layers in normal DOM stacking order — both
+ * of those are already `pointer-events-none`, so there's no click
+ * interception either way, but this also keeps the switcher visually on
+ * top of them without needing an explicit `z-index`.
  */
 export default function IntroScreen({ onCtaClick }: { onCtaClick?: () => void }) {
   return (
@@ -30,6 +47,9 @@ export default function IntroScreen({ onCtaClick }: { onCtaClick?: () => void })
     >
       <AppBackground />
       <MoodBubbleCluster />
+      <div className="absolute right-[24px] top-[24px] lg:right-[64px] lg:top-[64px]">
+        <LanguageSwitcher />
+      </div>
       <div
         data-intro-content
         className="relative mx-auto flex w-full max-w-content flex-col items-center gap-hero-gap pt-hero-top lg:max-w-content-lg lg:pt-hero-top-lg"

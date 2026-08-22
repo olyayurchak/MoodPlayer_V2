@@ -30,23 +30,23 @@ import { useLanguage } from "../localization/LanguageContext"
  *   animation (`.cta-border-svg` / `.cta-border-svg__track`, both defined in
  *   `index.css`) that needs a matching `<rect>` traced in this button's own
  *   markup — a CSS class alone can't add it, and the trace rect can't be
- *   copied verbatim from `CtaPill`: this button's measured Desktop box is
- *   380×68px, six pixels shorter than `CtaPill`'s 380×74px (that button's
- *   row is stretched taller by its play icon; this one has no icon, so its
- *   height comes from padding + text alone) — copying `CtaPill`'s 378×72
- *   viewBox onto a 68px-tall box would make the SVG's default
- *   `preserveAspectRatio` fit-scale the trace down to ~357px wide, leaving
- *   visible dead space at both ends instead of hugging the real edges. The
- *   track geometry below instead applies `CtaPill`'s own derivation (viewBox
- *   = box size − 2px, rect = viewBox − 2px margin each side, `rx`/`ry` =
- *   half the rect's height for a true pill trace) to this button's actual
- *   380×68 measurement: `viewBox="0 0 378 66"`, `rect 376×64 rx32 ry32`. Same
- *   `lg:block` breakpoint `CtaPill` uses for its Desktop variant. No Mobile
- *   track variant is added: this CTA's Mobile width is fluid (`w-full`, not
- *   a fixed size a trace rect could match), and the hover rule in
- *   `index.css` is already gated to `(hover: hover) and (pointer: fine)` —
- *   real touch input never matches it regardless, so nothing would render
- *   there anyway.
+ *   copied verbatim from `CtaPill`, which is still `320×60`/`380×60`
+ *   Mobile/Desktop but has its own two-viewBox split for that reason (its
+ *   Mobile width is fixed, this button's is fluid `w-full`). The track
+ *   geometry below applies `CtaPill`'s own derivation (viewBox = box size
+ *   − 2px, rect = viewBox − 2px margin each side, `rx`/`ry` = half the
+ *   rect's height for a true pill trace) to this button's actual `380×60`
+ *   Desktop measurement (height now the shared `--spacing-cta-h` token,
+ *   see its own comment in `index.css` — both this button and `CtaPill`
+ *   render the same height now, unlike before that token existed, when
+ *   this button's padding-derived box measured `68px`, six pixels
+ *   shorter than `CtaPill`'s icon-stretched `74px`): `viewBox="0 0 378
+ *   58"`, `rect 376×56 rx28 ry28`. Same `lg:block` breakpoint `CtaPill`
+ *   uses for its Desktop variant. No Mobile track variant is added: this
+ *   CTA's Mobile width is fluid (`w-full`, not a fixed size a trace rect
+ *   could match), and the hover rule in `index.css` is already gated to
+ *   `(hover: hover) and (pointer: fine)` — real touch input never matches
+ *   it regardless, so nothing would render there anyway.
  *
  * `relative overflow-hidden` are added alongside the existing utilities so
  * the absolutely-positioned track SVG clips to this pill's own rounded
@@ -72,23 +72,23 @@ export default function CameraPermissionCta({
       type="button"
       onClick={onClick}
       disabled={disabled}
-      className="cta-pill relative w-full overflow-hidden rounded-pill border-[1.5px] border-cta-border bg-linear-to-r from-cta-from via-cta-via to-cta-to px-cta-x py-cta-y text-center font-sans text-cta font-medium text-white backdrop-blur-cta drop-shadow-cta focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-white disabled:cursor-not-allowed disabled:opacity-70 lg:w-[380px]"
+      className="cta-pill relative flex h-cta-h w-full items-center justify-center overflow-hidden rounded-pill border-[1.5px] border-cta-border bg-linear-to-r from-cta-from via-cta-via to-cta-to px-cta-x text-center font-sans text-cta font-medium text-white backdrop-blur-cta drop-shadow-cta focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-white disabled:cursor-not-allowed disabled:opacity-70 lg:w-[380px]"
     >
       {/* Desktop-width track only — see doc comment above for why no Mobile variant exists. */}
       <svg
         aria-hidden="true"
         focusable="false"
         className="cta-border-svg pointer-events-none absolute inset-0 hidden lg:block"
-        viewBox="0 0 378 66"
+        viewBox="0 0 378 58"
       >
         <rect
           className="cta-border-svg__track"
           x={1}
           y={1}
           width={376}
-          height={64}
-          rx={32}
-          ry={32}
+          height={56}
+          rx={28}
+          ry={28}
           pathLength={100}
         />
       </svg>

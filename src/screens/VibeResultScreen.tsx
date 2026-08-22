@@ -167,18 +167,25 @@ export default function VibeResultScreen({
   return (
     <main className="relative flex min-h-[max(100dvh,var(--spacing-frame-h))] items-center justify-center overflow-hidden bg-bg-base p-[24px] lg:min-h-[max(100dvh,var(--spacing-frame-h-lg))]">
       <AppBackground />
+      {/* Positioned directly on `<main>`, not inside the centered/padded
+          panel below — see `CameraPermissionScreen`'s own doc comment
+          (identical reasoning/values, shared by this screen's matching
+          panel structure) and `IntroScreen`'s switcher, which this now
+          matches exactly. */}
+      <div className="absolute right-[24px] top-[24px] lg:right-[64px] lg:top-[64px]">
+        <LanguageSwitcher />
+      </div>
       <div className="relative flex w-full max-w-[382px] flex-col items-start gap-[64px] rounded-[24px] backdrop-blur-[20px] lg:max-w-[1242px] lg:border-[1.5px] lg:border-[rgba(255,255,255,0.12)] lg:bg-[rgba(118,118,118,0.08)] lg:p-[64px]">
         <div className="flex w-full items-center justify-between">
           <MoodPlayerLogo />
-          <LanguageSwitcher />
         </div>
 
         <div className="flex w-full flex-col items-center gap-[24px] lg:flex-row lg:items-start lg:gap-[54px]">
           {/* Photo panel — the captured still frame when one exists,
               otherwise the same static Figma decorative asset this panel
               always used (see doc comment above); either way the *frame*
-              around it (border/radius/corner marks) is identical, only the
-              image content inside changes.
+              around it (border/radius) is identical, only the image
+              content inside changes.
 
               Split into Mobile/Desktop trees (matching `ScanningVisual`'s
               own approach, not this screen's usual single responsive
@@ -190,19 +197,25 @@ export default function VibeResultScreen({
               reproducing that correctly needs two elements, not one.
               `gradientBorderStyle` itself is reused verbatim from
               `CameraPermissionVisual.tsx` (already exported specifically
-              for this — `ScanningVisual` uses it the same way), plus the
-              same 4 corner accent marks — rather than the plain solid
-              `#c43a86` border and no corner marks this panel originally
-              had. Figma's own export for this specific frame used that
-              flat border; this now intentionally matches the Camera/
-              Scanning screens' frame instead, per this task's own request
-              for cross-screen consistency. Corner-mark thickness/opacity
-              (3px/100% Desktop, 1.2px/100% Mobile) matches
-              `ScanningVisual`'s own *active-scanning* state specifically
-              (not `CameraPermissionVisual`'s dimmer 40% pre-permission
-              treatment) — this panel shows a completed capture, not an
-              inactive placeholder. Radius corrected to `11px`/`24px` (was
+              for this — `ScanningVisual` uses it the same way). Figma's
+              own export for this specific frame used a plain solid
+              `#c43a86` border and no corner marks; this now intentionally
+              matches the Camera/Scanning screens' gradient-border frame
+              instead, per an earlier task's request for cross-screen
+              consistency. Radius corrected to `11px`/`24px` (was
               `16px`/`24px`) to match exactly.
+
+              The 4 corner scanning-bracket marks `ScanningVisual`/
+              `CameraPermissionVisual` both have were reproduced here too
+              at first (same reasoning: cross-screen consistency), then
+              removed per this later, explicit task — the vibe shown here
+              has already been determined, so the "actively scanning"
+              framing cue no longer applies once capture is complete. The
+              gradient border itself, radius, container size, image, and
+              "Scan again" button are all unaffected; `ScanningVisual`'s
+              and `CameraPermissionVisual`'s own corner marks (the actual
+              in-progress scanning states) are untouched — this only ever
+              affected this screen's own now-static photo.
 
               The one Camera/Scanning frame element intentionally not
               reproduced here: the soft glow blobs behind the panel —
@@ -220,10 +233,6 @@ export default function VibeResultScreen({
               alt=""
               className="absolute inset-0 size-full object-cover pointer-events-none"
             />
-            <div className="absolute left-[19.31px] top-[19.31px] size-[45.66px] border-t-[1.2px] border-l-[1.2px] border-white/100" />
-            <div className="absolute left-[157.65px] top-[19.31px] size-[45.66px] border-t-[1.2px] border-r-[1.2px] border-white/100" />
-            <div className="absolute left-[19.31px] top-[157.65px] size-[45.66px] border-b-[1.2px] border-l-[1.2px] border-white/100" />
-            <div className="absolute left-[157.65px] top-[157.65px] size-[45.66px] border-b-[1.2px] border-r-[1.2px] border-white/100" />
             <button
               type="button"
               onClick={onScanAgain}
@@ -242,10 +251,6 @@ export default function VibeResultScreen({
               alt=""
               className="absolute inset-0 size-full object-cover pointer-events-none"
             />
-            <div className="absolute left-[42.5px] top-[43.5px] size-[100px] border-t-[3px] border-l-[3px] border-white/100" />
-            <div className="absolute left-[345.5px] top-[43.5px] size-[100px] border-t-[3px] border-r-[3px] border-white/100" />
-            <div className="absolute left-[42.5px] top-[346.5px] size-[100px] border-b-[3px] border-l-[3px] border-white/100" />
-            <div className="absolute left-[345.5px] top-[346.5px] size-[100px] border-b-[3px] border-r-[3px] border-white/100" />
             <button
               type="button"
               onClick={onScanAgain}
@@ -292,7 +297,7 @@ export default function VibeResultScreen({
               <button
                 type="button"
                 onClick={() => onStartPlaylist?.(selectedMood)}
-                className="cta-pill relative w-full overflow-hidden rounded-pill border-[1.5px] border-cta-border bg-linear-to-r from-cta-from via-cta-via to-cta-to px-cta-x py-cta-y text-center font-sans text-cta font-medium text-white backdrop-blur-cta drop-shadow-cta focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-white lg:w-[400px]"
+                className="cta-pill relative flex h-cta-h w-full items-center justify-center overflow-hidden rounded-pill border-[1.5px] border-cta-border bg-linear-to-r from-cta-from via-cta-via to-cta-to px-cta-x text-center font-sans text-cta font-medium text-white backdrop-blur-cta drop-shadow-cta focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-white lg:w-[400px]"
               >
                 {/* The exact same approved shine/streak treatment as
                     `CtaPill` (Intro) and `CameraPermissionCta` — reused
@@ -306,11 +311,56 @@ export default function VibeResultScreen({
                     "Меланхолія" / "Чіл" on one line without wrapping or
                     shrinking the pills, keeping this CTA visually aligned
                     with that wider row rather than one narrower than the
-                    thing below it. Height (68) is unchanged — only
-                    `width`/`viewBox`/`rect width` scale with it below, per
-                    the same `viewBox = (W-2, H-2)` / `rect = inset-1,
-                    (W-4)×(H-4)` relationship the original 380×68 already
-                    used (confirmed by inspection: 378×66 / 376×64).
+                    thing below it.
+
+                    Height reduced from 68 to 60 per this task's explicit
+                    request. First attempt swapped this button's own
+                    `py-cta-y` (the 20px/side vertical padding every other
+                    CTA shares via that token) for a *local* `py-[16px]`,
+                    reasoning padding+line-box arithmetic (68 = 20+20+~2px
+                    border+~26px text line box) backwards to a value that
+                    should yield 60 — and it measured as exactly 60px in
+                    that verification pass. It didn't hold in a real
+                    browser, still rendering 68px there. Root cause: the
+                    `~26px text line box` in that arithmetic isn't a fixed
+                    number — `text-cta`'s own `--text-cta--line-height` is
+                    the CSS keyword `normal`, which resolves from the
+                    *actually rendered* font's own metrics, not a fixed
+                    px value. Padding-driven sizing built on top of a
+                    `normal` line-height is therefore environment-
+                    dependent (whichever font is actually painted, in that
+                    browser, at that moment) — same padding, different
+                    real height depending on the browser/environment.
+                    Fixed by dropping padding-driven sizing entirely:
+                    `flex items-center justify-center` centers the label
+                    inside an explicit height, deterministic and
+                    independent of any font metric; `overflow-hidden`
+                    (already present) clips the text's own line-box if a
+                    fallback font's metrics ever want more vertical room
+                    than that allows, so the *button* itself can never
+                    render taller than its set height regardless of which
+                    font paints. That height is now the shared `h-cta-h`
+                    token (`--spacing-cta-h: 60px`, `index.css`) rather
+                    than this button's own local `h-[60px]` — a later,
+                    explicit follow-up task unified all four primary CTAs
+                    (this one, `CtaPill`, `CameraPermissionCta`,
+                    `ScanningCta`) onto that one shared token/mechanism,
+                    so they're now all `60px` and this button's local
+                    workaround was removed in favor of it. `px-cta-x` is
+                    untouched, still supplying horizontal breathing room
+                    the same way it always did — only the vertical sizing
+                    mechanism changed, not the horizontal padding value.
+                    Width/`lg:w-[400px]` is unaffected. The decorative
+                    border-trace SVG below scales
+                    with it: still `viewBox = (W-2, H-2)` / `rect = inset-1,
+                    (W-4)×(H-4)`, now against `H=60` instead of `68`
+                    (`58`/`56` in place of `66`/`64`) — same relationship,
+                    unchanged `W`/`x`; `rx`/`ry` scale the same way, from
+                    `32` (half of the old `64`) to `28` (half of the new
+                    `56`), keeping the trace's own ends fully rounded to
+                    match the pill shape exactly rather than relying on the
+                    browser's automatic rx/ry clamping for an
+                    now-oversized radius.
                     No Mobile track variant, for the same reason
                     `CameraPermissionCta` has none: this button is `w-full`
                     (fluid) on Mobile, not a fixed size a trace rect could
@@ -319,16 +369,16 @@ export default function VibeResultScreen({
                   aria-hidden="true"
                   focusable="false"
                   className="cta-border-svg pointer-events-none absolute inset-0 hidden lg:block"
-                  viewBox="0 0 398 66"
+                  viewBox="0 0 398 58"
                 >
                   <rect
                     className="cta-border-svg__track"
                     x={1}
                     y={1}
                     width={396}
-                    height={64}
-                    rx={32}
-                    ry={32}
+                    height={56}
+                    rx={28}
+                    ry={28}
                     pathLength={100}
                   />
                 </svg>

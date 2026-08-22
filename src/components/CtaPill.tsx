@@ -52,41 +52,46 @@ export default function CtaPill({ onClick }: { onClick?: () => void }) {
     <button
       type="button"
       onClick={onClick}
-      className="cta-pill relative flex w-cta-w items-center justify-center overflow-hidden rounded-pill border-[1.5px] border-cta-border bg-linear-to-r from-cta-from via-cta-via to-cta-to px-cta-x py-cta-y font-sans text-cta font-medium text-white backdrop-blur-cta drop-shadow-cta focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-white lg:w-cta-w-lg"
+      className="cta-pill relative flex h-cta-h w-cta-w items-center justify-center overflow-hidden rounded-pill border-[1.5px] border-cta-border bg-linear-to-r from-cta-from via-cta-via to-cta-to px-cta-x font-sans text-cta font-medium text-white backdrop-blur-cta drop-shadow-cta focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-white lg:w-cta-w-lg"
     >
-      {/* Mobile-width track (320×74 button, ~1px border inset both sides). */}
+      {/* Mobile-width track (320×60 button — height now the shared
+          `--spacing-cta-h` token, see its own comment in `index.css`;
+          was 320×74 when height came from padding + this button's own
+          play-icon-stretched line box). ~1px border inset both sides. */}
       <svg
         aria-hidden="true"
         focusable="false"
         className="cta-border-svg pointer-events-none absolute inset-0 lg:hidden"
-        viewBox="0 0 318 72"
+        viewBox="0 0 318 58"
       >
         <rect
           className="cta-border-svg__track"
           x={1}
           y={1}
           width={316}
-          height={70}
-          rx={35}
-          ry={35}
+          height={56}
+          rx={28}
+          ry={28}
           pathLength={100}
         />
       </svg>
-      {/* Desktop-width track (380×74 button, ~1px border inset both sides). */}
+      {/* Desktop-width track (380×60 button, same height-token change as
+          the Mobile track above; was 380×74). ~1px border inset both
+          sides. */}
       <svg
         aria-hidden="true"
         focusable="false"
         className="cta-border-svg pointer-events-none absolute inset-0 hidden lg:block"
-        viewBox="0 0 378 72"
+        viewBox="0 0 378 58"
       >
         <rect
           className="cta-border-svg__track"
           x={1}
           y={1}
           width={376}
-          height={70}
-          rx={35}
-          ry={35}
+          height={56}
+          rx={28}
+          ry={28}
           pathLength={100}
         />
       </svg>

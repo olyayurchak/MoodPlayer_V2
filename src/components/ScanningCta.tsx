@@ -90,10 +90,19 @@ type ScanningCtaProps = {
  * button, and now identical to the in-progress fill's own gradient above
  * (rather than a different, lower-opacity version of it), so the fill
  * reaching 100% and the completed background taking over are visually
- * the same color with nothing to jump between. Dimensions/radius/padding/
+ * the same color with nothing to jump between. Dimensions/radius/
  * typography stay exactly the shared tokens already in use
- * (`rounded-pill`, `px-cta-x`, `py-cta-y`, `text-cta`, `backdrop-blur-cta`)
+ * (`rounded-pill`, `px-cta-x`, `text-cta`, `backdrop-blur-cta`)
  * - only the background/border/shadow swap.
+ *
+ * Height is the shared `h-cta-h` token (`--spacing-cta-h`, `index.css`) —
+ * same as every other primary CTA (`CtaPill`, `CameraPermissionCta`,
+ * Vibe Result's own CTA) — rather than the `py-cta-y` vertical padding
+ * this pill used before that token existed. `flex items-center
+ * justify-center` on this outer element centers the inner label/dots row
+ * within the new fixed height; the absolutely-positioned progress fill
+ * (`inset-y-0`) already stretches to whatever height its container has
+ * regardless of how that height is set, so it needs no change.
  */
 export default function ScanningCta({ progress, completed }: ScanningCtaProps) {
   const { t } = useLanguage()
@@ -109,7 +118,7 @@ export default function ScanningCta({ progress, completed }: ScanningCtaProps) {
       role="status"
       aria-live="polite"
       className={
-        "relative w-full overflow-hidden rounded-pill border-[1.5px] px-cta-x py-cta-y text-center font-sans text-cta font-medium text-white backdrop-blur-cta lg:w-[380px] " +
+        "relative flex h-cta-h w-full items-center justify-center overflow-hidden rounded-pill border-[1.5px] px-cta-x text-center font-sans text-cta font-medium text-white backdrop-blur-cta lg:w-[380px] " +
         (completed
           ? "border-cta-border bg-linear-to-r from-cta-from via-cta-via to-cta-to drop-shadow-cta"
           : "border-[rgba(255,255,255,0.12)] bg-[rgba(255,255,255,0.08)] shadow-[0px_12px_24px_0px_rgba(255,255,255,0.1)]")
