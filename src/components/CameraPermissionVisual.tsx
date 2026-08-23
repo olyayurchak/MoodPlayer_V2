@@ -107,9 +107,14 @@ const PANEL_FILL_GRADIENT =
 // rather than re-deriving the same stops.
 export const BORDER_GRADIENT = "linear-gradient(180deg, #c43a86, #963a9a, #5c63c8)"
 
-/** Shared by both breakpoints below — only the border width differs.
- *  Exported so `ScanningVisual` (the post-permission scanning state) can
- *  reuse this exact panel-fill + gradient-border treatment rather than
+/** Shared by both breakpoints below — the face-recognition panel (this
+ *  component and `ScanningVisual`, its post-permission scanning-state
+ *  twin) uses `2px` at both Mobile and Desktop; `VibeResultScreen`'s own
+ *  panel calls this same helper with its own independent value (`1.5px`)
+ *  since it's a different, non-face-recognition panel, not part of this
+ *  border-thickness requirement. The parameter stays generic rather than
+ *  hard-coding either value here. Exported so `ScanningVisual` can reuse
+ *  this exact panel-fill + gradient-border treatment rather than
  *  duplicating the technique. */
 export function gradientBorderStyle(borderWidth: string) {
   return {
@@ -126,11 +131,11 @@ export default function CameraPermissionVisual() {
       {/* Mobile (below `lg`) — Figma node `347:372`. */}
       <div
         className="relative size-[224px] shrink-0 overflow-hidden rounded-[11px] lg:hidden"
-        style={gradientBorderStyle("1px")}
+        style={gradientBorderStyle("2px")}
       >
         <img
           alt=""
-          className="pointer-events-none absolute inset-0 size-full rounded-[10.994px] object-cover opacity-40"
+          className="pointer-events-none absolute inset-0 size-full -translate-y-5 rounded-[10.994px] object-cover opacity-40"
           src={faceScanVisual}
         />
         <div className="absolute left-[-49.7px] top-[36.87px] size-[97.569px]">
@@ -168,7 +173,7 @@ export default function CameraPermissionVisual() {
       >
         <img
           alt=""
-          className="pointer-events-none absolute inset-0 size-full rounded-[24px] object-cover opacity-40"
+          className="pointer-events-none absolute inset-0 size-full -translate-y-5 rounded-[24px] object-cover opacity-40"
           src={faceScanVisual}
         />
         <div className="absolute left-[-108.5px] top-[77px] size-[213px]">

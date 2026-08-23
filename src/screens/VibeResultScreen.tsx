@@ -219,7 +219,7 @@ export default function VibeResultScreen({
               only styling fix. */}
           <div
             className="relative size-[224px] shrink-0 overflow-hidden rounded-[11px] lg:hidden"
-            style={gradientBorderStyle("1px")}
+            style={gradientBorderStyle("1.5px")}
           >
             <img
               src={capturedFrame ?? portraitMobile}
@@ -237,7 +237,7 @@ export default function VibeResultScreen({
           </div>
           <div
             className="relative hidden size-[492px] shrink-0 overflow-hidden rounded-[24px] lg:block"
-            style={gradientBorderStyle("2px")}
+            style={gradientBorderStyle("1.5px")}
           >
             <img
               src={capturedFrame ?? portraitDesktop}

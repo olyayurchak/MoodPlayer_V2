@@ -141,7 +141,14 @@ export const translations: Record<Language, Translations> = {
         },
         happy: {
           name: "Happy",
-          description: "Energetic rhythms, cheerful melodies, and a bright interface with lively effects.",
+          // A non-breaking space joins "a" to "bright" — without it, this
+          // description's line wrap (at this screen's fixed 382px English
+          // description width) stranded the standalone article "a" alone
+          // at the end of the first line, with "bright interface..."
+          // starting the second. Melancholic's own "and a moody visual..."
+          // wraps fine as-is (its "a" already lands mid-line, glued to
+          // "moody"), so only this one description needed the fix.
+          description: "Energetic rhythms, cheerful melodies, and a bright interface with lively effects.",
         },
         melancholic: {
           name: "Melancholic",

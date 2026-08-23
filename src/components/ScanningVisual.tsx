@@ -293,7 +293,7 @@ export default forwardRef<ScanningVisualHandle, ScanningVisualProps>(function Sc
       {/* Mobile (below `lg`) — Figma node `289:6890`. */}
       <div
         className="relative size-[224px] shrink-0 overflow-hidden rounded-[11px] lg:hidden"
-        style={gradientBorderStyle("1px")}
+        style={gradientBorderStyle("2px")}
       >
         <div className="absolute inset-0 [transform:scaleX(-1)]">
           <video ref={setDetectionVideoEl} muted playsInline autoPlay className="absolute inset-0 size-full object-cover" />
