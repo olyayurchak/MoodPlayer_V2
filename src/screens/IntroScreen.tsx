@@ -25,19 +25,42 @@ import TextStack from "../components/TextStack"
  *
  * The `LanguageSwitcher` (Figma node `437:90`, same component/markup the
  * Camera Permission and Vibe Result screens already use — imported, not
- * re-implemented) sits absolutely positioned in the top-right corner
- * rather than in a shared header row like those screens have, since Intro
- * has no such row of its own (`TextStack`'s `<h1>` wordmark is the hero
- * heading, not a header logo). `right-[24px] top-[24px]` on Mobile matches
- * this project's own established corner-inset convention elsewhere
- * (`p-[24px]` on other screens' `<main>`); `lg:right-[64px] lg:top-[64px]`
- * matches Figma's own Desktop offset exactly (node `437:90` sits at
- * `x:1304 y:64` inside a `1440×1024` frame → margins of `1440-1304-72=64`
- * / `64`). Placed after `MoodBubbleCluster` in this tree so it paints on
- * top of the background/bubble layers in normal DOM stacking order — both
- * of those are already `pointer-events-none`, so there's no click
- * interception either way, but this also keeps the switcher visually on
- * top of them without needing an explicit `z-index`.
+ * re-implemented; this screen's own position for it is explicitly
+ * different from those screens' shared top-right corner placement, per a
+ * later task's own request) is centered above the `<h1>` wordmark.
+ *
+ * Earlier versions nested it as a real flex child of `data-intro-content`
+ * (to get its horizontal centering "for free" from that column's own
+ * `items-center`), with a `relative -top-[24px]` nudge on top to fine-tune
+ * its vertical position without disturbing flow. That worked visually but
+ * had a real structural cost: being a flow child meant it occupied real
+ * space (its own height + one `gap-hero-gap`) *before* `TextStack`,
+ * pushing `TextStack`/`CtaPill` down by that same amount versus the
+ * approved pre-switcher baseline (git `e842fe5`) — which in turn narrowed
+ * the CTA-to-bubbles gap enough that later attempts to compensate by
+ * shifting the (fixed-size, hard-clipped) bubble stage down broke bubble
+ * visibility outright (see `MoodBubbleCluster`'s own comment below).
+ *
+ * Fixed at the root rather than patched again: the switcher is now
+ * `position: absolute` inside `data-intro-content` (still `relative`),
+ * centered via `left-1/2 -translate-x-1/2`. An absolutely positioned
+ * element contributes zero flow height and doesn't participate in this
+ * column's `gap-hero-gap` rhythm at all, so `TextStack` is once again the
+ * first element that actually occupies flow space here — its position
+ * (and `CtaPill`'s below it) is back to exactly the approved pre-switcher
+ * baseline, with no residual offset to compensate for. The switcher's own
+ * `top` value (`188px` Mobile / `148px` Desktop) was read directly from
+ * where it was already rendering under the old flow-based approach, so
+ * its own visual position is unchanged — only the *mechanism* changed,
+ * from "occupies flow space, nudged up visually" to "never occupies flow
+ * space at all".
+ *
+ * Desktop's own `top` moved from `148px` to `106px` (a later, explicit
+ * follow-up) — 42px higher, for more visual separation from the `<h1>`
+ * below — via the `lg:top-[106px]` variant only; the base (Mobile) value
+ * stays `188px`, untouched. Moved again from `106px` to `82px` (a further
+ * explicit follow-up) — another 24px higher, Desktop-only, Mobile still
+ * untouched.
  */
 export default function IntroScreen({ onCtaClick }: { onCtaClick?: () => void }) {
   return (
@@ -47,13 +70,13 @@ export default function IntroScreen({ onCtaClick }: { onCtaClick?: () => void })
     >
       <AppBackground />
       <MoodBubbleCluster />
-      <div className="absolute right-[24px] top-[24px] lg:right-[64px] lg:top-[64px]">
-        <LanguageSwitcher />
-      </div>
       <div
         data-intro-content
         className="relative mx-auto flex w-full max-w-content flex-col items-center gap-hero-gap pt-hero-top lg:max-w-content-lg lg:pt-hero-top-lg"
       >
+        <div className="absolute left-1/2 top-[188px] -translate-x-1/2 lg:top-[82px]">
+          <LanguageSwitcher />
+        </div>
         <TextStack />
         <CtaPill onClick={onCtaClick} />
       </div>

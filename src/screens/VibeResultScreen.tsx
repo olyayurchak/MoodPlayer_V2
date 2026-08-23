@@ -167,17 +167,10 @@ export default function VibeResultScreen({
   return (
     <main className="relative flex min-h-[max(100dvh,var(--spacing-frame-h))] items-center justify-center overflow-hidden bg-bg-base p-[24px] lg:min-h-[max(100dvh,var(--spacing-frame-h-lg))]">
       <AppBackground />
-      {/* Positioned directly on `<main>`, not inside the centered/padded
-          panel below — see `CameraPermissionScreen`'s own doc comment
-          (identical reasoning/values, shared by this screen's matching
-          panel structure) and `IntroScreen`'s switcher, which this now
-          matches exactly. */}
-      <div className="absolute right-[24px] top-[24px] lg:right-[64px] lg:top-[64px]">
-        <LanguageSwitcher />
-      </div>
       <div className="relative flex w-full max-w-[382px] flex-col items-start gap-[64px] rounded-[24px] backdrop-blur-[20px] lg:max-w-[1242px] lg:border-[1.5px] lg:border-[rgba(255,255,255,0.12)] lg:bg-[rgba(118,118,118,0.08)] lg:p-[64px]">
         <div className="flex w-full items-center justify-between">
           <MoodPlayerLogo />
+          <LanguageSwitcher />
         </div>
 
         <div className="flex w-full flex-col items-center gap-[24px] lg:flex-row lg:items-start lg:gap-[54px]">

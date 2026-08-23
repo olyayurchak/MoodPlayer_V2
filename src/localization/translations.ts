@@ -69,22 +69,15 @@ export type Translations = {
   /** Vibe Result screen — reached automatically once scanning's completed
    *  state (above) is reached, no click required (see `App.tsx`).
    *  Approved Figma frames: Desktop `284:2584`/`284:2656`, Mobile `289:6988`,
-   *  showing the "chill" and "happy" examples respectively. `moods.chill`'s
-   *  and `moods.happy`'s `name`/`description`/`ctaLabel` are each their own
-   *  frame's English text verbatim. `moods.melancholic` still has no Figma
-   *  reference at all — its English copy here is a placeholder in the same
-   *  tone/pattern, clearly not design-approved, needed only so the manual
-   *  mood-selector (which Figma's own control hierarchy requires
-   *  supporting) has something non-empty to show for that mood. The screen chrome
-   *  (`heading`/`scanAgainLabel`/`manualChooseLabel`) and `moods.chill`
-   *  have real Ukrainian translations (a later task explicitly requested
-   *  Chill-screen localization — Guidelines §10's "unless the current task
-   *  explicitly requests translation work" applies). `moods.happy` now has
-   *  a real Ukrainian translation too (a later task explicitly requested
-   *  it, alongside implementing the Happy state itself from Figma frame
-   *  `284:2656`). `moods.melancholic` still mirrors its English text
-   *  verbatim — still out of scope and still no Figma reference. This
-   *  remains a real, reportable gap for Melancholic, not a silent one. */
+   *  showing the "chill" and "happy" examples respectively — `name` for
+   *  all three moods, in both languages, is each frame's/existing text
+   *  verbatim. `description` for all three moods, in both languages, was
+   *  replaced with explicitly-approved copy from a later task (not itself
+   *  sourced from a Figma frame export) — this also resolved the
+   *  Melancholic gap this comment used to document: earlier, Melancholic
+   *  had no Figma reference at all and its Ukrainian `description` simply
+   *  mirrored the English placeholder verbatim; both languages now have
+   *  their own real, approved text like Chill and Happy already did. */
   vibeResult: {
     heading: string
     scanAgainLabel: string
@@ -142,21 +135,17 @@ export const translations: Record<Language, Translations> = {
       // doc comment above.
       ctaLabel: "Start listening",
       moods: {
-        // Figma-approved text, verbatim (frames `284:2584` / `289:6988`).
         chill: {
           name: "Chill",
-          description: "Soft rhythms, atmospheric sounds, and a calm visual palette designed for your chill mood.",
+          description: "Soft rhythms, atmospheric sounds, and calm visuals with gentle motion.",
         },
-        // Figma-approved text, verbatim (frame `284:2656`).
         happy: {
           name: "Happy",
-          description: "Energetic rhythms, cheerful melodies, and a bright, vibrant interface palette designed to lift your mood.",
+          description: "Energetic rhythms, cheerful melodies, and a bright interface with lively effects.",
         },
-        // Placeholder — no Figma reference exists for this mood yet; see
-        // this section's own doc comment on the `Translations` type above.
         melancholic: {
           name: "Melancholic",
-          description: "Slow tempos, introspective tones, and a moody visual palette designed for your melancholic mood.",
+          description: "Slow tempos, introspective tones, and a moody visual palette for reflective moments.",
         },
       },
     },
@@ -213,15 +202,15 @@ export const translations: Record<Language, Translations> = {
       moods: {
         chill: {
           name: "Чіл",
-          description: "М'які ритми, атмосферні звуки та спокійна візуальна палітра для твого розслабленого настрою.",
+          description: "М’які ритми, атмосферне звучання та спокійні візуальні ефекти з плавною анімацією.",
         },
         happy: {
           name: "Радість",
-          description: "Енергійні ритми, веселі мелодії та яскрава візуальна палітра, що піднімають настрій.",
+          description: "Енергійні ритми, життєрадісні мелодії та яскравий інтерфейс із динамічними ефектами.",
         },
         melancholic: {
           name: "Меланхолія",
-          description: "Slow tempos, introspective tones, and a moody visual palette designed for your melancholic mood.",
+          description: "Повільні темпи, задумливі мотиви та приглушена візуальна палітра для моментів роздумів.",
         },
       },
     },
