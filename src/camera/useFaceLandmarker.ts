@@ -6,6 +6,13 @@ export type FaceLandmarkerStatus = "loading" | "tracking" | "no-face" | "error"
 
 export type FaceLandmarkPoint = { x: number; y: number; z: number }
 
+/** One frame's blendshape scores, flattened from MediaPipe's own
+ *  `Category[]` (`{ categoryName, score }` pairs) into a plain
+ *  `categoryName → score` map — purely a shape convenience (mirrors how
+ *  `landmarks` below is already `faces[0]`, not the raw nested array),
+ *  not any kind of aggregation or interpretation of the values. */
+export type ExpressionSnapshot = Record<string, number>
+
 type UseFaceLandmarkerResult = {
   status: FaceLandmarkerStatus
   landmarks: FaceLandmarkPoint[] | null
@@ -272,10 +279,25 @@ const KEY_MESH_LANDMARK_INDICES = [10, 152, 1, 61, 291, 33, 263, 234, 454, 172, 
  * can never break the surrounding camera-permission flow — the live video
  * preview keeps working regardless (Guidelines §8's required
  * MediaPipe-load-failure recovery).
+ *
+ * `onBlendshapes`, if given, is called *imperatively* from inside the
+ * detection loop with each tracked frame's blendshape scores (see
+ * `ExpressionSnapshot`), or `null` whenever no face is tracked —
+ * deliberately never routed through `useState`/the hook's own return
+ * value. A real scan produces a new blendshapes object on essentially
+ * every animation frame (tens of times per second); an earlier version
+ * exposed this as reactive state instead, which meant every one of those
+ * frames triggered a full render+effect cascade through every component
+ * between this hook and its consumer — precisely what caused a real,
+ * reproducible "Maximum update depth exceeded" crash during continuous
+ * scanning. Kept in a ref (`onBlendshapesRef`) rather than added to the
+ * detection effect's own dependency array, so passing a new callback
+ * identity on every caller render can never restart MediaPipe setup.
  */
 export function useFaceLandmarker(
   videoEl: HTMLVideoElement | null,
   enabled: boolean,
+  onBlendshapes?: (blendshapes: ExpressionSnapshot | null) => void,
 ): UseFaceLandmarkerResult {
   const [status, setStatus] = useState<FaceLandmarkerStatus>("loading")
   const [landmarks, setLandmarks] = useState<FaceLandmarkPoint[] | null>(null)
@@ -292,6 +314,13 @@ export function useFaceLandmarker(
   const landmarkerRef = useRef<FaceLandmarkerType | null>(null)
   const rafRef = useRef<number | null>(null)
   const cancelledRef = useRef(false)
+  // Always the latest `onBlendshapes` — updated every render (a plain
+  // assignment during render is safe here since it never reads state,
+  // only stores a reference for the detection loop below to call
+  // imperatively), so the loop never captures a stale closure without
+  // needing `onBlendshapes` in the detection effect's own deps.
+  const onBlendshapesRef = useRef(onBlendshapes)
+  onBlendshapesRef.current = onBlendshapes
 
   useEffect(() => {
     if (!enabled || !videoEl) return
@@ -299,6 +328,7 @@ export function useFaceLandmarker(
     cancelledRef.current = false
     setStatus("loading")
     setLandmarks(null)
+    onBlendshapesRef.current?.(null)
 
     async function setup() {
       try {
@@ -311,6 +341,15 @@ export function useFaceLandmarker(
           },
           runningMode: "VIDEO",
           numFaces: 1,
+          // Enabled so this hook's own `blendshapes` output (below) is
+          // populated at all — an earlier task confirmed this installed
+          // model's real runtime category names via a temporary one-time
+          // dump log, since removed now that they're confirmed;
+          // `useExpressionSampler` (via `ScanningVisual`'s
+          // `onBlendshapesChange`) is the current consumer. Not yet used
+          // by any mood logic. `outputFacialTransformationMatrixes` is
+          // deliberately left unset (default off) — not needed here.
+          outputFaceBlendshapes: true,
         })
 
         if (cancelledRef.current) {
@@ -350,14 +389,29 @@ export function useFaceLandmarker(
                 setLandmarks(faces[0])
                 setVideoSize({ width: videoEl.videoWidth, height: videoEl.videoHeight })
                 setStatus("tracking")
+
+                // Flattened once here (see `ExpressionSnapshot`'s doc
+                // comment) so every consumer reads a plain map rather
+                // than re-deriving one from the raw `Category[]` itself.
+                // Delivered via the imperative callback ref, never
+                // `useState` — see this hook's own doc comment on why.
+                const categoriesForFrame = result.faceBlendshapes?.[0]?.categories
+
+                onBlendshapesRef.current?.(
+                  categoriesForFrame
+                    ? Object.fromEntries(categoriesForFrame.map((c) => [c.categoryName, c.score]))
+                    : null,
+                )
               } else {
                 setLandmarks(null)
+                onBlendshapesRef.current?.(null)
                 setStatus("no-face")
               }
             }
           } catch {
             setStatus("error")
             setLandmarks(null)
+            onBlendshapesRef.current?.(null)
             return // Stop the loop — a thrown detection error won't self-heal.
           }
           rafRef.current = requestAnimationFrame(loop)

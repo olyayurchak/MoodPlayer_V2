@@ -1,7 +1,7 @@
 import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from "react"
 import { gradientBorderStyle } from "./CameraPermissionVisual"
 import { drawFaceMesh, type MeshLayer } from "../camera/faceMeshDraw"
-import { useFaceLandmarker, type FaceLandmarkerStatus } from "../camera/useFaceLandmarker"
+import { useFaceLandmarker, type ExpressionSnapshot, type FaceLandmarkerStatus } from "../camera/useFaceLandmarker"
 import { FADE_ANCHOR_A, FADE_ANCHOR_B, useHeadPose } from "../camera/useHeadPose"
 import { useLanguage } from "../localization/LanguageContext"
 
@@ -26,6 +26,22 @@ type ScanningVisualProps = {
    *  the one status value this component itself has no further recovery
    *  affordance for. */
   onFaceStatusChange?: (status: FaceLandmarkerStatus) => void
+  /** Called *imperatively*, directly from `useFaceLandmarker`'s own
+   *  detection loop, with each tracked frame's blendshapes — `null`
+   *  while no face is tracked. Added so a caller (e.g.
+   *  `useExpressionSampler`, via `CameraPermissionScreen`) can sample
+   *  expression data across the scan without this component doing any
+   *  sampling, aggregation, or mood interpretation itself. Deliberately
+   *  passed straight through to `useFaceLandmarker` below rather than
+   *  mirrored into this component's own state and re-forwarded from a
+   *  `useEffect` (unlike `onValidScanChange`/`onFaceStatusChange` above,
+   *  both rare boolean/enum transitions): blendshapes change on
+   *  essentially every animation frame during a real scan, and routing
+   *  a value that changes that often through React state at every layer
+   *  is exactly what caused a real "Maximum update depth exceeded" crash
+   *  during continuous scanning — see `useFaceLandmarker`'s own doc
+   *  comment on `onBlendshapes`. */
+  onBlendshapesChange?: (blendshapes: ExpressionSnapshot | null) => void
 }
 
 export type ScanningVisualHandle = {
@@ -100,7 +116,7 @@ export type ScanningVisualHandle = {
  * way.
  */
 export default forwardRef<ScanningVisualHandle, ScanningVisualProps>(function ScanningVisual(
-  { stream, onValidScanChange, onFaceStatusChange },
+  { stream, onValidScanChange, onFaceStatusChange, onBlendshapesChange },
   ref,
 ) {
   const { t } = useLanguage()
@@ -158,7 +174,7 @@ export default forwardRef<ScanningVisualHandle, ScanningVisualProps>(function Sc
     contourConnectors,
     lipsConnectors,
     tessellationConnectors,
-  } = useFaceLandmarker(detectionVideoEl, !!stream)
+  } = useFaceLandmarker(detectionVideoEl, !!stream, onBlendshapesChange)
 
   // Pose-aware rendering (head-turn detection + far-side base-mesh fade +
   // the strong-turn guidance state) — layered entirely on top of the

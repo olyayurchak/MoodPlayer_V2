@@ -8,31 +8,20 @@ import { useCameraStream } from "./camera/useCameraStream"
 
 type Screen = "intro" | "camera-permission" | "vibe-result"
 
-/** `?screen=camera-permission` / `?screen=vibe-result` still work as direct
- *  dev-preview links — read once, only for the initial screen, so they
- *  keep behaving exactly as the first one did before any CTA/auto-
- *  transition could navigate here itself. `vibe-result` reached this way
- *  uses the same `TEMP_DEV_FIXTURE_SUGGESTED_MOOD` the real automatic
- *  transition does — there's no other mood value to show yet either way. */
+/** `?screen=camera-permission` still works as a direct dev-preview link —
+ *  read once, only for the initial screen, so it keeps behaving exactly
+ *  as before any CTA/auto-transition could navigate here itself.
+ *  `?screen=vibe-result` is deliberately no longer accepted as a direct
+ *  initial link: it used to work by falling back to a hardcoded
+ *  development fixture mood (since removed, see `suggestedMood` below),
+ *  but there is no real suggested mood to show without an actual
+ *  completed scan — and at the very first render there can never have
+ *  been one yet. Falls back to `"intro"`, the same as any other
+ *  unrecognized `screen` value. */
 function initialScreen(): Screen {
   const param = new URLSearchParams(window.location.search).get("screen")
-  return param === "camera-permission" || param === "vibe-result" ? param : "intro"
+  return param === "camera-permission" ? param : "intro"
 }
-
-/**
- * Real mood classification doesn't exist anywhere in this codebase yet
- * (Guidelines: do not invent facial-expression classification, and this
- * task explicitly forbids implementing it). This is a deliberately
- * isolated, clearly-named development fixture standing in for that real
- * value — the one thing `handleScanComplete` below hands to
- * `VibeResultScreen` — so the screen and its automatic-transition wiring
- * can be built and visually verified now. Replace this single constant
- * (and nothing else) once a real suggested-mood value exists; every other
- * piece of this flow (the transition trigger, the Result screen itself)
- * already treats the mood as an opaque `MoodId` it's simply handed,
- * making no assumption about where it came from.
- */
-const TEMP_DEV_FIXTURE_SUGGESTED_MOOD: MoodId = "chill"
 
 /**
  * No router exists — `useFadeTransition` (see that file) owns the actual
@@ -96,15 +85,24 @@ export default function App() {
   // below, right after `handleScanAgain`) so a stale frame from a
   // previous scan can never leak into a new one.
   const [capturedFrame, setCapturedFrame] = useState<string | null>(null)
+  // The real classified mood for the most recently completed scan (see
+  // `CameraPermissionScreen`'s `onScanComplete`) — `null` only until the
+  // very first scan ever completes; never read while `screen` is
+  // anything other than `"vibe-result"`, and always set synchronously,
+  // in the same handler below, immediately before navigating there — see
+  // `renderScreen`'s own "vibe-result" case for why that makes the `null`
+  // case provably unreachable at the one point it would matter.
+  const [suggestedMood, setSuggestedMood] = useState<MoodId | null>(null)
 
   const handleCtaClick = useCallback(() => {
     if (screen === "intro") navigate("camera-permission")
   }, [screen, navigate])
 
   const handleScanComplete = useCallback(
-    (capturedFrameArg: string | null) => {
+    (capturedFrameArg: string | null, mood: MoodId) => {
       if (screen !== "camera-permission") return
       setCapturedFrame(capturedFrameArg)
+      setSuggestedMood(mood)
       navigate("vibe-result")
     },
     [screen, navigate],
@@ -134,12 +132,19 @@ export default function App() {
   function renderScreen(current: Screen) {
     switch (current) {
       case "vibe-result":
+        // `suggestedMood` is only ever `null` before the very first scan
+        // has completed — `screen` can only *become* `"vibe-result"` via
+        // `handleScanComplete`, which sets `suggestedMood` synchronously,
+        // in the same call, immediately before navigating (see that
+        // handler above, and `initialScreen`'s own doc comment for why
+        // `"vibe-result"` can no longer be the *initial* screen either).
+        // So this case is provably unreachable with a `null` mood in
+        // practice; guarded here anyway rather than an unsafe cast, so a
+        // future change to that invariant fails safe (renders nothing)
+        // instead of silently substituting some other mood.
+        if (!suggestedMood) return null
         return (
-          <VibeResultScreen
-            suggestedMood={TEMP_DEV_FIXTURE_SUGGESTED_MOOD}
-            capturedFrame={capturedFrame}
-            onScanAgain={handleScanAgain}
-          />
+          <VibeResultScreen suggestedMood={suggestedMood} capturedFrame={capturedFrame} onScanAgain={handleScanAgain} />
         )
       case "camera-permission":
         return (

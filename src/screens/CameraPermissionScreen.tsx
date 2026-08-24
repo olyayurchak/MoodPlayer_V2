@@ -11,6 +11,8 @@ import { useLanguage } from "../localization/LanguageContext"
 import type { CameraStreamStatus } from "../camera/useCameraStream"
 import { useScanProgress } from "../camera/useScanProgress"
 import type { FaceLandmarkerStatus } from "../camera/useFaceLandmarker"
+import { useExpressionSampler } from "../camera/useExpressionSampler"
+import type { MoodId } from "../data/moods"
 import { useFadeTransition } from "../hooks/useFadeTransition"
 
 /** This screen's own internal sub-phase — separate from, and never
@@ -103,11 +105,10 @@ const SCAN_DURATION_MS = 4500
  * sometime after mount (once the user clicks "Allow Camera") and the
  * fade needs to actually run at that later point.
  *
- * Out of scope for this milestone (per the current task):
- * mood classification and gesture recognition — granting access here
- * goes no further than the scanning state itself, and this component
- * still has no idea what a real suggested mood would be (see `App.tsx`'s
- * own doc comment on `onScanComplete` below for where that gap lives).
+ * Out of scope for this milestone (per the current task): gesture
+ * recognition. Mood classification, however, is now real — see
+ * `getAnalysis` below and `useExpressionSampler`'s own doc comment for
+ * why it's a synchronous, on-demand function rather than React state.
  *
  * Scan progress/completion: this component is where `ScanningVisual`'s
  * per-frame face/pose validity (reported via `onValidScanChange`, derived
@@ -119,11 +120,16 @@ const SCAN_DURATION_MS = 4500
  * produces, since none existed before this prop did either. At that same
  * instant, a ref to `ScanningVisual` is used to grab one still frame
  * (`ScanningVisualHandle.captureFrame`) for the Vibe Result screen's
- * static "captured you" visual — a plain in-memory JPEG data URL, handed
- * up through `onScanComplete` alongside the completion signal itself and
- * never stored anywhere in this component. `null` (not a thrown error) if
- * no frame was available at that instant; the Result screen is expected
- * to fall back to its own decorative placeholder in that case.
+ * static "captured you" visual, and `useExpressionSampler`'s own
+ * `getAnalysis()` is called to get the real classified `MoodId` for this
+ * scan — both handed up through `onScanComplete` together, synchronously,
+ * in the same instant. The captured frame is a plain in-memory JPEG data
+ * URL, never stored anywhere in this component; `null` (not a thrown
+ * error) if no frame was available at that instant, and the Result
+ * screen is expected to fall back to its own decorative placeholder in
+ * that case. `getAnalysis()` itself never fails — see `analyzeMoodV1`'s
+ * own doc comment on why it's a total function that always returns a
+ * real `MoodId`, never a missing/undefined result.
  *
  * `LanguageSwitcher` sits back inside the header row alongside
  * `MoodPlayerLogo` (`justify-between` puts the logo left / switcher
@@ -150,10 +156,11 @@ export default function CameraPermissionScreen({
   requestAccess: () => void
   /** Fires once, the instant scanning's own completed state is first
    *  reached — see the doc comment above. `App.tsx` uses this to trigger
-   *  the automatic Scanning → Vibe Result transition, and to receive the
-   *  one captured still frame (or `null`); this component itself has no
-   *  idea what happens to either value after, by design. */
-  onScanComplete?: (capturedFrame: string | null) => void
+   *  the automatic Scanning → Vibe Result transition, and to receive both
+   *  the one captured still frame (or `null`) and the real classified
+   *  `MoodId` for this scan; this component itself has no idea what
+   *  happens to either value after, by design. */
+  onScanComplete?: (capturedFrame: string | null, suggestedMood: MoodId) => void
 }) {
   const { t } = useLanguage()
   const scanningVisualRef = useRef<ScanningVisualHandle>(null)
@@ -230,6 +237,21 @@ export default function CameraPermissionScreen({
     scanResetKey,
   )
 
+  // Real expression sampling + mood classification — reuses
+  // `isValidScanning` and `scanResetKey` verbatim so a MediaPipe retry
+  // clears stale samples in lockstep with `useScanProgress` resetting
+  // progress, with no separate reset plumbing. `recordSample` is passed
+  // straight through to `ScanningVisual` as `onBlendshapesChange` below —
+  // deliberately *not* mirrored into a `blendshapes` state here first (an
+  // earlier version did, which caused a real "Maximum update depth
+  // exceeded" crash during continuous scanning: blendshapes change on
+  // essentially every frame, and `setState`-ing that here on every frame
+  // cascaded back down into `ScanningVisual` every frame too). See
+  // `useExpressionSampler`'s own doc comment for the full explanation,
+  // including why `getAnalysis` is a synchronous on-demand function
+  // rather than similarly-mirrored state.
+  const { recordSample, getAnalysis } = useExpressionSampler(isValidScanning, scanResetKey, scanCompleted)
+
   // Reports this mounted `ScanningVisual` instance's own MediaPipe status —
   // see `CameraErrorKind`'s doc comment above. Only a transition *into*
   // `"error"` is acted on here; every other status already has its own
@@ -240,11 +262,19 @@ export default function CameraPermissionScreen({
   }, [])
 
   useEffect(() => {
-    if (scanCompleted) onScanComplete?.(scanningVisualRef.current?.captureFrame() ?? null)
+    if (!scanCompleted) return
+    const capturedFrame = scanningVisualRef.current?.captureFrame() ?? null
+    // `getAnalysis()` is a synchronous, on-demand read of this scan's own
+    // accumulated samples (see `useExpressionSampler`'s own doc comment)
+    // — calling it here, in the same instant as the capture above, means
+    // both values reach `onScanComplete` together with no state-update
+    // race between this effect and `useExpressionSampler`'s internal one.
+    const { mood } = getAnalysis()
+    onScanComplete?.(capturedFrame, mood)
     // `scanCompleted` only ever goes false → true once per mount (see
     // `useScanProgress`'s own "terminal state" doc comment) — no need to
     // guard against firing more than once here beyond that.
-  }, [scanCompleted, onScanComplete])
+  }, [scanCompleted, onScanComplete, getAnalysis])
 
   // `Try Again`'s one handler, doing whichever retry actually applies to
   // the current `errorKind`:
@@ -320,6 +350,7 @@ export default function CameraPermissionScreen({
                 stream={stream}
                 onValidScanChange={handleValidScanChange}
                 onFaceStatusChange={handleFaceStatusChange}
+                onBlendshapesChange={recordSample}
               />
             ) : (
               <CameraPermissionVisual />
