@@ -39,8 +39,24 @@ export type ScanProgress = {
  * out to be one level up, in `App.tsx`'s own render structure causing an
  * *extra*, unwanted second mount of this hook mid-transition — see that
  * file's own doc comment.
+ *
+ * `resetKey` is a *separate* reset path, alongside the fresh-mount one
+ * above — needed because a MediaPipe init/runtime failure ("Face analysis
+ * unavailable") followed by its own "Try Again" does *not* remount
+ * `CameraPermissionScreen` (only the child `ScanningVisual` remounts, to
+ * force a real MediaPipe re-init — see that screen's own `handleTryAgain`
+ * doc comment), so this hook's own instance — and the accumulated
+ * progress living in its refs — would otherwise survive that retry
+ * untouched. Changing `resetKey` (e.g. an incrementing counter bumped
+ * only on that one retry path) forces exactly that: progress restarts at
+ * `0%`, same as a fresh mount would. Left `undefined` by any caller that
+ * never needs this (there was none before this reset path existed), so
+ * it defaults to a stable value that never changes and this behaves
+ * identically to before. This is intentionally a distinct mechanism from
+ * `isValidScanning`'s own pause/resume above — a no-face pause must never
+ * touch accumulated progress, only a `resetKey` change may zero it.
  */
-export function useScanProgress(isValidScanning: boolean, durationMs: number): ScanProgress {
+export function useScanProgress(isValidScanning: boolean, durationMs: number, resetKey?: unknown): ScanProgress {
   const [progress, setProgress] = useState(0)
   const [completed, setCompleted] = useState(false)
 
@@ -55,6 +71,23 @@ export function useScanProgress(isValidScanning: boolean, durationMs: number): S
   // elapsed time instead of the whole paused gap.
   const lastTimestampRef = useRef<number | null>(null)
   const rafRef = useRef<number | null>(null)
+
+  // Skips the reset on this hook's very first render — there is nothing
+  // to reset yet at that point, and the initial values below are already
+  // exactly what a reset would produce anyway, so this guard is purely to
+  // keep "first mount" and "an explicit reset" clearly distinct rather
+  // than functional necessity.
+  const isFirstRenderRef = useRef(true)
+  useEffect(() => {
+    if (isFirstRenderRef.current) {
+      isFirstRenderRef.current = false
+      return
+    }
+    accumulatedMsRef.current = 0
+    lastTimestampRef.current = null
+    setProgress(0)
+    setCompleted(false)
+  }, [resetKey])
 
   useEffect(() => {
     if (completed) return // Terminal — no further accumulation or ticking.

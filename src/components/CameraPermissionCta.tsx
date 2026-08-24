@@ -59,13 +59,24 @@ import { useLanguage } from "../localization/LanguageContext"
  * explicit user action Guidelines §8 requires before ever requesting
  * camera access. `disabled` is set while a request is in flight so a
  * second click can't fire a duplicate `getUserMedia` call.
+ *
+ * `label` overrides the button's own text without touching anything
+ * else — dimensions, gradient, border, hover/press/focus treatment all
+ * stay exactly as-is regardless of which string is shown. Defaults to
+ * `t.cameraPermission.ctaLabel` ("Allow Camera"); `CameraPermissionScreen`
+ * passes `t.cameraPermission.tryAgainLabel` ("Try Again") instead while a
+ * camera or MediaPipe error state is active, reusing this same component
+ * (and its `onClick`, now wired to a retry instead of the initial
+ * request) rather than adding a second, near-identical CTA.
  */
 export default function CameraPermissionCta({
   onClick,
   disabled,
+  label,
 }: {
   onClick?: () => void
   disabled?: boolean
+  label?: string
 }) {
   const { t } = useLanguage()
 
@@ -94,7 +105,7 @@ export default function CameraPermissionCta({
           pathLength={100}
         />
       </svg>
-      <span className="relative z-10">{t.cameraPermission.ctaLabel}</span>
+      <span className="relative z-10">{label ?? t.cameraPermission.ctaLabel}</span>
     </button>
   )
 }

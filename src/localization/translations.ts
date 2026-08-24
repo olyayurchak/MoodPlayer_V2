@@ -65,6 +65,21 @@ export type Translations = {
      *  scanning captions already are, with no separate aria-only string
      *  needed. */
     scanningCompleteLabel: string
+    /** Error-recovery states — replace `heading`/`body`/`ctaLabel` above
+     *  (never rendered alongside them) whenever a camera or MediaPipe
+     *  failure needs the user's attention; see `CameraPermissionScreen`'s
+     *  own `errorKind` state for exactly when each applies. All three
+     *  share one `tryAgainLabel` CTA rather than each having its own —
+     *  the action ("retry whatever just failed") is identical in kind
+     *  across all three, only the heading/subtitle explain which failure
+     *  occurred. */
+    errorDeniedHeading: string
+    errorDeniedSubtitle: string
+    errorUnavailableHeading: string
+    errorUnavailableSubtitle: string
+    errorMediaPipeHeading: string
+    errorMediaPipeSubtitle: string
+    tryAgainLabel: string
   }
   /** Vibe Result screen — reached automatically once scanning's completed
    *  state (above) is reached, no click required (see `App.tsx`).
@@ -126,6 +141,14 @@ export const translations: Record<Language, Translations> = {
       scanningFaceCamera: "Face the camera",
       scanningAriaLabel: "Scanning in progress",
       scanningCompleteLabel: "Vibe found",
+      errorDeniedHeading: "Camera access needed",
+      errorDeniedSubtitle:
+        "MoodPlayer needs camera access to scan your facial cues. Enable camera access in your browser settings, then try again.",
+      errorUnavailableHeading: "Camera unavailable",
+      errorUnavailableSubtitle: "We couldn't access your camera. Check that it's available and try again.",
+      errorMediaPipeHeading: "Face analysis unavailable",
+      errorMediaPipeSubtitle: "We couldn't start facial analysis. Try again to restart the scan.",
+      tryAgainLabel: "Try Again",
     },
     vibeResult: {
       heading: "Your suggested vibe",
@@ -189,6 +212,14 @@ export const translations: Record<Language, Translations> = {
       scanningFaceCamera: "Повернись до камери",
       scanningAriaLabel: "Сканування триває",
       scanningCompleteLabel: "Вайб визначено",
+      errorDeniedHeading: "Потрібен доступ до камери",
+      errorDeniedSubtitle:
+        "MoodPlayer потрібен доступ до камери, щоб проаналізувати міміку. Дозволь доступ у налаштуваннях браузера та спробуй ще раз.",
+      errorUnavailableHeading: "Камера недоступна",
+      errorUnavailableSubtitle: "Не вдалося отримати доступ до камери. Перевір її доступність і спробуй ще раз.",
+      errorMediaPipeHeading: "Не вдалося запустити аналіз",
+      errorMediaPipeSubtitle: "Не вдалося запустити аналіз обличчя. Спробуй ще раз, щоб перезапустити сканування.",
+      tryAgainLabel: "Спробувати ще раз",
     },
     // The screen chrome and `chill` below are real, requested Ukrainian
     // translations (not a mirror) — reusing this file's own established

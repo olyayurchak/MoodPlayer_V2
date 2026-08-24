@@ -1,7 +1,7 @@
 import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from "react"
 import { gradientBorderStyle } from "./CameraPermissionVisual"
 import { drawFaceMesh, type MeshLayer } from "../camera/faceMeshDraw"
-import { useFaceLandmarker } from "../camera/useFaceLandmarker"
+import { useFaceLandmarker, type FaceLandmarkerStatus } from "../camera/useFaceLandmarker"
 import { FADE_ANCHOR_A, FADE_ANCHOR_B, useHeadPose } from "../camera/useHeadPose"
 import { useLanguage } from "../localization/LanguageContext"
 
@@ -15,6 +15,17 @@ type ScanningVisualProps = {
    *  component owning any progress/timing state itself — it only ever
    *  reports the boolean its own existing status logic already computes. */
   onValidScanChange?: (isValidScanning: boolean) => void
+  /** Called (only when the value actually changes) with this instance's
+   *  own `useFaceLandmarker` status — added so `CameraPermissionScreen`
+   *  can detect a MediaPipe init/runtime failure (`"error"`) and switch
+   *  the whole screen over to its error-recovery state, without this
+   *  component needing to know anything about that recovery UI itself.
+   *  Every other status (`"loading"`/`"tracking"`/`"no-face"`) already has
+   *  its own existing, unchanged handling entirely within this
+   *  component (the `caption` below) — this callback exists purely for
+   *  the one status value this component itself has no further recovery
+   *  affordance for. */
+  onFaceStatusChange?: (status: FaceLandmarkerStatus) => void
 }
 
 export type ScanningVisualHandle = {
@@ -89,7 +100,7 @@ export type ScanningVisualHandle = {
  * way.
  */
 export default forwardRef<ScanningVisualHandle, ScanningVisualProps>(function ScanningVisual(
-  { stream, onValidScanChange },
+  { stream, onValidScanChange, onFaceStatusChange },
   ref,
 ) {
   const { t } = useLanguage()
@@ -298,6 +309,10 @@ export default forwardRef<ScanningVisualHandle, ScanningVisualProps>(function Sc
   useEffect(() => {
     onValidScanChange?.(isValidScanning)
   }, [isValidScanning, onValidScanChange])
+
+  useEffect(() => {
+    onFaceStatusChange?.(faceStatus)
+  }, [faceStatus, onFaceStatusChange])
 
   return (
     <>

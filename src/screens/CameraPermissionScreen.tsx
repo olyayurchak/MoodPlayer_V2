@@ -10,6 +10,7 @@ import { cameraPermissionFeatures } from "../data/cameraPermissionFeatures"
 import { useLanguage } from "../localization/LanguageContext"
 import type { CameraStreamStatus } from "../camera/useCameraStream"
 import { useScanProgress } from "../camera/useScanProgress"
+import type { FaceLandmarkerStatus } from "../camera/useFaceLandmarker"
 import { useFadeTransition } from "../hooks/useFadeTransition"
 
 /** This screen's own internal sub-phase — separate from, and never
@@ -17,6 +18,13 @@ import { useFadeTransition } from "../hooks/useFadeTransition"
  *  `useFadeTransition`'s use below for why that separation matters here
  *  specifically). */
 type CameraPhase = "permission" | "scanning"
+
+/** Which (if any) camera/MediaPipe error-recovery state is currently
+ *  active — see the doc comment on the `errorKind` state below for the
+ *  full state-machine this drives. `null` is the normal, no-error case
+ *  (either the original permission prompt or an in-progress/successful
+ *  scan). */
+type CameraErrorKind = "denied" | "unavailable" | "mediapipe" | null
 
 /** How much accumulated *valid* scanning time (see `ScanningVisual`'s
  *  `onValidScanChange`) it takes to reach the completed "Vibe found ✓"
@@ -162,7 +170,31 @@ export default function CameraPermissionScreen({
     fadeClassName: cameraFadeClassName,
     navigate: navigateCameraFade,
   } = useFadeTransition<CameraPhase>(cameraStatus === "granted" ? "scanning" : "permission")
-  const isScanning = cameraPhase === "scanning"
+
+  // Which error-recovery state (if any) is currently shown in place of the
+  // normal heading/subtitle/CTA — see `CameraErrorKind`'s own doc comment.
+  // Two independent sources feed this, never both relevant at once:
+  // - `cameraStatus` (camera permission/`getUserMedia` failures) — synced
+  //   below, purely a function of that status, so it can never drift out
+  //   of sync with what `useCameraStream` itself reports.
+  // - `ScanningVisual`'s own `onFaceStatusChange` (MediaPipe init/runtime
+  //   failures) — can only ever be reported while `ScanningVisual` is
+  //   actually mounted, which (see `isScanning` below) is only while
+  //   `errorKind` is `null` — so a `"mediapipe"` error can only be *set*
+  //   from there, never re-confirmed while already set.
+  const [errorKind, setErrorKind] = useState<CameraErrorKind>(null)
+
+  useEffect(() => {
+    if (cameraStatus === "denied") setErrorKind("denied")
+    else if (cameraStatus === "unavailable" || cameraStatus === "error") setErrorKind("unavailable")
+    else if (cameraStatus === "granted") {
+      // Only clear a camera-side error here — a `"mediapipe"` error is
+      // this screen's own separate concern (see the doc comment above)
+      // and must never be silently cleared just because the *camera*
+      // happens to still be granted.
+      setErrorKind((prev) => (prev === "denied" || prev === "unavailable" ? null : prev))
+    }
+  }, [cameraStatus])
 
   useEffect(() => {
     if (cameraStatus === "granted") navigateCameraFade("scanning")
@@ -172,6 +204,13 @@ export default function CameraPermissionScreen({
     // re-triggering the fade.
   }, [cameraStatus, navigateCameraFade])
 
+  // Only render the live Scanning visual while there's no active error —
+  // a `"mediapipe"` error must fall all the way back to the plain static
+  // `CameraPermissionVisual` (see this task's own "keep the left side
+  // completely unchanged" requirement), not stay on `ScanningVisual` with
+  // some broken/frozen live state layered on top of it.
+  const isScanning = cameraPhase === "scanning" && errorKind === null
+
   // `ScanningVisual` owns the actual face/pose detection this boolean is
   // derived from — it only ever reports the boolean via
   // `onValidScanChange`, never any progress/timing state of its own. A
@@ -179,7 +218,26 @@ export default function CameraPermissionScreen({
   // because this component re-rendered.
   const [isValidScanning, setIsValidScanning] = useState(false)
   const handleValidScanChange = useCallback((next: boolean) => setIsValidScanning(next), [])
-  const { progress: scanProgress, completed: scanCompleted } = useScanProgress(isValidScanning, SCAN_DURATION_MS)
+  // Bumped only by a MediaPipe-error "Try Again" (see `handleTryAgain`
+  // below) — forces `useScanProgress` to reset accumulated progress back
+  // to `0%` for that one retry path specifically. Never touched by the
+  // normal no-face pause/resume, camera-permission retry, or the initial
+  // grant — see `useScanProgress`'s own `resetKey` doc comment.
+  const [scanResetKey, setScanResetKey] = useState(0)
+  const { progress: scanProgress, completed: scanCompleted } = useScanProgress(
+    isValidScanning,
+    SCAN_DURATION_MS,
+    scanResetKey,
+  )
+
+  // Reports this mounted `ScanningVisual` instance's own MediaPipe status —
+  // see `CameraErrorKind`'s doc comment above. Only a transition *into*
+  // `"error"` is acted on here; every other status already has its own
+  // existing handling entirely inside `ScanningVisual` (its `caption`),
+  // so this effect has nothing to do for those beyond the no-op branch.
+  const handleFaceStatusChange = useCallback((status: FaceLandmarkerStatus) => {
+    if (status === "error") setErrorKind("mediapipe")
+  }, [])
 
   useEffect(() => {
     if (scanCompleted) onScanComplete?.(scanningVisualRef.current?.captureFrame() ?? null)
@@ -187,6 +245,63 @@ export default function CameraPermissionScreen({
     // `useScanProgress`'s own "terminal state" doc comment) — no need to
     // guard against firing more than once here beyond that.
   }, [scanCompleted, onScanComplete])
+
+  // `Try Again`'s one handler, doing whichever retry actually applies to
+  // the current `errorKind`:
+  // - camera errors (`"denied"`/`"unavailable"`) call the exact same
+  //   `requestAccess` the original "Allow Camera" button calls — already
+  //   guarded against a duplicate concurrent `getUserMedia` call by
+  //   `useCameraStream` itself (its own `requestInFlightRef`/`streamRef`
+  //   checks), and against a repeated *automatic* prompt by design (this
+  //   is only ever called from a real click). `errorKind` itself isn't
+  //   cleared here — the `cameraStatus` effect above clears it once the
+  //   retried request actually resolves (to `"granted"`), so the error
+  //   copy stays visible (CTA disabled meanwhile, see the `disabled` prop
+  //   below) rather than flashing back to the original prompt copy for
+  //   the request's duration.
+  // - a `"mediapipe"` error instead clears `errorKind` directly, which
+  //   flips `isScanning` back to `true` — switching the left visual/CTA
+  //   slot from `CameraPermissionVisual` back to a *brand-new*
+  //   `ScanningVisual` element (a different component at that tree
+  //   position always fully unmounts the old one and mounts a fresh
+  //   instance, exactly like the original permission→scanning swap
+  //   already relies on), which itself re-runs `useFaceLandmarker`'s setup
+  //   from scratch — a real MediaPipe re-init, not a patched-up reuse of
+  //   the failed instance. The camera `MediaStream` itself is untouched
+  //   either way (still owned in `App.tsx`), so this never re-requests
+  //   camera access. Also bumps `scanResetKey` — without this,
+  //   `useScanProgress`'s own accumulator (a ref, untouched by
+  //   `ScanningVisual` remounting since it lives in *this* component, not
+  //   that one) would silently carry over whatever progress had already
+  //   accumulated before the failure, so a retried scan could complete
+  //   almost immediately instead of genuinely starting over at `0%`.
+  const handleTryAgain = useCallback(() => {
+    if (errorKind === "mediapipe") {
+      setErrorKind(null)
+      setScanResetKey((key) => key + 1)
+    } else {
+      requestAccess()
+    }
+  }, [errorKind, requestAccess])
+
+  const heading =
+    errorKind === "denied"
+      ? t.cameraPermission.errorDeniedHeading
+      : errorKind === "unavailable"
+        ? t.cameraPermission.errorUnavailableHeading
+        : errorKind === "mediapipe"
+          ? t.cameraPermission.errorMediaPipeHeading
+          : t.cameraPermission.heading
+  const subtitle =
+    errorKind === "denied"
+      ? t.cameraPermission.errorDeniedSubtitle
+      : errorKind === "unavailable"
+        ? t.cameraPermission.errorUnavailableSubtitle
+        : errorKind === "mediapipe"
+          ? t.cameraPermission.errorMediaPipeSubtitle
+          : t.cameraPermission.body
+  const ctaLabel = errorKind !== null ? t.cameraPermission.tryAgainLabel : undefined
+  const ctaOnClick = errorKind !== null ? handleTryAgain : requestAccess
 
   return (
     <main className="relative flex min-h-[max(100dvh,var(--spacing-frame-h))] items-center justify-center overflow-hidden bg-bg-base p-[24px] lg:min-h-[max(100dvh,var(--spacing-frame-h-lg))]">
@@ -200,7 +315,12 @@ export default function CameraPermissionScreen({
         <div className="flex w-full flex-col items-center gap-[24px] lg:flex-row lg:items-start lg:gap-[54px]">
           <div className={cameraFadeClassName}>
             {isScanning ? (
-              <ScanningVisual ref={scanningVisualRef} stream={stream} onValidScanChange={handleValidScanChange} />
+              <ScanningVisual
+                ref={scanningVisualRef}
+                stream={stream}
+                onValidScanChange={handleValidScanChange}
+                onFaceStatusChange={handleFaceStatusChange}
+              />
             ) : (
               <CameraPermissionVisual />
             )}
@@ -210,11 +330,9 @@ export default function CameraPermissionScreen({
             <div className="flex flex-col items-start gap-[36px]">
               <div className="flex flex-col items-center gap-[8px] text-center lg:items-start lg:text-left">
                 <h1 className="text-[38px] font-medium leading-[1.2] text-white lg:whitespace-nowrap lg:text-[60px]">
-                  {t.cameraPermission.heading}
+                  {heading}
                 </h1>
-                <p className="w-full font-light leading-[1.4] text-[18px] text-[#f1f1f1] lg:w-[508px]">
-                  {t.cameraPermission.body}
-                </p>
+                <p className="w-full font-light leading-[1.4] text-[18px] text-[#f1f1f1] lg:w-[508px]">{subtitle}</p>
               </div>
 
               {/* `w-[280px]` (was) → `w-[322px]`. The third bullet's copy
@@ -253,7 +371,11 @@ export default function CameraPermissionScreen({
               {isScanning ? (
                 <ScanningCta progress={scanProgress} completed={scanCompleted} />
               ) : (
-                <CameraPermissionCta onClick={requestAccess} disabled={cameraStatus === "requesting"} />
+                <CameraPermissionCta
+                  onClick={ctaOnClick}
+                  disabled={cameraStatus === "requesting"}
+                  label={ctaLabel}
+                />
               )}
             </div>
           </div>
