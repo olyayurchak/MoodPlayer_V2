@@ -145,7 +145,7 @@ export default function CameraPermissionVisual() {
       >
         <img
           alt=""
-          className="pointer-events-none absolute inset-0 size-full rounded-[10.994px] object-cover opacity-[0.55]"
+          className="pointer-events-none absolute inset-0 size-full rounded-[10.994px] object-cover opacity-50"
           src={faceScanVisual}
         />
         <div className="absolute left-[-49.7px] top-[36.87px] size-[97.569px]">
@@ -183,7 +183,7 @@ export default function CameraPermissionVisual() {
       >
         <img
           alt=""
-          className="pointer-events-none absolute inset-0 size-full rounded-[24px] object-cover opacity-[0.55]"
+          className="pointer-events-none absolute inset-0 size-full rounded-[24px] object-cover opacity-50"
           src={faceScanVisual}
         />
         <div className="absolute left-[-108.5px] top-[77px] size-[213px]">
