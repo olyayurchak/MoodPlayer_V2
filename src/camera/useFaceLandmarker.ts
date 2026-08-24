@@ -43,6 +43,15 @@ type UseFaceLandmarkerResult = {
    *  smile/mouth changes stay clearly readable even as the rest of the
    *  mesh gets denser. */
   lipsConnectors: Connector[] | null
+  /** MediaPipe's own native dense face tessellation
+   *  (`FaceLandmarker.FACE_LANDMARKS_TESSELATION`, ~2000 edges over all
+   *  478 landmarks) — the current scanning mesh's dense background layer
+   *  (see `ScanningVisual`), replacing the hand-authored
+   *  `meshConnectors`/`BASE_MESH_CONNECTORS` for that role. `meshConnectors`
+   *  itself is left in place, still returned, just no longer drawn by
+   *  that caller — this is purely an additional export, not a
+   *  replacement of anything above. */
+  tessellationConnectors: Connector[] | null
 }
 
 // Loaded from MediaPipe's own official CDN/model-storage hosts — the same
@@ -278,6 +287,7 @@ export function useFaceLandmarker(
   const [keyLandmarkIndices, setKeyLandmarkIndices] = useState<readonly number[] | null>(null)
   const [contourConnectors, setContourConnectors] = useState<Connector[] | null>(null)
   const [lipsConnectors, setLipsConnectors] = useState<Connector[] | null>(null)
+  const [tessellationConnectors, setTessellationConnectors] = useState<Connector[] | null>(null)
 
   const landmarkerRef = useRef<FaceLandmarkerType | null>(null)
   const rafRef = useRef<number | null>(null)
@@ -323,6 +333,12 @@ export function useFaceLandmarker(
         ])
         setLipsConnectors(FaceLandmarker.FACE_LANDMARKS_LIPS)
         setKeyLandmarkIndices(KEY_MESH_LANDMARK_INDICES)
+        // Native dense tessellation — MediaPipe's own connector set, not
+        // derived or hand-authored here. Same "read it off the static
+        // `FaceLandmarker` class once the dynamic import resolves"
+        // pattern as the contour/lips sets above; nothing here waits for
+        // a detected frame either.
+        setTessellationConnectors(FaceLandmarker.FACE_LANDMARKS_TESSELATION)
 
         const loop = () => {
           if (cancelledRef.current || !landmarkerRef.current || !videoEl) return
@@ -363,5 +379,14 @@ export function useFaceLandmarker(
     }
   }, [enabled, videoEl])
 
-  return { status, landmarks, videoSize, meshConnectors, keyLandmarkIndices, contourConnectors, lipsConnectors }
+  return {
+    status,
+    landmarks,
+    videoSize,
+    meshConnectors,
+    keyLandmarkIndices,
+    contourConnectors,
+    lipsConnectors,
+    tessellationConnectors,
+  }
 }

@@ -143,10 +143,10 @@ export default forwardRef<ScanningVisualHandle, ScanningVisualProps>(function Sc
     status: faceStatus,
     landmarks,
     videoSize,
-    meshConnectors,
     keyLandmarkIndices,
     contourConnectors,
     lipsConnectors,
+    tessellationConnectors,
   } = useFaceLandmarker(detectionVideoEl, !!stream)
 
   // Pose-aware rendering (head-turn detection + far-side base-mesh fade +
@@ -174,19 +174,24 @@ export default forwardRef<ScanningVisualHandle, ScanningVisualProps>(function Sc
   }, [stream, detectionVideoEl])
 
   useEffect(() => {
-    // Four stacked layers, faintest/densest first — reworked to read as
-    // one cohesive designed scan mesh (nodes *and* lines throughout)
-    // rather than a faint line web with separate bright feature cutouts
-    // floating on top of it, matching the approved design reference more
-    // closely:
-    //  1. The coarse triangulated mesh, now with a small dot at every one
-    //     of its own vertices (not lines-only) — this is what actually
-    //     makes it read as a "mesh" rather than a wireframe.
+    // Four stacked layers, faintest/densest first. Layer 1 is now
+    // MediaPipe's own native dense face tessellation
+    // (`FaceLandmarker.FACE_LANDMARKS_TESSELATION`, surfaced as
+    // `tessellationConnectors` — see `useFaceLandmarker.ts`'s own doc
+    // comment) rather than the hand-authored `BASE_MESH_CONNECTORS` this
+    // layer used before — replacing an experimental custom-Figma-mask
+    // pass (template + controlled deformation, reverted entirely; see
+    // this task's own report) with MediaPipe's own native topology,
+    // reusing the same styling values that layer already had rather than
+    // re-tuning them for the new, much denser connector count:
+    //  1. The native dense tessellation, with a small dot at every one of
+    //     its own vertices (not lines-only) — reads as a "mesh" rather
+    //     than a wireframe.
     //  2. A handful of "key" anchor landmarks (forehead, chin, nose tip,
     //     mouth corners, eye corners, cheekbones, jaw) drawn as slightly
     //     larger, brighter accent nodes on top of layer 1's uniform dots —
-    //     the point hierarchy the reference has that a single flat dot
-    //     size can't express.
+    //     unchanged, still real detected landmark indices regardless of
+    //     which connector set layer 1 draws.
     //  3. The curated feature contours (face oval, eyes, eyebrows), eased
     //     down closer to the base mesh's own strength than before so eyes/
     //     brows read as integrated into the one mesh instead of a
@@ -196,14 +201,14 @@ export default forwardRef<ScanningVisualHandle, ScanningVisualProps>(function Sc
     //     readable thing on screen regardless of how the rest is tuned.
     //
     // Pose-aware on top of that unchanged front-facing baseline: layers 1
-    // and 2 (the base mesh and its key-node accents — "base-mesh
-    // geometry") pick up a `farSideFade` once the head turns enough for
-    // `useHeadPose` to identify a far side, fading that side's lines/dots
-    // smoothly rather than hiding them abruptly. Layers 3 and 4 (contour
-    // and lips) deliberately never get a fade — lips/smile feedback must
-    // "remain visible where it is actually detected" regardless of pose,
-    // and the approved contour styling isn't in scope for this change. In
-    // the strong-turn state the whole mesh is suppressed instead (see the
+    // and 2 (the tessellation and its key-node accents) pick up a
+    // `farSideFade` once the head turns enough for `useHeadPose` to
+    // identify a far side, fading that side's lines/dots smoothly rather
+    // than hiding them abruptly. Layers 3 and 4 (contour and lips)
+    // deliberately never get a fade — lips/smile feedback must "remain
+    // visible where it is actually detected" regardless of pose, and the
+    // approved contour styling isn't in scope for this change. In the
+    // strong-turn state the whole mesh is suppressed instead (see the
     // `!isStrongTurn` guard below) rather than leaning on the fade alone.
     const farSideFade =
       farSide && fadeIntensity > 0
@@ -217,10 +222,10 @@ export default forwardRef<ScanningVisualHandle, ScanningVisualProps>(function Sc
     const isStrongTurn = poseState === "strong"
 
     const layers: MeshLayer[] | null =
-      !isStrongTurn && meshConnectors && keyLandmarkIndices && contourConnectors && lipsConnectors
+      !isStrongTurn && tessellationConnectors && keyLandmarkIndices && contourConnectors && lipsConnectors
         ? [
             {
-              connectors: meshConnectors,
+              connectors: tessellationConnectors,
               strokeStyle: "rgba(255,255,255,0.28)",
               lineWidth: 0.5,
               pointRadius: 0.9,
@@ -262,7 +267,7 @@ export default forwardRef<ScanningVisualHandle, ScanningVisualProps>(function Sc
         ctx.clearRect(0, 0, canvas.width, canvas.height)
       }
     }
-  }, [landmarks, videoSize, meshConnectors, keyLandmarkIndices, contourConnectors, lipsConnectors, farSide, fadeIntensity, poseState])
+  }, [landmarks, videoSize, tessellationConnectors, keyLandmarkIndices, contourConnectors, lipsConnectors, farSide, fadeIntensity, poseState])
 
   const caption = !stream
     ? t.cameraPermission.scanningUnavailable
