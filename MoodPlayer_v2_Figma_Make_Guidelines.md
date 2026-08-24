@@ -45,16 +45,15 @@ It supports exactly three primary music modes:
 
 The product allows the user to:
 
-- select a mood manually;
-- optionally enable camera-based facial-expression analysis;
-- receive a suggested playlist mode;
-- confirm, reject, retry, or manually replace the suggestion;
+- grant camera access to receive a facial-cue-based mood suggestion;
+- confirm, reject, retry, or manually replace the suggested mood;
+- manually choose Happy, Melancholic, or Chill once a suggestion has been produced;
 - play the corresponding music;
 - use standard playback controls;
 - optionally enable approved gesture controls;
 - switch between English and Ukrainian.
 
-Camera-based analysis is experimental.
+Camera-based facial analysis is the core product feature, not an optional shortcut — though its underlying analysis remains experimental.
 
 Describe its result as:
 
@@ -64,11 +63,11 @@ Describe its result as:
 
 Never claim that MoodPlayer objectively knows the user’s emotional, psychological, or mental-health state.
 
-A more accurate product flow is:
+The approved product flow is:
 
-Choose or receive a suggested mood → confirm the mode → play the corresponding playlist.
+Intro → camera permission → face scan → suggested vibe → user confirmation/manual override → player.
 
-Manual mood selection and standard playback controls are first-class paths, not secondary fallbacks.
+Manual mood selection remains required, but only as a post-suggestion path: the user confirms, rejects, or manually overrides the mood only after MoodPlayer has produced a suggestion, never before it or in place of the scan. Standard playback controls remain a first-class path, not a secondary fallback.
 
 ---
 
@@ -234,14 +233,13 @@ Select the appropriate current MediaPipe task only after inspecting the approved
 
 ## 8. Camera and privacy
 
-Camera access must be optional.
+Camera access is required to continue through the core MoodPlayer experience (Intro → camera permission → face scan → suggested vibe → user confirmation/manual override → player). Camera-based facial analysis is the core product feature, not an optional shortcut.
 
 Before requesting permission, explain:
 
 - why the camera is requested;
 - what signals are analyzed;
-- that the feature is optional;
-- that the user can continue manually.
+- that camera access is required to continue through the core flow.
 
 Request camera permission only after an explicit user action.
 
@@ -255,15 +253,15 @@ Do not upload, store, log, transmit, or persist camera frames unless an explicit
 
 Do not display a definitive privacy claim such as “camera data never leaves your device” until the implementation has been verified to behave that way.
 
-Always provide:
+Camera/MediaPipe failures must provide clear feedback and a `Try Again` recovery action. Always provide:
 
-- skip-camera;
-- manual mood selection;
-- retry;
+- retry (`Try Again`);
 - stop-camera;
 - permission-denied recovery;
 - camera-unavailable recovery;
 - MediaPipe-load-failure recovery.
+
+If camera access remains denied/unavailable, or MediaPipe cannot initialize, the user cannot proceed to mood selection or playback through the normal flow. Do not provide a pre-scan `Skip camera` or `Choose mood manually` path. Manual mood selection remains required, but only after MoodPlayer has produced a mood suggestion (see §2, §9) — never as a camera-free entry point into the core flow.
 
 ---
 
@@ -399,10 +397,11 @@ Reduced-motion mode must preserve state communication using restrained transitio
 
 MoodPlayer must remain usable:
 
-- without the camera;
 - without gestures;
 - with keyboard controls;
 - with reduced motion.
+
+Camera access is required to progress through the core flow (see §2, §8) — camera-free usability no longer applies there. Camera/MediaPipe failure states must still provide clear feedback and a working `Try Again` recovery path (see §8), so the experience never appears broken even though it cannot silently continue without camera access.
 
 Consider from the beginning:
 
@@ -460,7 +459,7 @@ Never:
 - create separate duplicated Desktop and Mobile applications;
 - invent visual token values;
 - invent gesture mappings;
-- make camera access mandatory;
+- treat camera access as optional in the core flow, or add an undocumented skip-camera / continue-manually shortcut;
 - remove manual mood selection;
 - describe mood suggestions as psychological truth;
 - upload or store camera frames;
