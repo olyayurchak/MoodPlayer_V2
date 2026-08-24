@@ -19,14 +19,14 @@ import ellipse25Desktop from "../imports/CameraPermission/ellipse-25-desktop.svg
  * Structure (identical intent on both breakpoints, only the values scale):
  * - the panel itself: a dark diagonal-gradient rounded rect,
  *   `overflow-hidden` so nothing below spills past its corners, ringed by a
- *   top-to-bottom *gradient* border (pink → purple → blue — the same
- *   `--color-cta-from/via/to` tokens the CTA gradient already uses,
- *   confirmed by sampling the approved screenshot's actual border pixels:
- *   pink at the top edge, blue-purple at the bottom, purple in between).
- *   The design-context export only reports a single flat `#c43a86` (that
- *   gradient's own first stop) because it has no "gradient border" output
- *   primitive — the same kind of lossy simplification that turned the
- *   corner marks below into a plain dashed rect. Implemented via the
+ *   subtle-diagonal (`145deg`) *gradient* border (pink → purple → blue —
+ *   the approved MoodPlayer palette, `BORDER_GRADIENT` below, the same
+ *   colors every other gradient element in the app now uses). The
+ *   design-context export only reports a single flat `#c43a86` (one stop
+ *   of an earlier, since-superseded pink-dominant version of this
+ *   gradient) because it has no "gradient border" output primitive — the
+ *   same kind of lossy simplification that turned the corner marks below
+ *   into a plain dashed rect. Implemented via the
  *   standard two-background-layer + `background-clip` technique (`style`
  *   prop, not Tailwind classes — this specific technique doesn't reduce
  *   cleanly to arbitrary utility syntax): a `border: <width> solid
@@ -101,28 +101,31 @@ import ellipse25Desktop from "../imports/CameraPermission/ellipse-25-desktop.svg
 const PANEL_FILL_GRADIENT =
   "linear-gradient(137.37deg, rgb(18,23,47) 1.76%, rgb(21,16,42) 49.85%, rgb(16,11,34) 97.95%)"
 // The border's own gradient — the approved brand gradient
-// (`#A64CA6 → #7458B8 → #5576D8`), top-to-bottom, painted as the *second*
-// background layer (clipped to `border-box`, the full element) so it
-// only shows through the transparent-bordered ring the first layer
-// doesn't cover. Exported so other screens needing this exact "MoodPlayer
-// gradient" as a border (`ScanningVisual`'s own panel, `VibeResultScreen`'s
-// photo panel) reuse it verbatim rather than re-deriving the same stops —
-// every one of them now shares this single constant/value rather than
-// each carrying its own recolor: an earlier, Camera-Permission-only
-// update briefly routed through a separate `CAMERA_PERMISSION_BORDER_
-// GRADIENT` while only this screen had approved the new gradient; now
-// that every panel wants it, that override was removed as redundant.
-export const BORDER_GRADIENT = "linear-gradient(180deg, #A64CA6, #7458B8, #5576D8)"
+// (`#A64CA6 → #7458B8 → #5576D8`), painted as the *second* background
+// layer (clipped to `border-box`, the full element) so it only shows
+// through the transparent-bordered ring the first layer doesn't cover.
+// Exported so other screens needing this exact "MoodPlayer gradient" as a
+// border (`ScanningVisual`'s own panel, `VibeResultScreen`'s photo panel)
+// reuse it verbatim rather than re-deriving the same stops — every large
+// visual panel across the app now shares this single constant/value
+// rather than each carrying its own recolor or its own angle. Direction
+// is a subtle diagonal `145deg` (was a straight `180deg` top-to-bottom):
+// an earlier task moved `VibeResultScreen`'s own panel to `145deg` first,
+// via a one-off override passed into `gradientBorderStyle` below, while
+// Camera Permission's and `ScanningVisual`'s panels stayed at the
+// original `180deg`; now that every panel has approved the same diagonal,
+// this constant itself was updated and that override mechanism removed
+// as redundant.
+export const BORDER_GRADIENT = "linear-gradient(145deg, #A64CA6, #7458B8, #5576D8)"
 
-/** Shared by both breakpoints below — the face-recognition panel (this
- *  component and `ScanningVisual`, its post-permission scanning-state
- *  twin) uses `2px` at both Mobile and Desktop; `VibeResultScreen`'s own
- *  panel calls this same helper with its own independent value (`1.5px`)
- *  since it's a different, non-face-recognition panel, not part of this
- *  border-thickness requirement. The parameter stays generic rather than
- *  hard-coding either value here. Exported so `ScanningVisual` can reuse
- *  this exact panel-fill + gradient-border treatment rather than
- *  duplicating the technique. */
+/** Shared by both breakpoints below, and by every large visual panel
+ *  across the app (this component, `ScanningVisual`'s own panel,
+ *  `VibeResultScreen`'s photo panel) — all now consistently `2px`, though
+ *  the parameter stays generic (not hard-coded) since it's still each
+ *  caller's own explicit choice, not a hidden assumption of this
+ *  function. Exported so `ScanningVisual`/`VibeResultScreen` can reuse
+ *  this exact panel-fill + gradient-border technique rather than
+ *  duplicating it. */
 export function gradientBorderStyle(borderWidth: string) {
   return {
     border: `${borderWidth} solid transparent`,

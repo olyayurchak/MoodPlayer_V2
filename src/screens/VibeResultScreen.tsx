@@ -55,14 +55,21 @@ import reloadMobile from "../imports/VibeResult/reload-mobile.png"
  *  border runs left-to-right, not top-to-bottom. That also matches this
  *  node's own Figma layer name, "cta-pill", the same name/gradient
  *  direction as the actual CTA button below it (`bg-linear-to-r
- *  from-cta-from via-cta-via to-cta-to`) — unlike the *vertical*
- *  `BORDER_GRADIENT` `CameraPermissionVisual.tsx` exports for the
- *  unrelated Camera/Scanning panels, which this pill was previously (and
- *  incorrectly) reusing verbatim. Reuses the same three existing
- *  `--color-cta-from/via/to` tokens either way — only the angle changes. */
+ *  from-cta-button-from via-cta-button-via to-cta-button-to`) — unlike
+ *  the *diagonal* `BORDER_GRADIENT` `CameraPermissionVisual.tsx` exports
+ *  for the large visual panels (Camera/Scanning/this screen's own photo
+ *  panel), which this pill was previously (and incorrectly) reusing
+ *  verbatim. Reads the shared `--color-cta-button-from/via/to` tokens —
+ *  the same approved palette every gradient element in the app now
+ *  uses — only the angle differs here. An earlier, separate
+ *  `--color-cta-from/via/to` trio held this pill's colors (and the
+ *  mood-name heading's below) while only the primary CTA buttons had
+ *  approved this palette; now that this pill has too, it reads the same
+ *  tokens directly rather than keeping its own parallel copy. */
 const SELECTED_MOOD_PILL_RING_STYLE = {
   padding: "1.5px",
-  background: "linear-gradient(90deg, var(--color-cta-from), var(--color-cta-via), var(--color-cta-to))",
+  background:
+    "linear-gradient(90deg, var(--color-cta-button-from), var(--color-cta-button-via), var(--color-cta-button-to))",
   WebkitMask: "linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0)",
   WebkitMaskComposite: "xor",
   maskComposite: "exclude" as const,
@@ -219,7 +226,7 @@ export default function VibeResultScreen({
               only styling fix. */}
           <div
             className="relative size-[224px] shrink-0 overflow-hidden rounded-[11px] lg:hidden"
-            style={gradientBorderStyle("1.5px")}
+            style={gradientBorderStyle("2px")}
           >
             <img
               src={capturedFrame ?? portraitMobile}
@@ -237,7 +244,7 @@ export default function VibeResultScreen({
           </div>
           <div
             className="relative hidden size-[492px] shrink-0 overflow-hidden rounded-[24px] lg:block"
-            style={gradientBorderStyle("1.5px")}
+            style={gradientBorderStyle("2px")}
           >
             <img
               src={capturedFrame ?? portraitDesktop}
@@ -267,18 +274,21 @@ export default function VibeResultScreen({
                       text-fill (unlike a gradient *border*, a gradient
                       *fill* has a real Figma→code output primitive, so this
                       one isn't a lossy single-color simplification like the
-                      mood-pill border was). Those two stops are the same
-                      (±1-2 rounding) as this project's existing
-                      `--color-cta-from`/`--color-cta-to` tokens, reused
-                      here verbatim via `from-cta-from to-cta-to` — but
-                      deliberately *without* the middle `via-cta-via` stop
-                      the CTA button/pill border use elsewhere: Figma's own
-                      export for this specific node has only two stops, and
-                      adding a third would visibly shift this large (60px)
-                      heading's color curve away from that reference.
+                      mood-pill border was). Deliberately kept at 2 stops
+                      rather than 3: Figma's own export for this specific
+                      node has only two, and adding a third would visibly
+                      shift this large (60px) heading's color curve away
+                      from that reference. The *colors* themselves have
+                      since moved on from that original Figma export,
+                      though — this now reads the shared, approved
+                      `--color-cta-button-from`/`--color-cta-button-to`
+                      endpoints (the same palette every other gradient
+                      element in the app uses) rather than its own
+                      original, separate `--color-cta-from`/`--color-cta-to`
+                      pair, once that older trio was retired as redundant.
                       Direction is `bg-gradient-to-r` (left-to-right) in
                       Figma's export, i.e. this project's `bg-linear-to-r`. */}
-                  <p className="bg-linear-to-r from-cta-from to-cta-to bg-clip-text text-center text-[36px] font-medium leading-[1.2] text-transparent lg:text-left lg:text-[60px]">
+                  <p className="bg-linear-to-r from-cta-button-from to-cta-button-to bg-clip-text text-center text-[36px] font-medium leading-[1.2] text-transparent lg:text-left lg:text-[60px]">
                     {activeMood.name}
                   </p>
                 </div>

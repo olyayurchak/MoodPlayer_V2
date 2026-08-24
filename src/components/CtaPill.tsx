@@ -46,16 +46,18 @@ import { useLanguage } from "../localization/LanguageContext"
  * real press/touch rather than the hover-only gate above.
  *
  * The fill gradient (`#A64CA6 → #7458B8 → #5576D8`, left to right, same
- * direction the previous pink-dominant one used) now reads the shared
+ * direction the previous pink-dominant one used) reads the shared
  * `--color-cta-button-from/via/to` tokens (`index.css`) — this button's
  * own first, later widened to every primary CTA using this same
  * `.cta-pill` treatment (`CameraPermissionCta`, `ScanningCta`,
- * `VibeResultScreen`'s CTA). Deliberately a *separate* token trio from
- * `--color-cta-from/via/to`, not a repoint of it: that original trio
- * still drives the selected mood pill's ring gradient and the Vibe
- * Result gradient heading text, both intentionally out of scope for this
- * button-only update. This button's own `border-cta-border`/
- * `drop-shadow-cta` are untouched either way.
+ * `VibeResultScreen`'s CTA), and since then to every other gradient
+ * element in the app too (the large visual panels' border, the selected
+ * mood pill's ring, the Vibe Result mood-name heading) — a separate,
+ * pink-dominant `--color-cta-from/via/to` trio held those non-button
+ * consumers' colors while only this button-style treatment had approved
+ * the new palette; once every consumer converged on the same colors, that
+ * older trio was retired as redundant. This button's own
+ * `border-cta-border`/`drop-shadow-cta` are untouched either way.
  */
 export default function CtaPill({ onClick }: { onClick?: () => void }) {
   const { t } = useLanguage()

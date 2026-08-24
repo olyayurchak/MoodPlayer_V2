@@ -11,22 +11,20 @@
   --color-text-primary: #ffffff;
   --color-text-secondary: #f1f1f1;
 
-  /* The original pink-dominant gradient — still the source of truth for
-     everything that ISN'T a primary CTA button's own fill: the selected
-     mood pill's ring gradient and the Vibe Result mood-name gradient
-     text (`VibeResultScreen.tsx`) both read these three directly and are
-     explicitly out of scope for the approved CTA-gradient update below,
-     so this trio is intentionally left unchanged rather than repointed. */
-  --color-cta-from: #c43a86;
-  --color-cta-via: #963a9a;
-  --color-cta-to: #5c63c8;
-  /* The approved primary-CTA-button fill gradient — every actual button
-     using the shared `.cta-pill` treatment (Intro's `CtaPill`,
-     `CameraPermissionCta`, `ScanningCta`'s progress fill/completed
-     state, and `VibeResultScreen`'s own CTA) reads these three instead
-     of the trio above, so the button-gradient update stays isolated from
-     the mood-pill ring and gradient heading text that intentionally keep
-     the original colors. */
+  /* The approved MoodPlayer gradient (`#A64CA6 → #7458B8 → #5576D8`) — the
+     one shared color source for every gradient element across the app:
+     every button using the shared `.cta-pill` treatment (Intro's
+     `CtaPill`, `CameraPermissionCta`, `ScanningCta`'s progress fill/
+     completed state, `VibeResultScreen`'s own CTA), the selected mood
+     pill's ring gradient, and the Vibe Result mood-name gradient text all
+     read these three. An earlier, pink-dominant trio (`--color-cta-from:
+     #c43a86` / `--color-cta-via: #963a9a` / `--color-cta-to: #5c63c8`)
+     briefly stayed in place for the mood-pill ring and gradient heading
+     text while only the CTA buttons had approved this palette; now that
+     every gradient consumer in the app has converged on the same colors,
+     that older trio was removed as redundant rather than left in place
+     unused — kept the `-button-` name below rather than renaming, since
+     every consumer (buttons included) reads it identically either way. */
   --color-cta-button-from: #a64ca6;
   --color-cta-button-via: #7458b8;
   --color-cta-button-to: #5576d8;
