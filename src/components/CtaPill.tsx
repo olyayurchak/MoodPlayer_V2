@@ -44,6 +44,18 @@ import { useLanguage } from "../localization/LanguageContext"
  * `scale(0.98)` on mouse-down/touch-press, eased back to `scale(1)` on
  * release — runs identically on Desktop and Mobile, since it's driven by
  * real press/touch rather than the hover-only gate above.
+ *
+ * The fill gradient (`#A64CA6 → #7458B8 → #5576D8`, left to right, same
+ * direction the previous pink-dominant one used) now reads the shared
+ * `--color-cta-button-from/via/to` tokens (`index.css`) — this button's
+ * own first, later widened to every primary CTA using this same
+ * `.cta-pill` treatment (`CameraPermissionCta`, `ScanningCta`,
+ * `VibeResultScreen`'s CTA). Deliberately a *separate* token trio from
+ * `--color-cta-from/via/to`, not a repoint of it: that original trio
+ * still drives the selected mood pill's ring gradient and the Vibe
+ * Result gradient heading text, both intentionally out of scope for this
+ * button-only update. This button's own `border-cta-border`/
+ * `drop-shadow-cta` are untouched either way.
  */
 export default function CtaPill({ onClick }: { onClick?: () => void }) {
   const { t } = useLanguage()
@@ -52,7 +64,7 @@ export default function CtaPill({ onClick }: { onClick?: () => void }) {
     <button
       type="button"
       onClick={onClick}
-      className="cta-pill relative flex h-cta-h w-cta-w items-center justify-center overflow-hidden rounded-pill border-[1.5px] border-cta-border bg-linear-to-r from-cta-from via-cta-via to-cta-to px-cta-x font-sans text-cta font-medium text-white backdrop-blur-cta drop-shadow-cta focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-white lg:w-cta-w-lg"
+      className="cta-pill relative flex h-cta-h w-cta-w items-center justify-center overflow-hidden rounded-pill border-[1.5px] border-cta-border bg-linear-to-r from-cta-button-from via-cta-button-via to-cta-button-to px-cta-x font-sans text-cta font-medium text-white backdrop-blur-cta drop-shadow-cta focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-white lg:w-cta-w-lg"
     >
       {/* Mobile-width track (320×60 button — height now the shared
           `--spacing-cta-h` token, see its own comment in `index.css`;

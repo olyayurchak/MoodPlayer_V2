@@ -290,7 +290,7 @@ export default function VibeResultScreen({
               <button
                 type="button"
                 onClick={() => onStartPlaylist?.(selectedMood)}
-                className="cta-pill relative flex h-cta-h w-full items-center justify-center overflow-hidden rounded-pill border-[1.5px] border-cta-border bg-linear-to-r from-cta-from via-cta-via to-cta-to px-cta-x text-center font-sans text-cta font-medium text-white backdrop-blur-cta drop-shadow-cta focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-white lg:w-[400px]"
+                className="cta-pill relative flex h-cta-h w-full items-center justify-center overflow-hidden rounded-pill border-[1.5px] border-cta-border bg-linear-to-r from-cta-button-from via-cta-button-via to-cta-button-to px-cta-x text-center font-sans text-cta font-medium text-white backdrop-blur-cta drop-shadow-cta focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-white lg:w-[400px]"
               >
                 {/* The exact same approved shine/streak treatment as
                     `CtaPill` (Intro) and `CameraPermissionCta` — reused

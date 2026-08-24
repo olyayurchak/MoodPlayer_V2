@@ -1,4 +1,4 @@
-import faceScanVisual from "../imports/CameraPermission/face-scan-visual.png"
+import faceScanVisual from "../imports/CameraPermission/face-scan-visual-v2.png"
 import ellipse23Mobile from "../imports/CameraPermission/ellipse-23-mobile.svg"
 import ellipse24Mobile from "../imports/CameraPermission/ellipse-24-mobile.svg"
 import ellipse25Mobile from "../imports/CameraPermission/ellipse-25-mobile.svg"
@@ -44,19 +44,21 @@ import ellipse25Desktop from "../imports/CameraPermission/ellipse-25-desktop.svg
  *   canvas at the right position — the exact technique Figma's own
  *   generated code uses, reproduced verbatim rather than approximated;
  * - the person + simulated face-mesh visual, filling the panel edge-to-edge
- *   (`object-cover`) at 40% opacity — Figma node `398:11261` (its own
- *   `get_design_context` export applies `opacity-40` to this layer
- *   directly). Restored from this project's own git history (commit
- *   `ad8ddd1`, an abandoned/rolled-back experiment) rather than
- *   re-exported from scratch: that commit's `face-scan-visual.png` is
- *   byte-identical (MD5-verified) to this Figma node's own current image
- *   export, so the asset itself is reused verbatim. Its *opacity* is not
- *   reused from that commit, though — that version had already drifted to
- *   60% there ("a later, explicitly requested change" per its own doc
- *   comment, not itself sourced from Figma) — this restores Figma's own
- *   current 40% instead, since this task's explicit source of truth is
- *   the Figma node, not that commit's own subsequent tweaks. Replaces the
- *   earlier small centered "camera-off" glyph entirely (that SVG,
+ *   (`object-cover`) — now `face-scan-visual-v2.png`, the raw image fill
+ *   exported directly from Figma node `450:302` (491×491, the same
+ *   square size as the Desktop panel, so `object-cover` doesn't need to
+ *   crop it there — only Mobile's smaller 224×224 box crops it, exactly
+ *   the same responsive behavior the previous asset already had). A
+ *   later, explicit task replaced the original `face-scan-visual.png`
+ *   (sourced from node `398:11261`, still present in
+ *   `imports/CameraPermission/` but no longer referenced here — not
+ *   deleted, matching this file's own established precedent below for a
+ *   superseded asset) with this newer node's own export — a different
+ *   render of the same subject/style, not a re-crop or recolor of the
+ *   old one. Opacity is `60%`, again a later explicit request (not
+ *   itself sourced from Figma, whose own export for this node applies no
+ *   opacity adjustment to the layer). Replaces the earlier small centered
+ *   "camera-off" glyph entirely (that SVG,
  *   `camera-off-icon.svg`, is still present in `imports/CameraPermission/`
  *   but no longer referenced here — not deleted, matching this file's own
  *   established precedent for a superseded asset, e.g. `camera-icon.png`
@@ -98,14 +100,19 @@ import ellipse25Desktop from "../imports/CameraPermission/ellipse-25-desktop.svg
 // inside the border) rather than as the element's sole background.
 const PANEL_FILL_GRADIENT =
   "linear-gradient(137.37deg, rgb(18,23,47) 1.76%, rgb(21,16,42) 49.85%, rgb(16,11,34) 97.95%)"
-// The border's own gradient — the same `--color-cta-from/via/to` stops the
-// CTA gradient uses, top-to-bottom, painted as the *second* background
-// layer (clipped to `border-box`, the full element) so it only shows
-// through the transparent-bordered ring the first layer doesn't cover.
-// Exported so other screens needing this exact "MoodPlayer gradient" as a
-// border (e.g. `VibeResultScreen`'s selected mood tab) reuse it verbatim
-// rather than re-deriving the same stops.
-export const BORDER_GRADIENT = "linear-gradient(180deg, #c43a86, #963a9a, #5c63c8)"
+// The border's own gradient — the approved brand gradient
+// (`#A64CA6 → #7458B8 → #5576D8`), top-to-bottom, painted as the *second*
+// background layer (clipped to `border-box`, the full element) so it
+// only shows through the transparent-bordered ring the first layer
+// doesn't cover. Exported so other screens needing this exact "MoodPlayer
+// gradient" as a border (`ScanningVisual`'s own panel, `VibeResultScreen`'s
+// photo panel) reuse it verbatim rather than re-deriving the same stops —
+// every one of them now shares this single constant/value rather than
+// each carrying its own recolor: an earlier, Camera-Permission-only
+// update briefly routed through a separate `CAMERA_PERMISSION_BORDER_
+// GRADIENT` while only this screen had approved the new gradient; now
+// that every panel wants it, that override was removed as redundant.
+export const BORDER_GRADIENT = "linear-gradient(180deg, #A64CA6, #7458B8, #5576D8)"
 
 /** Shared by both breakpoints below — the face-recognition panel (this
  *  component and `ScanningVisual`, its post-permission scanning-state
@@ -135,7 +142,7 @@ export default function CameraPermissionVisual() {
       >
         <img
           alt=""
-          className="pointer-events-none absolute inset-0 size-full -translate-y-5 rounded-[10.994px] object-cover opacity-40"
+          className="pointer-events-none absolute inset-0 size-full rounded-[10.994px] object-cover opacity-[0.55]"
           src={faceScanVisual}
         />
         <div className="absolute left-[-49.7px] top-[36.87px] size-[97.569px]">
@@ -173,7 +180,7 @@ export default function CameraPermissionVisual() {
       >
         <img
           alt=""
-          className="pointer-events-none absolute inset-0 size-full -translate-y-5 rounded-[24px] object-cover opacity-40"
+          className="pointer-events-none absolute inset-0 size-full rounded-[24px] object-cover opacity-[0.55]"
           src={faceScanVisual}
         />
         <div className="absolute left-[-108.5px] top-[77px] size-[213px]">

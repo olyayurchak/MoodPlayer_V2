@@ -11,9 +11,25 @@
   --color-text-primary: #ffffff;
   --color-text-secondary: #f1f1f1;
 
+  /* The original pink-dominant gradient — still the source of truth for
+     everything that ISN'T a primary CTA button's own fill: the selected
+     mood pill's ring gradient and the Vibe Result mood-name gradient
+     text (`VibeResultScreen.tsx`) both read these three directly and are
+     explicitly out of scope for the approved CTA-gradient update below,
+     so this trio is intentionally left unchanged rather than repointed. */
   --color-cta-from: #c43a86;
   --color-cta-via: #963a9a;
   --color-cta-to: #5c63c8;
+  /* The approved primary-CTA-button fill gradient — every actual button
+     using the shared `.cta-pill` treatment (Intro's `CtaPill`,
+     `CameraPermissionCta`, `ScanningCta`'s progress fill/completed
+     state, and `VibeResultScreen`'s own CTA) reads these three instead
+     of the trio above, so the button-gradient update stays isolated from
+     the mood-pill ring and gradient heading text that intentionally keep
+     the original colors. */
+  --color-cta-button-from: #a64ca6;
+  --color-cta-button-via: #7458b8;
+  --color-cta-button-to: #5576d8;
   --color-cta-border: rgb(255 255 255 / 0.25);
   --color-play-glyph: #7351bb;
 

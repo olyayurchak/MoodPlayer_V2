@@ -3,7 +3,8 @@ import { useLanguage } from "../localization/LanguageContext"
 
 /**
  * Small header logo lockup — the audio-bars mark plus "MoodPlayer" wordmark
- * — used on the Mood Detection / Camera Permission screen's header row.
+ * — used on the Mood Detection / Camera Permission screen's header row, and
+ * on Vibe Result's own header row.
  *
  * Not the same thing as the Intro screen's `TextStack` hero wordmark (140px
  * Desktop / 54px Mobile, centered, no icon, no header row at all): this is
@@ -12,6 +13,16 @@ import { useLanguage } from "../localization/LanguageContext"
  * icon is decorative — the adjacent text already conveys the brand name —
  * so it gets an empty `alt`, matching how decorative images are already
  * handled elsewhere in this codebase (e.g. `MoodBubble.tsx`).
+ *
+ * `logoMark` (`logo-mark.svg`) is the one shared icon asset every caller
+ * renders — it now carries the approved brand gradient
+ * (`#A64CA6 → #7458B8 → #5576D8`) directly, so every screen using this
+ * component gets it automatically. An earlier, Camera-Permission-only
+ * recolor briefly routed through an optional `iconSrc` prop (defaulting
+ * to this same asset) plus a separate `logo-mark-brand.svg`, while only
+ * that one screen had approved the new gradient; now that every caller
+ * wants it, that per-screen override was removed as redundant rather
+ * than left in place unused — this component takes no props.
  */
 export default function MoodPlayerLogo() {
   const { t } = useLanguage()

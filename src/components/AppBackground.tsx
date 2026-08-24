@@ -10,7 +10,14 @@ function GlowLayer({ left, top, width, height, gradient }: GlowSpec) {
 }
 
 /**
- * The ambient glow field behind the Intro content.
+ * The ambient glow field — shared, unmodified, by every screen that
+ * renders it (Intro, Camera Permission/Scanning, Vibe Result). All of
+ * them now render the exact same approved cooler navy/violet/indigo
+ * palette (`data/introGlows.ts`), so this component takes no props: an
+ * earlier, Intro-only recolor briefly needed a `mobileOverrides`/
+ * `desktopOverrides` pair here while only Intro had approved the new
+ * colors, but now that every screen shares them that plumbing was
+ * removed as redundant rather than left in place unused.
  *
  * Glow offsets are frame-relative, so each set lives inside a frame-sized box
  * centered horizontally and anchored to the top — the same coordinate space

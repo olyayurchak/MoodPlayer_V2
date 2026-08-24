@@ -70,8 +70,8 @@ type ScanningCtaProps = {
  * relying on DOM order. It reuses the pill's own
  * `rounded-pill` radius rather than a separate progress-bar shape, and
  * the exact same token-based gradient the completed state and the "Allow
- * Camera" button use (`bg-linear-to-r from-cta-from via-cta-via
- * to-cta-to`, full opacity — an earlier version used a low-opacity slice
+ * Camera" button use (`bg-linear-to-r from-cta-button-from via-cta-button-via
+ * to-cta-button-to`, full opacity — an earlier version used a low-opacity slice
  * of raw hex colors instead, which read as a dim approximation rather
  * than the actual approved gradient; this reuses that one source of
  * truth verbatim instead). `role="progressbar"` carries the actual
@@ -85,7 +85,7 @@ type ScanningCtaProps = {
  *
  * The completed pill's background/border/shadow reuse
  * `CameraPermissionCta`'s own token-based classes verbatim
- * (`bg-linear-to-r from-cta-from via-cta-via to-cta-to`, `border-cta-border`,
+ * (`bg-linear-to-r from-cta-button-from via-cta-button-via to-cta-button-to`, `border-cta-border`,
  * `drop-shadow-cta`) - the same source of truth as the "Allow Camera"
  * button, and now identical to the in-progress fill's own gradient above
  * (rather than a different, lower-opacity version of it), so the fill
@@ -120,7 +120,7 @@ export default function ScanningCta({ progress, completed }: ScanningCtaProps) {
       className={
         "relative flex h-cta-h w-full items-center justify-center overflow-hidden rounded-pill border-[1.5px] px-cta-x text-center font-sans text-cta font-medium text-white backdrop-blur-cta lg:w-[380px] " +
         (completed
-          ? "border-cta-border bg-linear-to-r from-cta-from via-cta-via to-cta-to drop-shadow-cta"
+          ? "border-cta-border bg-linear-to-r from-cta-button-from via-cta-button-via to-cta-button-to drop-shadow-cta"
           : "border-[rgba(255,255,255,0.12)] bg-[rgba(255,255,255,0.08)] shadow-[0px_12px_24px_0px_rgba(255,255,255,0.1)]")
       }
     >
@@ -131,7 +131,7 @@ export default function ScanningCta({ progress, completed }: ScanningCtaProps) {
           aria-valuemax={100}
           aria-valuenow={Math.round(progress * 100)}
           aria-label={t.cameraPermission.scanningAriaLabel}
-          className="scan-progress-fill absolute inset-y-0 left-0 bg-linear-to-r from-cta-from via-cta-via to-cta-to"
+          className="scan-progress-fill absolute inset-y-0 left-0 bg-linear-to-r from-cta-button-from via-cta-button-via to-cta-button-to"
           style={{
             width: `${progress * 100}%`,
             borderTopLeftRadius: RADIUS_PILL_PX,

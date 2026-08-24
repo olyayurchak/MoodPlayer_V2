@@ -12,6 +12,11 @@ import TextStack from "../components/TextStack"
  * absolute positioning, each scoped to its own frame-sized container. A single
  * structural breakpoint (`lg`, 1024px) switches to the Desktop composition.
  *
+ * `AppBackground` renders plain (no props) — the approved cooler
+ * navy/violet/indigo glow palette (`data/introGlows.ts`) now applies to
+ * every screen that uses it (Intro, Camera Permission/Scanning, Vibe
+ * Result) via that one shared data source, not a per-screen override.
+ *
  * Two data attributes give `MoodBubbleCluster`'s scatter interaction a stable
  * way to find this screen's own bounds without prop-drilling a ref through:
  * `data-intro-root` marks the full-viewport element whose `pointerleave`

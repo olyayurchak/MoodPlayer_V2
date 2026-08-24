@@ -4,10 +4,12 @@ import { useLanguage } from "../localization/LanguageContext"
  * The Camera Permission screen's primary CTA.
  *
  * Visually matches the approved gradient-pill styling using the same design
- * tokens Intro's `CtaPill` uses — colors (`--color-cta-*`), border, radius
- * (`--radius-pill`), blur (`--blur-cta`), shadow (`--drop-shadow-cta`),
- * padding (`--spacing-cta-x/y`), and typography (`--text-cta`) all reused
- * as-is, all confirmed to match this screen's Figma values exactly.
+ * tokens Intro's `CtaPill` uses — fill gradient (`--color-cta-button-from/
+ * via/to`, the approved primary-CTA-button colors, shared across every
+ * `.cta-pill`), border (`--color-cta-border`), radius (`--radius-pill`),
+ * blur (`--blur-cta`), shadow (`--drop-shadow-cta`), padding
+ * (`--spacing-cta-x/y`), and typography (`--text-cta`) all reused as-is,
+ * all confirmed to match this screen's Figma values exactly.
  *
  * Deliberately its own small component rather than a reuse of `CtaPill`:
  * the two differ structurally (this one has no icon at all) and in sizing
@@ -72,7 +74,7 @@ export default function CameraPermissionCta({
       type="button"
       onClick={onClick}
       disabled={disabled}
-      className="cta-pill relative flex h-cta-h w-full items-center justify-center overflow-hidden rounded-pill border-[1.5px] border-cta-border bg-linear-to-r from-cta-from via-cta-via to-cta-to px-cta-x text-center font-sans text-cta font-medium text-white backdrop-blur-cta drop-shadow-cta focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-white disabled:cursor-not-allowed disabled:opacity-70 lg:w-[380px]"
+      className="cta-pill relative flex h-cta-h w-full items-center justify-center overflow-hidden rounded-pill border-[1.5px] border-cta-border bg-linear-to-r from-cta-button-from via-cta-button-via to-cta-button-to px-cta-x text-center font-sans text-cta font-medium text-white backdrop-blur-cta drop-shadow-cta focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-white disabled:cursor-not-allowed disabled:opacity-70 lg:w-[380px]"
     >
       {/* Desktop-width track only — see doc comment above for why no Mobile variant exists. */}
       <svg
