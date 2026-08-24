@@ -226,7 +226,13 @@ export default forwardRef<ScanningVisualHandle, ScanningVisualProps>(function Sc
         ? [
             {
               connectors: tessellationConnectors,
-              strokeStyle: "rgba(255,255,255,0.28)",
+              // Lavender mesh-line color per explicit request — #C9C7FF at
+              // 65% opacity, i.e. rgb(201,199,255). Restored back to this
+              // after a cyan visual test (`rgba(105,213,255,0.70)`,
+              // #69D5FF at 70%). Only this layer's `strokeStyle` changed;
+              // its `lineWidth`/`pointRadius`/`pointFillStyle` (the dot
+              // color) are untouched, along with every other layer.
+              strokeStyle: "rgba(201,199,255,0.65)",
               lineWidth: 0.5,
               pointRadius: 0.9,
               pointFillStyle: "rgba(255,255,255,0.5)",
