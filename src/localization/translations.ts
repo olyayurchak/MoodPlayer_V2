@@ -108,6 +108,57 @@ export type Translations = {
   languageSwitcher: {
     ariaLabel: string
   }
+  /** Player screen — reached from Vibe Result's "Start listening" CTA (see
+   *  `App.tsx`). UI foundation only: no Figma frame for this screen has an
+   *  approved English/Ukrainian copy pair beyond what's captured here, and
+   *  the placeholder track title/artist (`data/playerTrack.ts`) are treated
+   *  as track metadata, not translatable UI chrome — song titles/artist
+   *  names aren't localized in real music apps either, so they live in that
+   *  data file, untranslated, rather than here.
+   *
+   *  `upNextSubtitle` is the one exception to this dictionary's usual
+   *  "plain string, no interpolation" rule (see the type doc comment
+   *  above): it needs the *current* mood's own translated name spliced in
+   *  ("from the “Chill” playlist" / "from the “Happy” playlist" / ...),
+   *  which a static string can't express. A plain function is still the
+   *  smallest mechanism that covers this one case — no interpolation
+   *  library added for a single call site. */
+  player: {
+    upNextHeading: string
+    upNextSubtitle: (moodName: string) => string
+    controls: {
+      shuffle: string
+      previous: string
+      play: string
+      pause: string
+      next: string
+      repeat: string
+      volume: string
+    }
+    gestures: {
+      heading: string
+      on: string
+      off: string
+      openPalm: string
+      closedFist: string
+      thumbUp: string
+      thumbDown: string
+      /** The gesture legend's own action labels ("Open palm → Play",
+       *  etc.) — deliberately *separate* strings from `controls.play/
+       *  pause/next/previous` above, even though English happens to
+       *  read identically for all four, because those `controls.*`
+       *  strings are also the real Play/Pause/Next/Previous buttons' own
+       *  `aria-label`s (see `PlayerControls.tsx`). A later task needed to
+       *  shorten only the Ukrainian *gesture-legend* text ("Наступний
+       *  трек" → "Наступний") without touching the real transport
+       *  buttons' Ukrainian `aria-label`s — impossible while both read
+       *  from the same key. */
+      actionPlay: string
+      actionPause: string
+      actionNext: string
+      actionPrevious: string
+    }
+  }
 }
 
 export const translations: Record<Language, Translations> = {
@@ -182,6 +233,32 @@ export const translations: Record<Language, Translations> = {
     languageSwitcher: {
       ariaLabel: "Language",
     },
+    player: {
+      upNextHeading: "Up next",
+      upNextSubtitle: (moodName) => `from the “${moodName}” playlist`,
+      controls: {
+        shuffle: "Shuffle",
+        previous: "Previous track",
+        play: "Play",
+        pause: "Pause",
+        next: "Next track",
+        repeat: "Repeat",
+        volume: "Volume",
+      },
+      gestures: {
+        heading: "Gesture controls",
+        on: "On",
+        off: "Off",
+        openPalm: "Open palm",
+        closedFist: "Closed fist",
+        thumbUp: "Thumb up",
+        thumbDown: "Thumb down",
+        actionPlay: "Play",
+        actionPause: "Pause",
+        actionNext: "Next track",
+        actionPrevious: "Previous track",
+      },
+    },
   },
   uk: {
     common: {
@@ -254,6 +331,32 @@ export const translations: Record<Language, Translations> = {
     },
     languageSwitcher: {
       ariaLabel: "Мова",
+    },
+    player: {
+      upNextHeading: "Далі в черзі",
+      upNextSubtitle: (moodName) => `з плейліста «${moodName}»`,
+      controls: {
+        shuffle: "Перемішати",
+        previous: "Попередній трек",
+        play: "Відтворити",
+        pause: "Пауза",
+        next: "Наступний трек",
+        repeat: "Повтор",
+        volume: "Гучність",
+      },
+      gestures: {
+        heading: "Керування жестами",
+        on: "Увімк.",
+        off: "Вимк.",
+        openPalm: "Долоня",
+        closedFist: "Кулак",
+        thumbUp: "Палець вгору",
+        thumbDown: "Палець вниз",
+        actionPlay: "Відтворити",
+        actionPause: "Пауза",
+        actionNext: "Наступний",
+        actionPrevious: "Попередній",
+      },
     },
   },
 }

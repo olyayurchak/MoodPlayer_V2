@@ -2,11 +2,12 @@ import { useCallback, useEffect, useState } from "react"
 import IntroScreen from "./screens/IntroScreen"
 import CameraPermissionScreen from "./screens/CameraPermissionScreen"
 import VibeResultScreen from "./screens/VibeResultScreen"
+import PlayerScreen from "./screens/PlayerScreen"
 import type { MoodId } from "./data/moods"
 import { useFadeTransition } from "./hooks/useFadeTransition"
 import { useCameraStream } from "./camera/useCameraStream"
 
-type Screen = "intro" | "camera-permission" | "vibe-result"
+type Screen = "intro" | "camera-permission" | "vibe-result" | "player"
 
 /** `?screen=camera-permission` still works as a direct dev-preview link —
  *  read once, only for the initial screen, so it keeps behaving exactly
@@ -113,6 +114,28 @@ export default function App() {
     navigate("camera-permission")
   }, [screen, navigate])
 
+  // Vibe Result's "Start listening" CTA — see that screen's own
+  // `onStartPlaylist` doc comment. `mood` here is whichever of the three
+  // moods was actually selected when the button was pressed (the real
+  // suggested mood if the user never overrode it, or their manual
+  // override otherwise — `VibeResultScreen` already tracks that
+  // distinction internally as its own `selectedMood` and hands it back
+  // here, this component never needs its own separate copy of that
+  // choice). Overwrites `suggestedMood` rather than adding a new piece of
+  // state: `suggestedMood` already means "the mood the app currently
+  // knows about for the post-scan flow", and by the time this fires that
+  // is exactly the confirmed mood Player should open on — introducing a
+  // second, parallel "confirmed mood" field here would just be the same
+  // value under a different name.
+  const handleStartPlaylist = useCallback(
+    (mood: MoodId) => {
+      if (screen !== "vibe-result") return
+      setSuggestedMood(mood)
+      navigate("player")
+    },
+    [screen, navigate],
+  )
+
   // Clears the previous scan's captured frame — but only once `screen`
   // has actually swapped away from `"vibe-result"`, i.e. only after
   // `VibeResultScreen` has already unmounted. Clearing this synchronously
@@ -144,8 +167,21 @@ export default function App() {
         // instead of silently substituting some other mood.
         if (!suggestedMood) return null
         return (
-          <VibeResultScreen suggestedMood={suggestedMood} capturedFrame={capturedFrame} onScanAgain={handleScanAgain} />
+          <VibeResultScreen
+            suggestedMood={suggestedMood}
+            capturedFrame={capturedFrame}
+            onScanAgain={handleScanAgain}
+            onStartPlaylist={handleStartPlaylist}
+          />
         )
+      case "player":
+        // Same reasoning as the `"vibe-result"` case above: `suggestedMood`
+        // is only ever `null` before the first scan completes, and
+        // `screen` can only become `"player"` via `handleStartPlaylist`,
+        // which requires already being on `"vibe-result"` (itself
+        // unreachable with a `null` mood) before it can fire.
+        if (!suggestedMood) return null
+        return <PlayerScreen mood={suggestedMood} />
       case "camera-permission":
         return (
           <CameraPermissionScreen

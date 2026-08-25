@@ -470,3 +470,97 @@
     transition: none;
   }
 }
+
+/*
+ * Player's "Up next" playlist scroll area (`UpNextPanel.tsx`, Desktop
+ * only — Mobile has no nested scroll container, see that file's own doc
+ * comment) — a narrow, low-emphasis scrollbar matching the approved
+ * Figma design (node `290:9614`, thumb node `290:9668`), replacing the
+ * browser's own thick default white scrollbar. No dependency added —
+ * plain CSS only. Never `display: none`/`overflow: hidden` on the
+ * scrollbar itself: this narrows it, it doesn't hide it, per this
+ * task's own "do not hide the scrollbar completely" instruction —
+ * scrolling remains fully mouse-draggable via this thumb, not
+ * keyboard/wheel-only.
+ *
+ * DIAGNOSED root cause of the up/down triangle indicators two earlier
+ * tasks tried and failed to remove via `::-webkit-scrollbar-button`
+ * rules: this rule used to *also* declare the standards-track
+ * `scrollbar-width: thin` / `scrollbar-color: ... transparent`
+ * alongside the legacy `::-webkit-scrollbar*` pseudo-elements below —
+ * intended as a Firefox-compatible fallback pair describing "the same
+ * visual" through two mechanisms. In the actual browser engine
+ * rendering this app, though, declaring `scrollbar-width`/
+ * `scrollbar-color` on an element makes that engine paint its OWN
+ * native "thin" scrollbar chrome (which includes small triangle end-
+ * caps that only the standards path — not `::-webkit-scrollbar-button`
+ * — controls, and the standard has no property to hide them) and it
+ * ignores the `::-webkit-scrollbar*` pseudo-elements for painting
+ * entirely once those standard properties are present, even though
+ * `getComputedStyle` keeps reporting values for both. Confirmed by
+ * direct experiment: forcibly clearing just `scrollbar-width`/
+ * `scrollbar-color` (leaving every `::-webkit-scrollbar*` rule below
+ * untouched) made the triangles disappear immediately, while the
+ * thumb stayed visible, correctly colored, and still draggable — proof
+ * the legacy pseudo-elements were always working correctly on their
+ * own, and the standards-track declaration was the one actively
+ * overriding them with its own un-stylable triangle affordance. Two
+ * earlier tasks' extra `::-webkit-scrollbar-button`/`:single-button`/
+ * `:vertical:start`/`:end` selectors were therefore never the problem
+ * (or the fix) — they were correctly written but aimed at a rendering
+ * path this engine wasn't actually using. `scrollbar-width`/
+ * `scrollbar-color` are removed below for exactly that reason.
+ * Trade-off, disclosed rather than silently accepted: a browser that
+ * doesn't support `::-webkit-scrollbar` at all (real Firefox) now gets
+ * its own unstyled default scrollbar here instead of a themed-but-
+ * approximate one — an acceptable cost to actually fix the reported,
+ * visually-confirmed bug in the engine this app is being verified in,
+ * versus keeping a "fallback" declaration that was never the one being
+ * rendered by that engine anyway.
+ *
+ * Width (`4px`), thumb color (`rgba(217, 217, 217, 0.35)` / `0.55` on
+ * hover — matching Figma's own `#d9d9d9` fill for this thumb at a low
+ * alpha so it stays "subtle, integrated into the glass panel" rather
+ * than a stark opaque bar), track transparency, and thumb radius are
+ * all unchanged from before this task. The gutter between the row
+ * content and this thumb is controlled by `UpNextPanel.tsx`'s own
+ * `lg:pr-[10px]` on the scrolling element, not by anything here — also
+ * unchanged. The thumb's own length is never touched by any of this —
+ * it's still the browser's native scrollable-content-ratio thumb, just
+ * restyled, not a fixed-size decoration.
+ */
+.up-next-scroll::-webkit-scrollbar {
+  width: 4px;
+}
+
+.up-next-scroll::-webkit-scrollbar-track {
+  background: transparent;
+  border: none;
+  box-shadow: none;
+}
+
+.up-next-scroll::-webkit-scrollbar-thumb {
+  background-color: rgba(217, 217, 217, 0.35);
+  border-radius: 999px;
+  border: none;
+  box-shadow: none;
+}
+
+.up-next-scroll::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(217, 217, 217, 0.55);
+}
+
+.up-next-scroll::-webkit-scrollbar-button {
+  display: none;
+  appearance: none;
+  -webkit-appearance: none;
+  height: 0;
+  width: 0;
+  background: transparent;
+  border: none;
+}
+
+.up-next-scroll::-webkit-scrollbar-corner {
+  display: none;
+  background: transparent;
+}
