@@ -471,6 +471,24 @@
   }
 }
 
+/* Gesture controls' On/Off toggle (`GestureControlsPanel.tsx`) — the
+   sliding active indicator's `left`/`width` transition is dropped to an
+   instant jump, matching how `.scan-progress-fill` above and `.cta-pill`
+   elsewhere in this file both handle reduced motion: which option reads
+   as active is still conveyed immediately and unambiguously (the
+   indicator still lands in the right place, just without an animated
+   slide to get there), satisfying this task's own "should still switch
+   clearly without unnecessary movement" requirement. (`.gesture-toggle-
+   btn`, this rule's own target before this task replaced each button's
+   own toggling border/bg/shadow with this one shared sliding indicator,
+   no longer exists in `GestureControlsPanel.tsx` — renamed along with
+   that change rather than left behind as a dead selector.) */
+@media (prefers-reduced-motion: reduce) {
+  .gesture-toggle-indicator {
+    transition: none;
+  }
+}
+
 /*
  * Player's "Up next" playlist scroll area (`UpNextPanel.tsx`, Desktop
  * only — Mobile has no nested scroll container, see that file's own doc

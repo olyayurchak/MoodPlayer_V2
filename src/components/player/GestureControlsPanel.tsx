@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useLayoutEffect, useRef, useState } from "react"
 import { useLanguage } from "../../localization/LanguageContext"
 import handOpenPalm from "../../imports/Player/hand-open-palm.png"
 import handClosedFist from "../../imports/Player/hand-closed-fist.png"
@@ -76,9 +76,87 @@ const GESTURE_ENTRIES: GestureEntry[] = [
  * frame can hold. Desktop is intentionally untouched beyond that same
  * `lg:` escape hatch preserving its previous exact sizing.
  */
+// The outer toggle ring's and the active indicator's own border width —
+// one literal, read by both the geometry math below and the Tailwind
+// arbitrary values on the group/indicator themselves (`border-[1.5px]`,
+// `-top-[1.5px]`/`-bottom-[1.5px]`), so the two can never drift apart.
+// See the indicator `<span>`'s own doc comment for why the math needs
+// this value at all, not just the CSS.
+const TOGGLE_BORDER_WIDTH = 1.5
+
 export default function GestureControlsPanel() {
   const { t } = useLanguage()
   const [isEnabled, setIsEnabled] = useState(false)
+
+  // The sliding active-indicator's own measured geometry (relative to
+  // `toggleGroupRef`, its positioning parent) — see the doc comment on
+  // the indicator `<span>` itself below for the full reasoning. `null`
+  // only for the one frame before the very first `useLayoutEffect` run
+  // (the indicator is invisible then, so there's nothing to flash).
+  const toggleGroupRef = useRef<HTMLDivElement>(null)
+  const onButtonRef = useRef<HTMLButtonElement>(null)
+  const offButtonRef = useRef<HTMLButtonElement>(null)
+  const [indicatorRect, setIndicatorRect] = useState<{ left: number; width: number } | null>(null)
+
+  useLayoutEffect(() => {
+    const group = toggleGroupRef.current
+    const activeButton = (isEnabled ? onButtonRef.current : offButtonRef.current) ?? undefined
+    if (!group || !activeButton) return
+    const measure = () => {
+      const groupBox = group.getBoundingClientRect()
+      const buttonBox = activeButton.getBoundingClientRect()
+      // `left`/`width` below are resolved against this positioned
+      // ancestor's *padding* box (CSS's containing block for an
+      // absolutely-positioned child never includes the ancestor's own
+      // border), but `groupBox`/`buttonBox` here are *border*-box
+      // rects (`getBoundingClientRect()`'s only mode) — so a naive
+      // `buttonBox.left - groupBox.left` is already short by exactly
+      // `TOGGLE_BORDER_WIDTH` on every side versus what it takes to
+      // reach the group's own *border*-box edge. That's the double-
+      // line bug's actual root cause: every edge of the indicator's
+      // own box (and its own border, drawn inward from that box) was
+      // landing one border-width *inside* the outer ring's own border,
+      // leaving a visible gap between two parallel, unmerged strokes,
+      // on all four sides.
+      //
+      // Fixed here by choosing, per side, which edge to land the
+      // indicator's *border-box* on:
+      // - top/bottom: always the group's own *border*-box edge — the
+      //   indicator is exactly as tall as the group, so its own border
+      //   physically coincides with (replaces, not doubles) the outer
+      //   ring's top/bottom stroke in both states. Expressed as static
+      //   `-top-[1.5px]`/`-bottom-[1.5px]` Tailwind classes below, not
+      //   computed here, since it never depends on which button is
+      //   active.
+      // - the *outer-facing* horizontal edge (left when "On" — the
+      //   first, leftmost button — is active; right when "Off" is):
+      //   also the group's own border-box edge, for the same reason.
+      // - the *inner-facing* horizontal edge (facing the other,
+      //   inactive button): the button's own natural edge, unchanged
+      //   from before this task — there's no outer ring there to
+      //   conflict with, only the boundary between the two segments.
+      const isOnActive = activeButton === onButtonRef.current
+      const left = isOnActive
+        ? -TOGGLE_BORDER_WIDTH
+        : buttonBox.left - groupBox.left - TOGGLE_BORDER_WIDTH
+      const width = isOnActive
+        ? buttonBox.right - groupBox.left
+        : groupBox.right - buttonBox.left
+      setIndicatorRect({ left, width })
+    }
+    measure()
+    // Re-measures on anything that can change either button's own
+    // rendered width without `isEnabled` itself changing — a language
+    // switch (`t.player.gestures.on/off` are different-length words in
+    // EN vs UA) or the Desktop/Mobile breakpoint's own `lg:` padding/
+    // font-size jump — so the indicator never lags behind the text it's
+    // supposed to sit under.
+    const observer = new ResizeObserver(measure)
+    observer.observe(group)
+    observer.observe(onButtonRef.current!)
+    observer.observe(offButtonRef.current!)
+    return () => observer.disconnect()
+  }, [isEnabled])
 
   // Reads `t.player.gestures.action*`, not `t.player.controls.play/
   // pause/next/previous` — those `controls.*` strings are also the real
@@ -112,27 +190,84 @@ export default function GestureControlsPanel() {
       aria-label={t.player.gestures.heading}
     >
       <div
+        ref={toggleGroupRef}
         role="group"
         aria-label={t.player.gestures.heading}
-        className="flex shrink-0 items-center rounded-pill border-[1.5px] border-[rgba(255,255,255,0.25)]"
+        className="relative flex shrink-0 items-center rounded-pill border-[1.5px] border-[rgba(255,255,255,0.25)]"
       >
+        {/* Active-state identification, round three: a single sliding
+            indicator, replacing round two's "each button toggles its own
+            border/bg/shadow in place" approach (which this task's own
+            brief explicitly asks to replace with exactly this — round
+            two's own doc comment called a sliding indicator out as "a
+            major component refactor" and deferred it; this task is that
+            refactor, requested directly, so it's now built).
+
+            This absolutely-positioned `<span>` — not either `<button>` —
+            now owns the border/bg/shadow that used to toggle in place on
+            whichever button was active: the exact same values (`border-
+            [1.5px] border-[rgba(255,255,255,0.25)] bg-[rgba(255,255,255,
+            0.08)] shadow-[0px_12px_24px_0px_rgba(255,255,255,0.08)]`) as
+            round two's own active state, per this task's explicit "border
+            styling/opacity/active colors must stay unchanged" — only
+            *which element* paints them changed, not their values. It
+            sits behind both buttons (`z-0` vs. their own `relative
+            z-10`) and is `aria-hidden`/`pointer-events-none` — purely
+            decorative, never a hit target, never announced; `aria-
+            pressed` on the real buttons below is still what actually
+            communicates state.
+
+            Round four removed this border entirely to kill the "double
+            outline" it caused. Round five (this task) restores it, but
+            fixes the actual geometry bug that caused the double line in
+            the first place, rather than removing the border again: see
+            the `useLayoutEffect` above's own doc comment for the full
+            "border-box vs. padding-box" reasoning. `-top-[1.5px] -bottom-
+            [1.5px]` (replacing round three's `inset-y-0`) put the
+            indicator's own border-box top/bottom exactly on the outer
+            ring's own border-box top/bottom in both states — always
+            flush, never doubled. The left/right side of that same flush
+            treatment is conditional (computed in JS, not a static
+            class, since it depends on which button is active) — see
+            `indicatorRect`'s own values above.
+
+            Its `left`/`width` come from `indicatorRect` (measured via the
+            `useLayoutEffect` above, against whichever button is currently
+            active) and transition on `left`/`width` change — a real
+            slide from one button's position/size to the other's, not two
+            elements independently fading in/out. `duration-[200ms]
+            ease-out` is this task's own requested "~180–220ms"/"ease-out"
+            pairing (the midpoint) — unchanged by either the round-four
+            border removal or this round's restoration. No scale/opacity/
+            glow/bounce is animated — only position and size, per this
+            task's explicit "no scale, no glow, no overshoot" list.
+            Renders with `opacity-0` until the first measurement lands
+            (`indicatorRect` starts `null`), so there's no flash at an
+            unmeasured `0,0` origin on first mount. */}
+        <span
+          aria-hidden="true"
+          className="gesture-toggle-indicator pointer-events-none absolute -top-[1.5px] -bottom-[1.5px] z-0 rounded-pill border-[1.5px] border-[rgba(255,255,255,0.25)] bg-[rgba(255,255,255,0.08)] shadow-[0px_12px_24px_0px_rgba(255,255,255,0.08)] transition-[left,width] duration-[200ms] ease-out"
+          style={
+            indicatorRect
+              ? { left: `${indicatorRect.left}px`, width: `${indicatorRect.width}px` }
+              : { left: 0, width: 0, opacity: 0 }
+          }
+        />
         <button
+          ref={onButtonRef}
           type="button"
           onClick={() => setIsEnabled(true)}
           aria-pressed={isEnabled}
-          className={`rounded-pill px-[10px] py-[8px] text-[13px] font-medium text-white transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white lg:px-[24px] lg:py-[10px] lg:text-[16px] ${
-            isEnabled ? "border-[1.5px] border-[rgba(255,255,255,0.25)] bg-[rgba(255,255,255,0.08)] shadow-[0px_12px_24px_0px_rgba(255,255,255,0.08)]" : ""
-          }`}
+          className="relative z-10 rounded-pill px-[10px] py-[8px] text-[13px] font-medium text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white lg:px-[24px] lg:py-[10px] lg:text-[16px]"
         >
           {t.player.gestures.on}
         </button>
         <button
+          ref={offButtonRef}
           type="button"
           onClick={() => setIsEnabled(false)}
           aria-pressed={!isEnabled}
-          className={`rounded-pill px-[10px] py-[8px] text-[13px] font-medium text-white transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white lg:px-[24px] lg:py-[10px] lg:text-[16px] ${
-            !isEnabled ? "border-[1.5px] border-[rgba(255,255,255,0.25)] bg-[rgba(255,255,255,0.08)] shadow-[0px_12px_24px_0px_rgba(255,255,255,0.08)]" : ""
-          }`}
+          className="relative z-10 rounded-pill px-[10px] py-[8px] text-[13px] font-medium text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white lg:px-[24px] lg:py-[10px] lg:text-[16px]"
         >
           {t.player.gestures.off}
         </button>
