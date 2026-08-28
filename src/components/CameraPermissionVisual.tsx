@@ -1,3 +1,4 @@
+import { useEffect, useRef } from "react"
 import faceScanVisual from "../imports/CameraPermission/face-scan-visual-v2.png"
 import ellipse23Mobile from "../imports/CameraPermission/ellipse-23-mobile.svg"
 import ellipse24Mobile from "../imports/CameraPermission/ellipse-24-mobile.svg"
@@ -44,21 +45,30 @@ import ellipse25Desktop from "../imports/CameraPermission/ellipse-25-desktop.svg
  *   canvas at the right position — the exact technique Figma's own
  *   generated code uses, reproduced verbatim rather than approximated;
  * - the person + simulated face-mesh visual, filling the panel edge-to-edge
- *   (`object-cover`) — now `face-scan-visual-v2.png`, the raw image fill
- *   exported directly from Figma node `450:302` (491×491, the same
- *   square size as the Desktop panel, so `object-cover` doesn't need to
- *   crop it there — only Mobile's smaller 224×224 box crops it, exactly
- *   the same responsive behavior the previous asset already had). A
- *   later, explicit task replaced the original `face-scan-visual.png`
+ *   (`object-cover`) — now the `/vibe-result.mp4` decorative video
+ *   (autoplaying, muted, inline, no controls, plays through once and holds
+ *   on its final frame rather than looping; see the effect below for why
+ *   it also respects `prefers-reduced-motion`), replacing the earlier
+ *   static `face-scan-visual-v2.png` image fill entirely. That still image
+ *   (exported from Figma node `450:302`, 491×491, the same square size as
+ *   the Desktop panel) is kept on as the video's own `poster` — shown
+ *   instantly on first paint so the panel never flashes blank while the
+ *   video itself loads, exactly the role it played as the sole visual
+ *   before. It, in turn, had replaced the original `face-scan-visual.png`
  *   (sourced from node `398:11261`, still present in
  *   `imports/CameraPermission/` but no longer referenced here — not
  *   deleted, matching this file's own established precedent below for a
- *   superseded asset) with this newer node's own export — a different
- *   render of the same subject/style, not a re-crop or recolor of the
- *   old one. Opacity is `60%`, again a later explicit request (not
- *   itself sourced from Figma, whose own export for this node applies no
- *   opacity adjustment to the layer). Replaces the earlier small centered
- *   "camera-off" glyph entirely (that SVG,
+ *   superseded asset) — a different render of the same subject/style, not
+ *   a re-crop or recolor of the old one. That still image's own `opacity-50`
+ *   (carried over onto the video unchanged when the video first replaced
+ *   it) was later removed again, per a follow-up, explicit request — a
+ *   50%-opacity still image read as an intentionally moody, low-contrast
+ *   graphic, but the same 50% opacity on a full-motion video read as
+ *   visibly faded/washed-out instead (constant partial transparency is far
+ *   more noticeable across genuine motion than across one static frame),
+ *   so the video now renders at its native full opacity; nothing else
+ *   about it changed. Replaces the earlier small
+ *   centered "camera-off" glyph entirely (that SVG,
  *   `camera-off-icon.svg`, is still present in `imports/CameraPermission/`
  *   but no longer referenced here — not deleted, matching this file's own
  *   established precedent for a superseded asset, e.g. `camera-icon.png`
@@ -87,7 +97,33 @@ import ellipse25Desktop from "../imports/CameraPermission/ellipse-25-desktop.svg
  *   303px span) to match; `left`/`345.5` (horizontal) is unchanged — this
  *   node's own rect metadata places it at the same `42.5`/`345.5` this
  *   file already had. Mobile has no equivalent fresh reference in this
- *   task, so its corner-mark position is intentionally left as-is;
+ *   task, so its corner-mark position is intentionally left as-is.
+ *
+ *   A later, explicit task shortened Desktop's arm length from `100px` to
+ *   `62px` (≈38% shorter, inside the requested 35–40%/60–65px range) so
+ *   the marks read as a lighter, less "actively scanning" framing cue —
+ *   they're only meant to suggest a scan *area* on this pre-permission
+ *   screen, unlike `ScanningVisual`'s own full-opacity corner marks during
+ *   a real scan. Each corner mark's own true vertex — the point where its
+ *   two border sides actually meet (`top`/`left` for the top-left mark,
+ *   `left + size`/`top` for top-right, `top + size`/`left` for
+ *   bottom-left, `left + size`/`top + size` for bottom-right) — is kept
+ *   fixed at exactly its previous position; only the `size` shrinks, so
+ *   the marks still frame the same panel corners, just with a shorter
+ *   reach inward. Concretely: the two `top`-anchored marks keep their
+ *   `top` unchanged and the two `left`-anchored marks keep their `left`
+ *   unchanged; the opposite offset (`left` for the right-side marks,
+ *   `top` for the bottom marks) is recomputed as `old-offset + old-size -
+ *   new-size` to hold that same vertex fixed. Stroke thickness (`3px`)
+ *   and opacity (`40%`, `border-white/40` — already the requested value,
+ *   unchanged) are both left as they were; `3px` didn't read as
+ *   disproportionately heavy against the shorter `62px` arm, so it wasn't
+ *   thinned. Mobile's own arms were scaled by that same ~38% factor
+ *   applied to its *existing* size (`45.66px → 28.31px`) rather than
+ *   re-deriving a Desktop-relative ratio from scratch — matching this
+ *   file's own established Mobile/Desktop scaling precedent (the two
+ *   already differ by roughly the same 224:491 panel-size ratio) — with
+ *   its own vertices held fixed by the identical position-recompute rule;
  *
  * Two independent trees (Mobile below `lg`, Desktop at `lg` and up) rather
  * than one tree with a `lg:` variant on every value — matches
@@ -135,7 +171,66 @@ export function gradientBorderStyle(borderWidth: string) {
   }
 }
 
+// A later, explicit task's request: the decorative video should read as
+// playing very slightly faster than its own natural speed — subtle, not a
+// noticeably sped-up effect. `HTMLMediaElement.playbackRate` (not a video
+// re-export/re-encode) is the standard way to do this; it can be set at
+// any point in the element's lifecycle, before or after playback actually
+// starts, and the browser applies it once frames are actually rendered.
+const PLAYBACK_RATE = 1.5
+
 export default function CameraPermissionVisual() {
+  const mobileVideoRef = useRef<HTMLVideoElement | null>(null)
+  const desktopVideoRef = useRef<HTMLVideoElement | null>(null)
+
+  // `autoPlay` alone doesn't respect `prefers-reduced-motion` — this pauses
+  // both breakpoints' `<video>` elements (only one is ever visually shown,
+  // but both are mounted, matching the Mobile/Desktop split below) whenever
+  // the user has that preference set, and resumes them if it changes
+  // mid-session. Mirrors the `matchMedia("(prefers-reduced-motion: reduce)")`
+  // listener pattern `MoodBubbleCluster` already uses for its own motion,
+  // rather than a new one-off approach.
+  useEffect(() => {
+    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)")
+    const videos = [mobileVideoRef.current, desktopVideoRef.current].filter(
+      (video): video is HTMLVideoElement => video !== null,
+    )
+
+    function applyMotionPreference() {
+      for (const video of videos) {
+        if (reducedMotion.matches) {
+          video.pause()
+        } else {
+          video.play().catch(() => {})
+        }
+      }
+    }
+
+    applyMotionPreference()
+    reducedMotion.addEventListener("change", applyMotionPreference)
+    return () => reducedMotion.removeEventListener("change", applyMotionPreference)
+  }, [])
+
+  // `PLAYBACK_RATE` applied here (on mount, to both refs directly) rather
+  // than only via the `<video>` elements' own `onLoadedMetadata` below —
+  // this covers the case where metadata is already loaded (e.g. cached)
+  // by the time this effect runs, which `onLoadedMetadata` alone would
+  // miss (that event only fires once, the first time metadata loads).
+  // `onLoadedMetadata` stays too, as the reliable path for the normal
+  // case where metadata *hasn't* loaded yet at mount — some browsers only
+  // durably honor a `playbackRate` write once the media element has an
+  // actual decoded source to apply it to, so setting it in just one place
+  // isn't reliable across browsers/timings; both together are. Applying it
+  // doesn't touch `loop`/`autoPlay`/`muted`/`playsInline`/`controls`, the
+  // reduced-motion pause/resume above, or anything else about playback —
+  // it only changes the rate frames advance at once playback is already
+  // happening (or about to).
+  useEffect(() => {
+    for (const video of [mobileVideoRef.current, desktopVideoRef.current]) {
+      if (video) video.playbackRate = PLAYBACK_RATE
+    }
+  }, [])
+
   return (
     <>
       {/* Mobile (below `lg`) — Figma node `347:372`. */}
@@ -143,10 +238,19 @@ export default function CameraPermissionVisual() {
         className="relative size-[224px] shrink-0 overflow-hidden rounded-[11px] lg:hidden"
         style={gradientBorderStyle("2px")}
       >
-        <img
-          alt=""
-          className="pointer-events-none absolute inset-0 size-full rounded-[10.994px] object-cover opacity-50"
-          src={faceScanVisual}
+        <video
+          ref={mobileVideoRef}
+          src="/vibe-result.mp4"
+          poster={faceScanVisual}
+          autoPlay
+          muted
+          playsInline
+          controls={false}
+          aria-hidden="true"
+          onLoadedMetadata={(event) => {
+            event.currentTarget.playbackRate = PLAYBACK_RATE
+          }}
+          className="pointer-events-none absolute inset-0 size-full rounded-[10.994px] object-cover"
         />
         <div className="absolute left-[-49.7px] top-[36.87px] size-[97.569px]">
           <div className="absolute inset-[-65.73%]">
@@ -163,17 +267,29 @@ export default function CameraPermissionVisual() {
             <img alt="" className="block size-full max-w-none" src={ellipse25Mobile} />
           </div>
         </div>
-        {/* Corner marks: 1.2px / 40% opacity here (Mobile, pre-permission,
+        {/* Corner marks: 1.2px / 30% opacity here (Mobile, pre-permission,
             "inactive") vs. 1.2px / 100% opacity in `ScanningVisual`'s
             Mobile tree (active scanning) — Desktop uses a thicker 3px in
-            both files instead (see that tree's own corner marks below) —
-            the same lengths/positions/geometry across every combination,
-            just this thickness+opacity pair distinguishing state, and
-            thickness alone distinguishing breakpoint. */}
-        <div className="absolute left-[19.31px] top-[19.31px] size-[45.66px] border-t-[1.2px] border-l-[1.2px] border-white/40" />
-        <div className="absolute left-[157.65px] top-[19.31px] size-[45.66px] border-t-[1.2px] border-r-[1.2px] border-white/40" />
-        <div className="absolute left-[19.31px] top-[157.65px] size-[45.66px] border-b-[1.2px] border-l-[1.2px] border-white/40" />
-        <div className="absolute left-[157.65px] top-[157.65px] size-[45.66px] border-b-[1.2px] border-r-[1.2px] border-white/40" />
+            both files instead (see that tree's own corner marks below).
+            Arm length (the `size` below) no longer matches `ScanningVisual`'s
+            own marks 1:1, though — a later, explicit task shortened only
+            this pre-permission screen's marks (`45.66px` → `28.31px`, the
+            same ~38% reduction as Desktop's below) so they read as a
+            lighter, less "actively scanning" cue here specifically;
+            `ScanningVisual`'s own corner marks (the real in-progress state)
+            are unaffected — see this file's own top-level doc comment for
+            the full before/after geometry and the position-recompute rule
+            that keeps each mark's outer vertex fixed while its arm
+            shrinks. Opacity itself was later lowered again, `40%` → `30%`
+            (still just this pre-permission screen, not `ScanningVisual`'s
+            own marks), per a further explicit request to read as even more
+            subtle/secondary to the face-mesh video beneath it — size,
+            position, stroke thickness, and color are all unaffected by
+            that one-property change. */}
+        <div className="absolute left-[19.31px] top-[19.31px] size-[28.31px] border-t-[1.2px] border-l-[1.2px] border-white/30" />
+        <div className="absolute left-[175px] top-[19.31px] size-[28.31px] border-t-[1.2px] border-r-[1.2px] border-white/30" />
+        <div className="absolute left-[19.31px] top-[175px] size-[28.31px] border-b-[1.2px] border-l-[1.2px] border-white/30" />
+        <div className="absolute left-[175px] top-[175px] size-[28.31px] border-b-[1.2px] border-r-[1.2px] border-white/30" />
       </div>
 
       {/* Desktop (`lg` and up) — Figma node `347:336`. */}
@@ -181,10 +297,19 @@ export default function CameraPermissionVisual() {
         className="relative hidden size-[491px] shrink-0 overflow-hidden rounded-[24px] lg:block"
         style={gradientBorderStyle("2px")}
       >
-        <img
-          alt=""
-          className="pointer-events-none absolute inset-0 size-full rounded-[24px] object-cover opacity-50"
-          src={faceScanVisual}
+        <video
+          ref={desktopVideoRef}
+          src="/vibe-result.mp4"
+          poster={faceScanVisual}
+          autoPlay
+          muted
+          playsInline
+          controls={false}
+          aria-hidden="true"
+          onLoadedMetadata={(event) => {
+            event.currentTarget.playbackRate = PLAYBACK_RATE
+          }}
+          className="pointer-events-none absolute inset-0 size-full rounded-[24px] object-cover"
         />
         <div className="absolute left-[-108.5px] top-[77px] size-[213px]">
           <div className="absolute inset-[-65.73%]">
@@ -201,13 +326,19 @@ export default function CameraPermissionVisual() {
             <img alt="" className="block size-full max-w-none" src={ellipse25Desktop} />
           </div>
         </div>
-        {/* Corner marks: 3px / 40% opacity (Desktop uses a thicker line than
+        {/* Corner marks: 3px / 30% opacity (Desktop uses a thicker line than
             Mobile's 1.2px) — see the Mobile tree's own note above for the
-            pre-permission vs. scanning distinction this reflects. */}
-        <div className="absolute left-[42.5px] top-[40px] size-[100px] border-t-[3px] border-l-[3px] border-white/40" />
-        <div className="absolute left-[345.5px] top-[40px] size-[100px] border-t-[3px] border-r-[3px] border-white/40" />
-        <div className="absolute left-[42.5px] top-[343px] size-[100px] border-b-[3px] border-l-[3px] border-white/40" />
-        <div className="absolute left-[345.5px] top-[343px] size-[100px] border-b-[3px] border-r-[3px] border-white/40" />
+            pre-permission vs. scanning distinction this reflects, and for
+            the later `40%` → `30%` opacity-only reduction. Arm length
+            shortened from `100px` to `62px` (see this file's own top-level
+            doc comment) — each mark's `left`/`top` below is the same
+            recomputed-to-hold-the-vertex-fixed position that comment
+            describes, not the original `42.5`/`345.5`/`40`/`343` pairing
+            unchanged. */}
+        <div className="absolute left-[42.5px] top-[40px] size-[62px] border-t-[3px] border-l-[3px] border-white/30" />
+        <div className="absolute left-[383.5px] top-[40px] size-[62px] border-t-[3px] border-r-[3px] border-white/30" />
+        <div className="absolute left-[42.5px] top-[381px] size-[62px] border-b-[3px] border-l-[3px] border-white/30" />
+        <div className="absolute left-[383.5px] top-[381px] size-[62px] border-b-[3px] border-r-[3px] border-white/30" />
       </div>
     </>
   )
