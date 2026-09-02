@@ -330,7 +330,17 @@ export default function CameraPermissionScreen({
         : errorKind === "mediapipe"
           ? t.cameraPermission.errorMediaPipeSubtitle
           : t.cameraPermission.body
-  const ctaLabel = errorKind !== null ? t.cameraPermission.tryAgainLabel : undefined
+  // `requesting` wins over the error-recovery label: a "Try Again" retry
+  // still goes through `requestAccess`/`getUserMedia`, so it passes
+  // through `cameraStatus === "requesting"` the same as the original
+  // "Allow Camera" click does — this CTA's `disabled` prop already covers
+  // that window (see below), this just keeps the label in sync with it.
+  const ctaLabel =
+    cameraStatus === "requesting"
+      ? t.cameraPermission.requestingLabel
+      : errorKind !== null
+        ? t.cameraPermission.tryAgainLabel
+        : undefined
   const ctaOnClick = errorKind !== null ? handleTryAgain : requestAccess
 
   return (

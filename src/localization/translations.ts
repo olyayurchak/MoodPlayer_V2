@@ -39,6 +39,16 @@ export type Translations = {
     heading: string
     body: string
     ctaLabel: string
+    /** Shown in place of `ctaLabel` on the primary CTA while the browser's
+     *  native permission prompt is in flight (`cameraStatus ===
+     *  "requesting"` in `CameraPermissionScreen`) — the CTA is already
+     *  `disabled` for that same duration to block a duplicate
+     *  `getUserMedia` call; this string is the one thing that changes on
+     *  top of that, so a user who glances away and back gets a clear
+     *  "we're waiting on you" signal instead of a flat, unresponsive-
+     *  looking button. Reuses `CameraPermissionCta`'s existing `label`
+     *  override prop — no new mechanism. */
+    requestingLabel: string
     features: Record<CameraPermissionFeatureId, string>
     /** Scanning state — reached after the user grants camera access.
      *  `scanningCtaLabel` sits next to the animated 3-dot indicator (the
@@ -180,6 +190,7 @@ export const translations: Record<Language, Translations> = {
       heading: "Find your vibe",
       body: "With your permission, MoodPlayer uses your camera to analyze facial cues and suggest a playlist for your vibe.",
       ctaLabel: "Allow Camera",
+      requestingLabel: "Requesting access…",
       features: {
         "facial-cues": "Analyzes facial cues",
         "on-device": "Works on your device",
@@ -277,6 +288,7 @@ export const translations: Record<Language, Translations> = {
       heading: "Знайди свій вайб",
       body: "З твого дозволу MoodPlayer використає камеру, щоб проаналізувати міміку й підібрати плейліст під твій вайб.",
       ctaLabel: "Дозволити камеру",
+      requestingLabel: "Запитуємо доступ…",
       features: {
         "facial-cues": "Аналізує міміку",
         "on-device": "Працює на твоєму пристрої",
