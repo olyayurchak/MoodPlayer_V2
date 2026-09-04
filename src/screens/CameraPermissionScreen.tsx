@@ -33,6 +33,14 @@ type CameraErrorKind = "denied" | "unavailable" | "mediapipe" | null
  *  state. */
 const SCAN_DURATION_MS = 4500
 
+/** How long `cameraStatus` must stay `"requesting"` before the CTA's
+ *  `requestingLabel` ("Requesting access…") actually appears — see the
+ *  `showRequestingLabel` effect below. Keeps a near-instant `getUserMedia`
+ *  resolution (e.g. permission already granted from an earlier grant this
+ *  session) from flashing the label for a single frame; anything still
+ *  pending past this threshold gets the real in-flight feedback. */
+const REQUESTING_LABEL_DELAY_MS = 700
+
 /**
  * Mood Detection / Camera Permission screen.
  *
@@ -276,6 +284,27 @@ export default function CameraPermissionScreen({
     // guard against firing more than once here beyond that.
   }, [scanCompleted, onScanComplete, getAnalysis])
 
+  // Delays the CTA's `requestingLabel` behind `REQUESTING_LABEL_DELAY_MS`
+  // (see that constant's own doc comment) — `disabled` below stays tied
+  // directly to `cameraStatus === "requesting"` and is unaffected, so
+  // duplicate-click prevention is still immediate; only the label text is
+  // deferred. Re-arms independently on every fresh `"requesting"` entry
+  // (the initial "Allow Camera" click and every "Try Again" retry alike,
+  // since a retry re-enters `"requesting"` the same way — see
+  // `handleTryAgain` below), and the timer is cleared the instant
+  // `cameraStatus` leaves `"requesting"` for any reason (resolved,
+  // rejected, or this component unmounting), so a stale timeout can never
+  // flip this back on after the fact.
+  const [showRequestingLabel, setShowRequestingLabel] = useState(false)
+  useEffect(() => {
+    if (cameraStatus !== "requesting") {
+      setShowRequestingLabel(false)
+      return
+    }
+    const timerId = window.setTimeout(() => setShowRequestingLabel(true), REQUESTING_LABEL_DELAY_MS)
+    return () => window.clearTimeout(timerId)
+  }, [cameraStatus])
+
   // `Try Again`'s one handler, doing whichever retry actually applies to
   // the current `errorKind`:
   // - camera errors (`"denied"`/`"unavailable"`) call the exact same
@@ -330,13 +359,16 @@ export default function CameraPermissionScreen({
         : errorKind === "mediapipe"
           ? t.cameraPermission.errorMediaPipeSubtitle
           : t.cameraPermission.body
-  // `requesting` wins over the error-recovery label: a "Try Again" retry
-  // still goes through `requestAccess`/`getUserMedia`, so it passes
-  // through `cameraStatus === "requesting"` the same as the original
-  // "Allow Camera" click does — this CTA's `disabled` prop already covers
-  // that window (see below), this just keeps the label in sync with it.
+  // `showRequestingLabel` (delayed, see its own effect above) wins over
+  // the error-recovery label: a "Try Again" retry still goes through
+  // `requestAccess`/`getUserMedia`, so it passes through
+  // `cameraStatus === "requesting"` the same as the original "Allow
+  // Camera" click does — this CTA's `disabled` prop already covers that
+  // window (see below) immediately; the label itself only switches once
+  // the delay elapses, so a fast retry keeps showing "Try Again" rather
+  // than flashing "Requesting access…" for an instant.
   const ctaLabel =
-    cameraStatus === "requesting"
+    showRequestingLabel
       ? t.cameraPermission.requestingLabel
       : errorKind !== null
         ? t.cameraPermission.tryAgainLabel
