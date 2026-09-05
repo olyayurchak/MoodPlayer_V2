@@ -226,7 +226,34 @@ export function useExpressionSampler(
   )
 
   const getAnalysis = useCallback(() => {
-    return analyzeFromSummary(buildSummary(samplesRef.current))
+    const samples = samplesRef.current
+    const summary = buildSummary(samples)
+    const result = analyzeFromSummary(summary)
+    // DEV-only calibration diagnostic: the five signals `analyzeMoodV1`
+    // actually reads (their scan-final median — the exact same value
+    // `analyzeFromSummary` above just fed it, not re-derived here) plus
+    // its resulting scores/mood and this scan's sample count. Exists
+    // purely to let real scan data inform a future Melancholic/Chill
+    // threshold calibration pass — reads only, never influences `result`
+    // itself, and `import.meta.env.DEV` is statically replaced by Vite at
+    // build time, so this whole block (including the `buildSummary`
+    // fields it reads) is dead-code-eliminated from production bundles,
+    // matching this module's existing "production behavior is
+    // `getAnalysis()`'s return value only" contract.
+    if (import.meta.env.DEV) {
+      console.log("[mood-scan]", {
+        mouthSmile: summary.mouthSmile?.median,
+        mouthFrown: summary.mouthFrown?.median,
+        eyeSquint: summary.eyeSquint?.median,
+        browInnerUp: summary.browInnerUp?.median,
+        browDown: summary.browDown?.median,
+        happyScore: result.scores.happy,
+        melancholicScore: result.scores.melancholic,
+        mood: result.mood,
+        sampleCount: samples.length,
+      })
+    }
+    return result
   }, [])
 
   return { recordSample, getAnalysis }

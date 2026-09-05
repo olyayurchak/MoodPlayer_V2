@@ -53,11 +53,16 @@ import type { MoodId } from "../data/moods"
  *   but showed no useful separation in this calibration data (in one
  *   case it was even lower for Melancholic than for Chill) — its weight
  *   is set to exactly zero in v1 rather than forcing an unsupported
- *   pattern onto real data.
+ *   pattern onto real data. `mouthFrown`'s own saturation point
+ *   (`MOUTH_FROWN_MELANCHOLIC_MIN`) and Melancholic's decision threshold
+ *   (`MELANCHOLIC_DECISION_THRESHOLD`) were both later recalibrated —
+ *   see each constant's own comment — after real scans showed moderate,
+ *   non-exaggerated Melancholic attempts collapsing into Chill; Happy's
+ *   own formula and threshold were not touched by that recalibration.
  * - Chill: a MoodPlayer-specific product category, not a scientific
  *   emotion class. It is the outcome when neither Happy's nor
- *   Melancholic's evidence clears a meaningful threshold — never an
- *   "everything else" catch-all computed by elimination alone; both
+ *   Melancholic's evidence clears its own meaningful threshold — never
+ *   an "everything else" catch-all computed by elimination alone; both
  *   scores are always computed and explicitly compared.
  *
  * ============================================================
@@ -153,15 +158,49 @@ const EYE_SQUINT_WEIGHT = 0.15
 
 // ---- Melancholic: mouthFrown (primary) + browInnerUp (gated support) ----
 
-/** Neutral/Chill's observed `mouthFrown` ceiling (calibration: "Neutral
- *  generally <= ~0.0047"). */
-const MOUTH_FROWN_NEUTRAL_MAX = 0.0047
-/** A conservative point within the confirmed Subdued range (~0.007–0.022
- *  across multiple scans) — chosen below the weakest single confirmed
- *  value so that range's low end still contributes strong (if not
- *  always fully saturated) evidence, rather than requiring every subdued
- *  scan to reach the range's upper end before being recognized at all. */
-const MOUTH_FROWN_MELANCHOLIC_MIN = 0.01
+/** Neutral/Chill's observed `mouthFrown` ceiling — the floor below which
+ *  `mouthFrown` contributes zero Melancholic evidence.
+ *
+ *  Lowered from an earlier `0.0047` after real-camera scans showed that
+ *  value sat too high: neutral Chill scans measured `mouthFrown` around
+ *  `0.0005–0.0022`, while one intended-Melancholic scan at `≈0.00465`
+ *  still fell at/below the old `0.0047` ceiling and resolved to Chill
+ *  (a separate intended-Melancholic scan at `≈0.00573` already cleared
+ *  it and correctly resolved to Melancholic). `0.0035` sits between the
+ *  observed Chill range and that `≈0.00465` near-miss, so the near-miss
+ *  scan now contributes real (if partial) evidence instead of exactly
+ *  zero, without dropping into the observed Chill range itself. Requires
+ *  validation against more real scans before treating this as final —
+ *  see `MOUTH_FROWN_MELANCHOLIC_MIN`'s own comment for the ramp's other
+ *  (unchanged) boundary. */
+const MOUTH_FROWN_NEUTRAL_MAX = 0.0035
+/** The point at/above which `mouthFrown` alone already saturates its full
+ *  (dominant, `MOUTH_FROWN_WEIGHT`-weighted) contribution — i.e. how
+ *  strong a frown must be before it stops needing any help from
+ *  `browInnerUp` to read as Melancholic on its own.
+ *
+ *  Lowered from an earlier `0.01` after real calibration scans showed a
+ *  recurring problem: moderate but clearly intentional Melancholic
+ *  attempts (sad/serious/restrained, not exaggerated) were producing
+ *  `mouthFrown` medians that fell well short of that saturation point —
+ *  landing far enough down this ramp's slope that even full
+ *  `browInnerUp` support couldn't lift `melancholicScore` past
+ *  `MELANCHOLIC_DECISION_THRESHOLD`, so the scan fell through to Chill
+ *  (some of these scans logged `melancholicScore: 0` entirely, i.e. the
+ *  frown value sat at/below `MOUTH_FROWN_NEUTRAL_MAX` for that
+ *  particular scan — recalibrating this saturation point doesn't rescue
+ *  those specific zero-evidence cases, only the ones that had *some*
+ *  frown evidence but not enough to matter; see this task's own report
+ *  for that distinction and why it deliberately isn't papered over here).
+ *
+ *  `0.007` keeps the ramp's floor (`MOUTH_FROWN_NEUTRAL_MAX`, Chill's own
+ *  observed ceiling) completely unchanged — only the *top* of the ramp
+ *  moved down, so a value that used to read as "moderate" (partial ramp)
+ *  now reads as "clearly frowning" (full ramp), while a value at or
+ *  below Chill's own documented ceiling still contributes exactly zero
+ *  evidence, same as before. Requires broader validation against more
+ *  real scans before treating this as final. */
+const MOUTH_FROWN_MELANCHOLIC_MIN = 0.007
 
 /** Roughly the low/neutral end of `browInnerUp` in calibration (Chill
  *  ≈0.043–0.045, Melancholic M1 ≈0.046) — below this, no contribution.
@@ -192,12 +231,50 @@ const BROW_INNER_UP_WEIGHT = 0.15
  *  onto data that doesn't currently support it. */
 const BROW_DOWN_WEIGHT = 0
 
-/** Either mood must clear this normalized score before it can be
- *  selected over Chill — chosen as the midpoint of each score's own
- *  [0,1] range, since both scores are constructed (via the ramps above)
- *  to reach ≈1.0 for confirmed fixtures and ≈0 for Neutral/Chill ones.
- *  Prototype value — requires broader validation. */
+/** Happy must clear this normalized score before it can be selected over
+ *  Chill — chosen as the midpoint of Happy's own [0,1] range, since
+ *  `happyScore` is constructed (via the ramps above) to reach ≈1.0 for
+ *  confirmed Happy fixtures and ≈0 for Neutral/Chill ones. Happy
+ *  classification already works reliably at this value — unchanged by
+ *  this module's Melancholic/Chill recalibration (see
+ *  `MELANCHOLIC_DECISION_THRESHOLD` below for Melancholic's own,
+ *  separate threshold). Prototype value — requires broader validation. */
 const MOOD_DECISION_THRESHOLD = 0.5
+
+/** Melancholic must clear this normalized score before it can be
+ *  selected over Chill — deliberately lower than Happy's
+ *  `MOOD_DECISION_THRESHOLD`, and its own separate constant rather than
+ *  reusing that one, specifically so Happy's decision behavior is
+ *  provably untouched by this change (see `analyzeMoodV1`'s Happy
+ *  branch, which still reads `MOOD_DECISION_THRESHOLD` exactly as
+ *  before).
+ *
+ *  Melancholic's dominant signal (`mouthFrown`) is real but, per
+ *  calibration, noisier and generally weaker in magnitude for genuine
+ *  moderate (non-exaggerated) attempts than Happy's dominant signal
+ *  (`mouthSmile`) is for genuine Happy ones — and its only supporting
+ *  signal (`browInnerUp`) is deliberately capped small and gated (it
+ *  must never carry a result on its own; see `BROW_INNER_UP_WEIGHT`'s own
+ *  comment). A single shared 0.5 threshold left "moderate but
+ *  consistent" Melancholic evidence — real signal, but not enough of it
+ *  to fully saturate `mouthFrown` and not enough supporting
+ *  `browInnerUp` to close the rest of the gap — collapsing into Chill
+ *  even when it was reproducible across the whole scan, not a one-frame
+ *  fluke (median-aggregated, same as every other signal here).
+ *
+ *  `0.4` still requires `melancholicScore` to clearly exceed a
+ *  meaningful floor (per the Chill-side analysis in
+ *  `MOUTH_FROWN_MELANCHOLIC_MIN`'s own comment, a genuinely neutral
+ *  scan's `mouthFrown` contributes exactly zero evidence here, so its
+ *  `melancholicScore` stays at `0` regardless of this threshold) and
+ *  still requires beating `happyScore` (see `analyzeMoodV1`'s explicit
+ *  comparison below, unchanged) — it only closes the gap for evidence
+ *  that is real and consistent but doesn't need to be exaggerated to
+ *  count. Prototype value — requires broader validation; if real
+ *  neutral/Chill scans start crossing this threshold, lower it back
+ *  toward `0.5` rather than reintroducing an exaggeration requirement on
+ *  `mouthFrown`. */
+const MELANCHOLIC_DECISION_THRESHOLD = 0.4
 
 /** Clamps `value` to `[0, 1]`. */
 function clamp01(value: number): number {
@@ -234,8 +311,10 @@ export type MoodAnalysisResult = {
   mood: MoodId
   /** Final normalized `[0, 1]`-ish scores for the two moods this
    *  heuristic actually scores — `chill` has no score of its own; it is
-   *  the decision reached when neither other score clears
-   *  `MOOD_DECISION_THRESHOLD` (see the module doc comment above). */
+   *  the decision reached when neither other score clears its own
+   *  decision threshold (`MOOD_DECISION_THRESHOLD` for Happy,
+   *  `MELANCHOLIC_DECISION_THRESHOLD` for Melancholic — see the module
+   *  doc comment above). */
   scores: { happy: number; melancholic: number }
   /** The individual ramp contributions behind both scores, for
    *  inspection/debugging — never itself read by the decision logic
@@ -269,13 +348,18 @@ export function analyzeMoodV1(evidence: MoodEvidenceInput): MoodAnalysisResult {
     MOUTH_FROWN_WEIGHT * mouthFrownRamp + BROW_INNER_UP_WEIGHT * browInnerUpRamp + browDownContribution,
   )
 
-  // Chill wins whenever neither score clears the decision threshold, or
-  // when a score clears it but doesn't exceed the *other* mood's score —
-  // an explicit comparison, never "not Happy = Chill" by elimination.
+  // Chill wins whenever neither score clears its own decision threshold,
+  // or when a score clears it but doesn't exceed the *other* mood's
+  // score — an explicit comparison, never "not Happy = Chill" by
+  // elimination. Happy's branch is unchanged (`MOOD_DECISION_THRESHOLD`,
+  // same as before this module's Melancholic/Chill recalibration);
+  // Melancholic reads its own, separately-calibrated
+  // `MELANCHOLIC_DECISION_THRESHOLD` instead (see that constant's own
+  // comment for why the two moods no longer share one threshold).
   let mood: MoodId = "chill"
   if (happyScore >= MOOD_DECISION_THRESHOLD && happyScore > melancholicScore) {
     mood = "happy"
-  } else if (melancholicScore >= MOOD_DECISION_THRESHOLD && melancholicScore > happyScore) {
+  } else if (melancholicScore >= MELANCHOLIC_DECISION_THRESHOLD && melancholicScore > happyScore) {
     mood = "melancholic"
   }
 
