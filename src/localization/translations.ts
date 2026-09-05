@@ -30,6 +30,12 @@ export type CameraPermissionFeatureId = "facial-cues" | "on-device" | "not-recor
 export type Translations = {
   common: {
     wordmark: string
+    /** Accessible name for `MoodPlayerLogo` when it's rendered as a
+     *  clickable home/Intro link (see that component's own `onClick`
+     *  prop) — the visible wordmark text alone would give a button its
+     *  brand name as an accessible name ("MoodPlayer"), not the action
+     *  clicking it performs, so this states that action explicitly. */
+    logoHomeAriaLabel: string
   }
   intro: {
     tagline: string
@@ -175,6 +181,7 @@ export const translations: Record<Language, Translations> = {
   en: {
     common: {
       wordmark: "MoodPlayer",
+      logoHomeAriaLabel: "MoodPlayer — Home",
     },
     intro: {
       // Literal `\n` between the two sentences, same technique/reason as
@@ -274,6 +281,7 @@ export const translations: Record<Language, Translations> = {
   uk: {
     common: {
       wordmark: "MoodPlayer",
+      logoHomeAriaLabel: "MoodPlayer — На головну",
     },
     intro: {
       // Literal `\n` between the two sentences — `TextStack`'s tagline

@@ -99,6 +99,18 @@ export default function App() {
     if (screen === "intro") navigate("camera-permission")
   }, [screen, navigate])
 
+  // The top-left `MoodPlayerLogo` lockup's click handler, shared by every
+  // screen that renders it (Camera Permission, Vibe Result, Player — see
+  // each screen's own `onLogoClick` prop). `IntroScreen` doesn't render
+  // `MoodPlayerLogo` at all (it has its own, larger `TextStack` hero
+  // wordmark instead), so this guard is a defensive no-op matching this
+  // file's existing per-screen guard convention, not a reachable case in
+  // practice today.
+  const handleLogoClick = useCallback(() => {
+    if (screen === "intro") return
+    navigate("intro")
+  }, [screen, navigate])
+
   const handleScanComplete = useCallback(
     (capturedFrameArg: string | null, mood: MoodId) => {
       if (screen !== "camera-permission") return
@@ -172,6 +184,7 @@ export default function App() {
             capturedFrame={capturedFrame}
             onScanAgain={handleScanAgain}
             onStartPlaylist={handleStartPlaylist}
+            onLogoClick={handleLogoClick}
           />
         )
       case "player":
@@ -181,7 +194,7 @@ export default function App() {
         // which requires already being on `"vibe-result"` (itself
         // unreachable with a `null` mood) before it can fire.
         if (!suggestedMood) return null
-        return <PlayerScreen mood={suggestedMood} />
+        return <PlayerScreen mood={suggestedMood} onLogoClick={handleLogoClick} />
       case "camera-permission":
         return (
           <CameraPermissionScreen
@@ -189,6 +202,7 @@ export default function App() {
             cameraStatus={cameraStatus}
             requestAccess={requestAccess}
             onScanComplete={handleScanComplete}
+            onLogoClick={handleLogoClick}
           />
         )
       default:

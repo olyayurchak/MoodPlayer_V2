@@ -34,6 +34,12 @@ type PlayerScreenProps = {
    *  This screen doesn't own or duplicate that state; it just starts its
    *  own local `activeMood` (below) from whatever it's handed. */
   mood: MoodId
+  /** Forwarded straight to both `MoodPlayerLogo` instances' own `onClick`
+   *  (Mobile and Desktop each render their own copy of the header — see
+   *  the doc comment above on why this screen uses two independent
+   *  trees) — see `App.tsx`'s `handleLogoClick` for the actual "navigate
+   *  to Intro" behavior; this screen has no navigation logic of its own. */
+  onLogoClick?: () => void
 }
 
 /**
@@ -76,7 +82,7 @@ type PlayerScreenProps = {
  * mutates `App.tsx`'s own confirmed-mood state, and (no playlist logic
  * exists yet) never reloads a different playlist either.
  */
-export default function PlayerScreen({ mood }: PlayerScreenProps) {
+export default function PlayerScreen({ mood, onLogoClick }: PlayerScreenProps) {
   const { t } = useLanguage()
   const [activeMood, setActiveMood] = useState<MoodId>(mood)
 
@@ -93,7 +99,7 @@ export default function PlayerScreen({ mood }: PlayerScreenProps) {
         {/* ---------- Mobile (below `lg`) ---------- */}
         <div className="flex w-full flex-col items-center gap-[24px] lg:hidden">
           <div className="flex w-full items-center justify-between">
-            <MoodPlayerLogo />
+            <MoodPlayerLogo onClick={onLogoClick} />
             <LanguageSwitcher />
           </div>
 
@@ -127,7 +133,7 @@ export default function PlayerScreen({ mood }: PlayerScreenProps) {
         {/* ---------- Desktop (`lg` and up) ---------- */}
         <div className="hidden w-full flex-col gap-[64px] lg:flex">
           <div className="flex w-full items-center justify-between">
-            <MoodPlayerLogo />
+            <MoodPlayerLogo onClick={onLogoClick} />
             <PlayerMoodSelector activeMood={activeMood} onSelect={setActiveMood} />
             <LanguageSwitcher />
           </div>

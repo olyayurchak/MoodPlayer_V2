@@ -156,6 +156,7 @@ export default function CameraPermissionScreen({
   cameraStatus,
   requestAccess,
   onScanComplete,
+  onLogoClick,
 }: {
   /** Owned by `App.tsx`, not this component — see the doc comment above
    *  on why. */
@@ -169,6 +170,10 @@ export default function CameraPermissionScreen({
    *  `MoodId` for this scan; this component itself has no idea what
    *  happens to either value after, by design. */
   onScanComplete?: (capturedFrame: string | null, suggestedMood: MoodId) => void
+  /** Forwarded straight to `MoodPlayerLogo`'s own `onClick` — see
+   *  `App.tsx`'s `handleLogoClick` for the actual "navigate to Intro"
+   *  behavior; this screen has no navigation logic of its own. */
+  onLogoClick?: () => void
 }) {
   const { t } = useLanguage()
   const scanningVisualRef = useRef<ScanningVisualHandle>(null)
@@ -380,7 +385,7 @@ export default function CameraPermissionScreen({
       <AppBackground />
       <div className="relative flex w-full max-w-[382px] flex-col items-start gap-[64px] rounded-[24px] backdrop-blur-[20px] lg:max-w-[1242px] lg:border-[1.5px] lg:border-[rgba(255,255,255,0.12)] lg:bg-[rgba(118,118,118,0.08)] lg:p-[64px]">
         <div className="flex w-full items-center justify-between">
-          <MoodPlayerLogo />
+          <MoodPlayerLogo onClick={onLogoClick} />
           <LanguageSwitcher />
         </div>
 

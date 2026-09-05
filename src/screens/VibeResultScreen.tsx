@@ -103,6 +103,10 @@ type VibeResultScreenProps = {
    *  again, rather than this button doing nothing with no extension
    *  point at all. */
   onStartPlaylist?: (mood: MoodId) => void
+  /** Forwarded straight to `MoodPlayerLogo`'s own `onClick` — see
+   *  `App.tsx`'s `handleLogoClick` for the actual "navigate to Intro"
+   *  behavior; this screen has no navigation logic of its own. */
+  onLogoClick?: () => void
 }
 
 /**
@@ -161,6 +165,7 @@ export default function VibeResultScreen({
   capturedFrame,
   onScanAgain,
   onStartPlaylist,
+  onLogoClick,
 }: VibeResultScreenProps) {
   const { t } = useLanguage()
   const [selectedMood, setSelectedMood] = useState<MoodId>(suggestedMood)
@@ -176,7 +181,7 @@ export default function VibeResultScreen({
       <AppBackground />
       <div className="relative flex w-full max-w-[382px] flex-col items-start gap-[64px] rounded-[24px] backdrop-blur-[20px] lg:max-w-[1242px] lg:border-[1.5px] lg:border-[rgba(255,255,255,0.12)] lg:bg-[rgba(118,118,118,0.08)] lg:p-[64px]">
         <div className="flex w-full items-center justify-between">
-          <MoodPlayerLogo />
+          <MoodPlayerLogo onClick={onLogoClick} />
           <LanguageSwitcher />
         </div>
 
