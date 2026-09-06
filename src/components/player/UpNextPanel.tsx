@@ -1,4 +1,5 @@
 import type { PlayerTrack } from "../../data/playerTrack"
+import type { PlayerMoodAccent } from "../../data/playerMoodAccent"
 import { useLanguage } from "../../localization/LanguageContext"
 
 /** Same gradient-ring-on-a-glass-surface technique as
@@ -16,15 +17,39 @@ const CURRENT_TRACK_RING_STYLE = {
   maskComposite: "exclude" as const,
 }
 
-function TrackRow({ track, isCurrent }: { track: PlayerTrack; isCurrent: boolean }) {
+function TrackRow({
+  track,
+  isCurrent,
+  accent,
+}: {
+  track: PlayerTrack
+  isCurrent: boolean
+  /** From `data/playerMoodAccent.ts`, `undefined` for any mood without
+   *  its own approved override yet. When present, the current-track
+   *  row's translucent fill becomes that mood's own `accentSecondaryTint`
+   *  (replacing the neutral `rgba(255,255,255,0.06)`), and its ring
+   *  reuses this same masked-gradient-ring technique
+   *  (`CURRENT_TRACK_RING_STYLE`) with `accent.gradient` painted on it
+   *  instead of the universal Mood Gradient — the same technique/field
+   *  the selected "Happy" mood-selector pill's ring already reuses,
+   *  rather than a flat solid `border-color` (a first attempt that read
+   *  as one flat orange stroke instead of the full approved
+   *  orange→coral→red sweep). */
+  accent?: PlayerMoodAccent
+}) {
   return (
     <div
+      style={accent && isCurrent ? { backgroundColor: accent.accentSecondaryTint } : undefined}
       className={`relative flex w-full shrink-0 items-center justify-between gap-[12px] rounded-[12px] p-[8px] ${
-        isCurrent ? "bg-[rgba(255,255,255,0.06)]" : ""
+        isCurrent && !accent ? "bg-[rgba(255,255,255,0.06)]" : ""
       }`}
     >
       {isCurrent && (
-        <span aria-hidden="true" style={CURRENT_TRACK_RING_STYLE} className="pointer-events-none absolute inset-0 rounded-[12px]" />
+        <span
+          aria-hidden="true"
+          style={accent ? { ...CURRENT_TRACK_RING_STYLE, background: accent.gradient } : CURRENT_TRACK_RING_STYLE}
+          className="pointer-events-none absolute inset-0 rounded-[12px]"
+        />
       )}
       <div className="relative flex min-w-0 items-center gap-[12px]">
         <img src={track.artwork} alt="" className="size-[48px] shrink-0 rounded-[8px] object-cover" />
@@ -33,7 +58,7 @@ function TrackRow({ track, isCurrent }: { track: PlayerTrack; isCurrent: boolean
           <p className="truncate font-light text-[#cfcfcf]">{track.artist}</p>
         </div>
       </div>
-      <p className="relative shrink-0 text-[14px] font-light tracking-[-0.2px] text-[rgba(255,255,207,0.81)]">
+      <p className="relative shrink-0 text-[14px] font-light tracking-[-0.2px] text-[#cfcfcf]">
         {track.durationLabel}
       </p>
     </div>
@@ -80,7 +105,15 @@ function TrackRow({ track, isCurrent }: { track: PlayerTrack; isCurrent: boolean
  * edge — implying the same "the page scrolls" behavior, not a fixed
  * nested sheet).
  */
-export default function UpNextPanel({ mood, tracks }: { mood: string; tracks: PlayerTrack[] }) {
+export default function UpNextPanel({
+  mood,
+  tracks,
+  accent,
+}: {
+  mood: string
+  tracks: PlayerTrack[]
+  accent?: PlayerMoodAccent
+}) {
   const { t } = useLanguage()
 
   return (
@@ -91,7 +124,7 @@ export default function UpNextPanel({ mood, tracks }: { mood: string; tracks: Pl
       </div>
       <div className="up-next-scroll flex flex-col gap-[8px] lg:min-h-0 lg:flex-1 lg:overflow-y-auto lg:pr-[10px]">
         {tracks.map((track, index) => (
-          <TrackRow key={track.id} track={track} isCurrent={index === 0} />
+          <TrackRow key={track.id} track={track} isCurrent={index === 0} accent={accent} />
         ))}
       </div>
     </div>

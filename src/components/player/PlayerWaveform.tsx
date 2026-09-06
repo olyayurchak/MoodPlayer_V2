@@ -1,3 +1,5 @@
+import type { PlayerMoodAccent } from "../../data/playerMoodAccent"
+
 /**
  * The track-progress waveform visualization + elapsed/total time row.
  *
@@ -93,12 +95,20 @@ export default function PlayerWaveform({
   progress,
   elapsedLabel,
   durationLabel,
+  accent,
 }: {
   /** 0–1 fraction of the track considered "played" — see this file's own
    *  doc comment on why this is a fixed placeholder, not a live value. */
   progress: number
   elapsedLabel: string
   durationLabel: string
+  /** From `data/playerMoodAccent.ts`, `undefined` for any mood without
+   *  its own approved override yet. When present, played bars use that
+   *  mood's own `gradientFrom`/`gradientTo` instead of the universal
+   *  Mood Gradient's `from`/`to` — the same two-stop (no `via`) reuse
+   *  this codebase's volume slider already established for this same
+   *  "brand gradient, from/to only" treatment. */
+  accent?: PlayerMoodAccent
 }) {
   const playedBarCount = Math.round(BAR_COUNT * progress)
 
@@ -114,10 +124,17 @@ export default function PlayerWaveform({
             key={index}
             className={
               index < playedBarCount
-                ? "w-[2px] shrink-0 rounded-[1px] bg-linear-to-b from-cta-button-from to-cta-button-to"
+                ? accent
+                  ? "w-[2px] shrink-0 rounded-[1px]"
+                  : "w-[2px] shrink-0 rounded-[1px] bg-linear-to-b from-cta-button-from to-cta-button-to"
                 : "w-[2px] shrink-0 rounded-[1px] bg-[rgba(255,255,255,0.18)]"
             }
-            style={{ height: `${Math.max(height * 100, 6)}%` }}
+            style={{
+              height: `${Math.max(height * 100, 6)}%`,
+              ...(index < playedBarCount && accent
+                ? { backgroundImage: `linear-gradient(180deg, ${accent.gradientFrom}, ${accent.gradientTo})` }
+                : null),
+            }}
           />
         ))}
       </div>

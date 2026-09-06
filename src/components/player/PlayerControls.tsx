@@ -1,4 +1,5 @@
 import { useState } from "react"
+import type { PlayerMoodAccent } from "../../data/playerMoodAccent"
 import { useLanguage } from "../../localization/LanguageContext"
 import { NextIcon, PauseGlyph, PlayGlyph, PreviousIcon, RepeatIcon, ShuffleIcon, VolumeIcon } from "./icons"
 
@@ -47,8 +48,15 @@ const ICON_BUTTON_BASE =
  *   slider), holding its own local 0–100 value. Moving it changes only
  *   that local number and this control's own fill percentage; it does not
  *   call into any audio API, since none exists yet.
+ *
+ * `accent` (`data/playerMoodAccent.ts`, `undefined` for any mood without
+ * its own approved override yet) swaps the Play/Pause button's fill and
+ * the volume slider's filled-track gradient from the universal Mood
+ * Gradient to that mood's own approved gradient — the same two spots
+ * `PlayerWaveform`'s own `accent` prop covers for the waveform's played
+ * bars.
  */
-export default function PlayerControls() {
+export default function PlayerControls({ accent }: { accent?: PlayerMoodAccent }) {
   const { t } = useLanguage()
   const [isPlaying, setIsPlaying] = useState(false)
   const [isShuffleOn, setIsShuffleOn] = useState(false)
@@ -105,7 +113,10 @@ export default function PlayerControls() {
             onClick={() => setIsPlaying((playing) => !playing)}
             aria-pressed={isPlaying}
             aria-label={isPlaying ? t.player.controls.pause : t.player.controls.play}
-            className="flex size-[76px] items-center justify-center rounded-full bg-linear-to-r from-cta-button-from via-cta-button-via to-cta-button-to text-white shadow-[0px_12px_24px_0px_rgba(255,255,255,0.08)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+            style={accent ? { backgroundImage: accent.gradient } : undefined}
+            className={`flex size-[76px] items-center justify-center rounded-full text-white shadow-[0px_12px_24px_0px_rgba(255,255,255,0.08)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white ${
+              accent ? "" : "bg-linear-to-r from-cta-button-from via-cta-button-via to-cta-button-to"
+            }`}
           >
             {isPlaying ? <PauseGlyph size={28} /> : <PlayGlyph size={28} className="translate-x-[1px]" />}
           </button>
@@ -144,7 +155,9 @@ export default function PlayerControls() {
             aria-label={t.player.controls.volume}
             className="h-[8px] w-full appearance-none rounded-full outline-none [&::-webkit-slider-thumb]:size-[16px] [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:shadow-[0_0_0_1.5px_rgba(255,255,255,0.4)] [&::-moz-range-thumb]:size-[16px] [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:border-0 [&::-moz-range-thumb]:bg-white"
             style={{
-              background: `linear-gradient(90deg, var(--color-cta-button-from), var(--color-cta-button-to) ${volume}%, rgba(255,255,255,0.18) ${volume}%)`,
+              background: accent
+                ? `linear-gradient(90deg, ${accent.gradientFrom}, ${accent.gradientTo} ${volume}%, rgba(255,255,255,0.18) ${volume}%)`
+                : `linear-gradient(90deg, var(--color-cta-button-from), var(--color-cta-button-to) ${volume}%, rgba(255,255,255,0.18) ${volume}%)`,
             }}
           />
         </div>

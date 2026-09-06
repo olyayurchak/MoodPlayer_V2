@@ -11,6 +11,7 @@ import UpNextPanel from "../components/player/UpNextPanel"
 import { useLanguage } from "../localization/LanguageContext"
 import type { MoodId } from "../data/moods"
 import { currentTrack, upNextTracks } from "../data/playerTrack"
+import { PLAYER_MOOD_ACCENTS } from "../data/playerMoodAccent"
 
 /** Fixed placeholder progress fraction matching `currentTrack`'s own
  *  placeholder elapsed/total labels ("1:24" of "3:56") — 84s / 236s. See
@@ -22,11 +23,34 @@ const PLACEHOLDER_PROGRESS = 84 / 236
  *  RGB triple already backing the approved `--color-glow-purple` token
  *  (`index.css`) at low opacity — not a new color, and not Figma's own
  *  one-off indigo `box-shadow` value, which this replaces. `AppBackground`
- *  already supplies this screen's main ambient glow field (shared,
- *  unmodified, by every screen — see that component's own doc comment);
- *  this is a small additional accent specifically on the artwork panel
- *  itself, the one element Figma gives its own glow. */
+ *  supplies this screen's main ambient glow field — the shared universal
+ *  set for any mood without its own approved override (below, `accent`
+ *  passes Happy's own `backgroundGlows` through instead) — this is a
+ *  small additional accent specifically on the artwork panel itself, the
+ *  one element Figma gives its own glow. */
 const ARTWORK_GLOW_STYLE = { boxShadow: "0 0 40px 0 rgba(87, 32, 111, 0.45)" }
+
+/** The artwork panel's Happy-only gradient ring — same masked-gradient-
+ *  ring technique (`mask-composite: exclude`) as the selected "Happy"
+ *  mood-selector pill's ring and the Up Next current-track row's ring
+ *  (`PlayerMoodSelector.tsx`/`UpNextPanel.tsx`), applied here instead of
+ *  a real `border` so the artwork image itself keeps rendering at the
+ *  panel's full `size-[196px]`/`size-[342px]` box rather than being
+ *  inset by an actual border's own width. A first attempt used a real
+ *  `border: 1.5px solid ${accent.artworkBorder*}` here, which read as one
+ *  flat accent-color stroke rather than the full approved
+ *  orange→coral→red gradient sweep Figma shows; this reuses the existing
+ *  ring technique instead of that one-off solid border, matching every
+ *  other Happy-only ring in this screen. */
+function artworkRingStyle(gradient: string) {
+  return {
+    padding: "1.5px",
+    background: gradient,
+    WebkitMask: "linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0)",
+    WebkitMaskComposite: "xor",
+    maskComposite: "exclude" as const,
+  }
+}
 
 type PlayerScreenProps = {
   /** The mood the app already knows about — the same one Vibe Result's
@@ -92,24 +116,37 @@ export default function PlayerScreen({ mood, onLogoClick }: PlayerScreenProps) {
 
   const moodName = t.vibeResult.moods[activeMood].name
 
+  // `undefined` for any mood without its own approved accent yet
+  // (currently Melancholic and Chill) — every component below already
+  // treats that as "keep the existing universal Mood Gradient treatment
+  // unchanged," so nothing here needs its own mood-by-mood branching.
+  const accent = PLAYER_MOOD_ACCENTS[activeMood]
+
   return (
     <main className="relative flex min-h-[max(100dvh,var(--spacing-frame-h))] items-center justify-center overflow-hidden bg-bg-base p-[24px] lg:min-h-[max(100dvh,var(--spacing-frame-h-lg))]">
-      <AppBackground />
+      <AppBackground mobileGlows={accent?.backgroundGlows.mobile} desktopGlows={accent?.backgroundGlows.desktop} />
       <div className="relative flex w-full max-w-[382px] flex-col gap-[24px] rounded-[24px] backdrop-blur-[20px] lg:max-w-[1242px] lg:gap-[64px] lg:border-[1.5px] lg:border-[rgba(255,255,255,0.12)] lg:bg-[rgba(118,118,118,0.08)] lg:p-[64px]">
         {/* ---------- Mobile (below `lg`) ---------- */}
         <div className="flex w-full flex-col items-center gap-[24px] lg:hidden">
           <div className="flex w-full items-center justify-between">
-            <MoodPlayerLogo onClick={onLogoClick} />
+            <MoodPlayerLogo onClick={onLogoClick} accent={accent} />
             <LanguageSwitcher />
           </div>
 
-          <PlayerMoodSelector activeMood={activeMood} onSelect={setActiveMood} />
+          <PlayerMoodSelector activeMood={activeMood} onSelect={setActiveMood} accent={accent} />
 
           <div
             className="relative size-[196px] shrink-0 overflow-hidden rounded-[16px]"
-            style={{ ...gradientBorderStyle("2px"), ...ARTWORK_GLOW_STYLE }}
+            style={accent ? { boxShadow: `0 0 40px 0 ${accent.artworkGlowMobile}` } : { ...gradientBorderStyle("2px"), ...ARTWORK_GLOW_STYLE }}
           >
             <img src={currentTrack.artwork} alt="" className="absolute inset-0 size-full object-cover" />
+            {accent && (
+              <span
+                aria-hidden="true"
+                style={artworkRingStyle(accent.gradient)}
+                className="pointer-events-none absolute inset-0 rounded-[16px]"
+              />
+            )}
           </div>
 
           <div className="flex w-full flex-col items-center gap-[8px] text-center tracking-[-0.2px]">
@@ -121,20 +158,21 @@ export default function PlayerScreen({ mood, onLogoClick }: PlayerScreenProps) {
             progress={PLACEHOLDER_PROGRESS}
             elapsedLabel={currentTrack.elapsedLabel ?? "0:00"}
             durationLabel={currentTrack.durationLabel}
+            accent={accent}
           />
 
-          <PlayerControls />
+          <PlayerControls accent={accent} />
 
           <GestureControlsPanel />
 
-          <UpNextPanel mood={moodName} tracks={upNextTracks} />
+          <UpNextPanel mood={moodName} tracks={upNextTracks} accent={accent} />
         </div>
 
         {/* ---------- Desktop (`lg` and up) ---------- */}
         <div className="hidden w-full flex-col gap-[64px] lg:flex">
           <div className="flex w-full items-center justify-between">
-            <MoodPlayerLogo onClick={onLogoClick} />
-            <PlayerMoodSelector activeMood={activeMood} onSelect={setActiveMood} />
+            <MoodPlayerLogo onClick={onLogoClick} accent={accent} />
+            <PlayerMoodSelector activeMood={activeMood} onSelect={setActiveMood} accent={accent} />
             <LanguageSwitcher />
           </div>
 
@@ -143,9 +181,16 @@ export default function PlayerScreen({ mood, onLogoClick }: PlayerScreenProps) {
               <div className="flex w-full items-start gap-[31px]">
                 <div
                   className="relative size-[342px] shrink-0 overflow-hidden rounded-[24px]"
-                  style={{ ...gradientBorderStyle("2px"), ...ARTWORK_GLOW_STYLE }}
+                  style={accent ? { boxShadow: `0 0 40px 0 ${accent.artworkGlowDesktop}` } : { ...gradientBorderStyle("2px"), ...ARTWORK_GLOW_STYLE }}
                 >
                   <img src={currentTrack.artwork} alt="" className="absolute inset-0 size-full object-cover" />
+                  {accent && (
+                    <span
+                      aria-hidden="true"
+                      style={artworkRingStyle(accent.gradient)}
+                      className="pointer-events-none absolute inset-0 rounded-[24px]"
+                    />
+                  )}
                 </div>
 
                 <div className="flex w-[324px] flex-col items-center gap-[29px]">
@@ -158,16 +203,17 @@ export default function PlayerScreen({ mood, onLogoClick }: PlayerScreenProps) {
                     progress={PLACEHOLDER_PROGRESS}
                     elapsedLabel={currentTrack.elapsedLabel ?? "0:00"}
                     durationLabel={currentTrack.durationLabel}
+                    accent={accent}
                   />
 
-                  <PlayerControls />
+                  <PlayerControls accent={accent} />
                 </div>
               </div>
 
               <GestureControlsPanel />
             </div>
 
-            <UpNextPanel mood={moodName} tracks={upNextTracks} />
+            <UpNextPanel mood={moodName} tracks={upNextTracks} accent={accent} />
           </div>
         </div>
       </div>

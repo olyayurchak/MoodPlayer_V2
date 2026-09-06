@@ -1,4 +1,5 @@
 import { MOOD_IDS, type MoodId } from "../../data/moods"
+import type { PlayerMoodAccent } from "../../data/playerMoodAccent"
 import { useLanguage } from "../../localization/LanguageContext"
 
 /** The selected mood pill's gradient ring — byte-for-byte the same
@@ -37,13 +38,27 @@ const SELECTED_MOOD_PILL_RING_STYLE = {
  * changes which mood's *visual* state is highlighted; it does not (this
  * milestone has no playlist/audio architecture to switch) reload a
  * different playlist or restart playback.
+ *
+ * `accent` (from `data/playerMoodAccent.ts`, `undefined` for any mood
+ * without its own approved override yet) swaps the *selected* pill's ring
+ * from the universal Mood Gradient to that mood's own approved gradient
+ * (`accent.gradient`) — same masked-ring technique (`mask-composite:
+ * exclude`) as the universal treatment below, just a different
+ * `background`. A first attempt rendered this as a flat solid
+ * `border-color` instead, which read as a plain orange stroke rather than
+ * the full orange→coral→red ring Figma actually shows; this reuses the
+ * existing ring technique instead of that one-off solid border. Unselected
+ * pills and any mood without an `accent` entry keep today's existing
+ * treatment, unchanged.
  */
 export default function PlayerMoodSelector({
   activeMood,
   onSelect,
+  accent,
 }: {
   activeMood: MoodId
   onSelect: (mood: MoodId) => void
+  accent?: PlayerMoodAccent
 }) {
   const { t } = useLanguage()
 
@@ -52,6 +67,25 @@ export default function PlayerMoodSelector({
       {MOOD_IDS.map((moodId) => {
         const isSelected = moodId === activeMood
         const label = t.vibeResult.moods[moodId].name
+
+        if (isSelected && accent) {
+          return (
+            <button
+              key={moodId}
+              type="button"
+              onClick={() => onSelect(moodId)}
+              aria-pressed="true"
+              className="relative shrink-0 rounded-pill border-[1.5px] border-transparent bg-[rgba(255,255,255,0.08)] px-[16px] py-[12px] text-[16px] font-medium text-white backdrop-blur-[20px] shadow-[0px_12px_24px_0px_rgba(255,255,255,0.08)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white lg:px-[24px]"
+            >
+              {label}
+              <span
+                aria-hidden="true"
+                style={{ ...SELECTED_MOOD_PILL_RING_STYLE, background: accent.gradient }}
+                className="pointer-events-none absolute inset-0 rounded-pill"
+              />
+            </button>
+          )
+        }
 
         if (isSelected) {
           return (

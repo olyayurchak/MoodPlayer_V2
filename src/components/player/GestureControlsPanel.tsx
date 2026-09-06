@@ -84,6 +84,15 @@ const GESTURE_ENTRIES: GestureEntry[] = [
 // this value at all, not just the CSS.
 const TOGGLE_BORDER_WIDTH = 1.5
 
+// The four gesture entries' own action-label text (Play/Pause/Next
+// track/Previous track) reads one neutral `rgba(255,255,255,0.92)` white
+// across every mood — a first, Happy-only revision briefly swapped this
+// to that mood's own accent color, since reverted so this legend reads
+// identically regardless of which mood is active (matching a later,
+// explicit "neutral across all moods" request). The On/Off toggle
+// itself, its sliding indicator, the hand icons, and the caption text
+// are unaffected either way and stay exactly as they are today for
+// every mood.
 export default function GestureControlsPanel() {
   const { t } = useLanguage()
   const [isEnabled, setIsEnabled] = useState(false)
@@ -333,9 +342,14 @@ export default function GestureControlsPanel() {
                   once both labels in that one cell wrapped — well past
                   this task's own "do not... noticeably increase the
                   gesture panel height" limit, so no Mobile change was
-                  made here rather than accept that. Weight/color
-                  unchanged. */}
-              <p className="w-full text-center text-[9px] font-medium leading-[1.2] text-[#d8b9ff] lg:w-auto lg:whitespace-nowrap lg:text-[13px]">
+                  made here rather than accept that. Weight unchanged;
+                  color is a later, explicit "neutral across all moods"
+                  request — `rgba(255,255,255,0.92)` for every mood,
+                  replacing both the original universal Active Accent
+                  (`#d8b9ff`) and a since-reverted Happy-only accent
+                  override that briefly lived here (see this component's
+                  own top-level doc comment). */}
+              <p className="w-full text-center text-[9px] font-medium leading-[1.2] text-[rgba(255,255,255,0.92)] lg:w-auto lg:whitespace-nowrap lg:text-[13px]">
                 {labels.action}
               </p>
             </div>
