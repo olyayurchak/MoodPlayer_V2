@@ -12,12 +12,7 @@ import { useLanguage } from "../localization/LanguageContext"
 import type { MoodId } from "../data/moods"
 import { currentTrack, upNextTracks } from "../data/playerTrack"
 import { PLAYER_MOOD_ACCENTS } from "../data/playerMoodAccent"
-
-/** Fixed placeholder progress fraction matching `currentTrack`'s own
- *  placeholder elapsed/total labels ("1:24" of "3:56") — 84s / 236s. See
- *  `PlayerWaveform`'s own doc comment on why this is a static value, not
- *  a live-updating one, in this UI-foundation-only milestone. */
-const PLACEHOLDER_PROGRESS = 84 / 236
+import { formatPlaybackTime, usePlayerAudio } from "../hooks/usePlayerAudio"
 
 /** Shared "how strong should the artwork glow feel" recipe — the same
  *  blur/spread/offset for every mood's artwork glow, whatever rgba color
@@ -92,9 +87,11 @@ type PlayerScreenProps = {
 }
 
 /**
- * The Player screen — UI foundation only (see this task's own brief: no
- * audio engine, no gesture recognition, no new playlist/audio-switching
- * logic). Reached from Vibe Result's "Start listening" CTA (`App.tsx`).
+ * The Player screen. Reached from Vibe Result's "Start listening" CTA
+ * (`App.tsx`). Real single-track playback exists (`usePlayerAudio`,
+ * below) — no gesture recognition, per-mood playlists, queue/Next/
+ * Previous, or shuffle/repeat logic yet, all still explicitly out of
+ * scope for the milestone that added real audio.
  *
  * Approved Figma frames: Mobile `289:7420` (430×932 — a duplicated-and-
  * repurposed "iPhone 14 & 15 Pro Max - Intro" frame; its actual content is
@@ -147,6 +144,31 @@ export default function PlayerScreen({ mood, onLogoClick }: PlayerScreenProps) {
   // unchanged," so nothing here needs its own mood-by-mood branching.
   const accent = PLAYER_MOOD_ACCENTS[activeMood]
 
+  // The one real `<audio>` element for `currentTrack`'s own `audioSrc` —
+  // owned here, not inside either `PlayerControls` copy below, so both
+  // the Mobile and Desktop transport rows (and both `PlayerWaveform`
+  // copies) stay in sync with the exact same playback no matter which
+  // breakpoint's tree is currently visible. See `usePlayerAudio`'s own
+  // doc comment for the full reasoning.
+  const audio = usePlayerAudio(currentTrack.audioSrc)
+  const isPlaying = audio.status === "playing"
+  const playDisabled = audio.status === "error"
+  // `0–100` for `PlayerControls`' own existing slider range — converted
+  // here, at the one boundary between this screen and the `0–1` range
+  // `HTMLAudioElement.volume` (and this hook) actually use.
+  const volume = Math.round(audio.volume * 100)
+  const handleVolumeChange = (next: number) => audio.setVolume(next / 100)
+
+  // Real playback progress once metadata/time updates land; falls back
+  // to the placeholder duration label (`data/playerTrack.ts`) only until
+  // the browser reports a real `duration` — elapsed always reflects the
+  // real `currentTime` (which starts at `0`, so no placeholder is needed
+  // there), per this task's own "use real audio metadata for duration
+  // where practical" requirement.
+  const waveformProgress = audio.duration > 0 ? audio.currentTime / audio.duration : 0
+  const elapsedLabel = formatPlaybackTime(audio.currentTime)
+  const durationLabel = audio.duration > 0 ? formatPlaybackTime(audio.duration) : currentTrack.durationLabel
+
   return (
     <main className="relative flex min-h-[max(100dvh,var(--spacing-frame-h))] items-center justify-center overflow-hidden bg-bg-base p-[24px] lg:min-h-[max(100dvh,var(--spacing-frame-h-lg))]">
       <AppBackground mobileGlows={accent?.backgroundGlows.mobile} desktopGlows={accent?.backgroundGlows.desktop} />
@@ -180,13 +202,20 @@ export default function PlayerScreen({ mood, onLogoClick }: PlayerScreenProps) {
           </div>
 
           <PlayerWaveform
-            progress={PLACEHOLDER_PROGRESS}
-            elapsedLabel={currentTrack.elapsedLabel ?? "0:00"}
-            durationLabel={currentTrack.durationLabel}
+            progress={waveformProgress}
+            elapsedLabel={elapsedLabel}
+            durationLabel={durationLabel}
             accent={accent}
           />
 
-          <PlayerControls accent={accent} />
+          <PlayerControls
+            accent={accent}
+            isPlaying={isPlaying}
+            onTogglePlay={audio.toggle}
+            playDisabled={playDisabled}
+            volume={volume}
+            onVolumeChange={handleVolumeChange}
+          />
 
           <GestureControlsPanel />
 
@@ -225,13 +254,20 @@ export default function PlayerScreen({ mood, onLogoClick }: PlayerScreenProps) {
                   </div>
 
                   <PlayerWaveform
-                    progress={PLACEHOLDER_PROGRESS}
-                    elapsedLabel={currentTrack.elapsedLabel ?? "0:00"}
-                    durationLabel={currentTrack.durationLabel}
+                    progress={waveformProgress}
+                    elapsedLabel={elapsedLabel}
+                    durationLabel={durationLabel}
                     accent={accent}
                   />
 
-                  <PlayerControls accent={accent} />
+                  <PlayerControls
+                    accent={accent}
+                    isPlaying={isPlaying}
+                    onTogglePlay={audio.toggle}
+                    playDisabled={playDisabled}
+                    volume={volume}
+                    onVolumeChange={handleVolumeChange}
+                  />
                 </div>
               </div>
 

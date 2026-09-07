@@ -1,14 +1,12 @@
 import trackArtwork from "../imports/Player/track-artwork.png"
+import testTrackSound from "../assets/audio/test-track.mp3"
 
 /**
  * Placeholder "Up next" playlist content for the Player screen's UI
- * foundation (this milestone explicitly excludes real audio/playlist
- * architecture — see `PlayerScreen.tsx`'s own doc comment). No real
- * playlist/track data or audio assets exist anywhere else in this
- * repository yet (only `assets/audio/bubble-scatter.mp3`, an unrelated
- * Intro sound effect) — this file exists purely so the approved Figma
- * layout has *something* concrete to render, not to stand in as a real
- * content model.
+ * foundation (this milestone explicitly excludes real *playlist*
+ * architecture — no per-mood queues, no Next/Previous, no clickable rows,
+ * see `PlayerScreen.tsx`'s own doc comment — though real single-track
+ * *playback* now exists, see `audioSrc` below and `hooks/usePlayerAudio.ts`).
  *
  * `title`/`artist`/`durationLabel` are the exact placeholder copy the
  * approved Player Figma frames themselves show ("Turn The Lights Off" /
@@ -35,6 +33,20 @@ export type PlayerTrack = {
    *  ever show their own total duration. */
   elapsedLabel?: string
   artwork: string
+  /** The dedicated, rights-cleared music test asset added specifically
+   *  for Player playback verification — `assets/audio/test-track.mp3`.
+   *  An earlier pass reused `bubble-scatter.mp3` (the Intro screen's own
+   *  decorative bubble-pop sound effect, `MoodBubbleCluster.tsx`) as a
+   *  stand-in test source, per this milestone's own "do not invent an
+   *  audio path" instruction and no other asset existing at the time;
+   *  this replaces that stand-in now that a proper test asset exists —
+   *  `bubble-scatter.mp3` stays exactly as it was, used only by the
+   *  Intro screen, never imported here again. Real per-mood music
+   *  tracks/licensing remain the same "open/undecided" item `PRODUCT.md`
+   *  already flags, still unresolved by this milestone. Optional
+   *  (`upNext` rows never need it — nothing plays them yet) so a future
+   *  real track without one yet doesn't need a placeholder value here. */
+  audioSrc?: string
 }
 
 export const currentTrack: PlayerTrack = {
@@ -44,6 +56,7 @@ export const currentTrack: PlayerTrack = {
   durationLabel: "3:56",
   elapsedLabel: "1:24",
   artwork: trackArtwork,
+  audioSrc: testTrackSound,
 }
 
 /** Six total rows shown in the approved Desktop "Up next" panel (one

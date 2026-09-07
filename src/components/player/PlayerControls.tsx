@@ -27,27 +27,35 @@ const ICON_BUTTON_BASE =
  * play/pause), so this component itself carries no `lg:` breakpoint
  * logic — only its caller's surrounding layout differs per breakpoint.
  *
- * This is UI foundation only, per this task's explicit scope: there is no
- * audio engine anywhere in this codebase yet, so none of these controls
- * drive real playback.
- * - Play/Pause toggles its own local `isPlaying` boolean and swaps its
- *   glyph accordingly — a real, working *visual* toggle (so the control
- *   doesn't look broken/dead), but backed by nothing more than that one
- *   piece of local UI state; no `<audio>` element exists to actually
- *   play or pause.
+ * Shuffle/Repeat/Previous/Next remain UI foundation only, per this task's
+ * explicit scope (real single-track playback now exists — see below —
+ * but per-mood playlists/queue-switching/shuffle/repeat *logic* don't):
  * - Shuffle/Repeat are real toggle buttons (`aria-pressed`, tinted when
- *   "on") for the same reason, again with no shuffle/repeat *logic*
- *   behind them (this placeholder "playlist" is one track repeated).
+ *   "on") holding their own local UI-only state, with no shuffle/repeat
+ *   *logic* behind them (this placeholder "playlist" is one track
+ *   repeated).
  * - Previous/Next are plain buttons with a real accessible name but no
  *   handler wired — there is exactly one placeholder track, so "skip" has
  *   nothing real to do yet; still real `<button>` elements (never `<div>`
  *   click targets), so they remain keyboard-reachable and correctly
  *   announced, matching this task's "real semantic buttons" requirement.
- * - Volume is a real, native `<input type="range">` — genuinely keyboard-
- *   and screen-reader-accessible (far more so than a hand-rolled `<div>`
- *   slider), holding its own local 0–100 value. Moving it changes only
- *   that local number and this control's own fill percentage; it does not
- *   call into any audio API, since none exists yet.
+ *
+ * Play/Pause and Volume are now fully controlled by the caller
+ * (`PlayerScreen`'s own `usePlayerAudio` — see that hook's own doc
+ * comment for why the real `<audio>` element it owns lives up there,
+ * shared by both this screen's Mobile/Desktop `PlayerControls` copies,
+ * rather than one independent `<audio>` per copy):
+ * - `isPlaying` drives the glyph swap and `aria-pressed`, and reflects
+ *   the real `<audio>` element's own state (its `play`/`pause`/`ended`
+ *   events, not just "we clicked the button"), so a failed `play()`
+ *   (autoplay policy, a missing source) never shows a stuck "playing"
+ *   glyph the audio itself never actually reached.
+ * - `onTogglePlay` is called on click; it never touches local state here.
+ * - `volume`/`onVolumeChange` are the same native `<input type="range">`
+ *   as before (0–100, genuinely keyboard- and screen-reader-accessible),
+ *   now reporting to and reading from the real `HTMLAudioElement.volume`
+ *   (converted to/from its own 0–1 range one level up) instead of a
+ *   local number nothing else ever read.
  *
  * `accent` (`data/playerMoodAccent.ts`, `undefined` for any mood without
  * its own approved override yet) swaps the Play/Pause button's fill and
@@ -56,12 +64,34 @@ const ICON_BUTTON_BASE =
  * `PlayerWaveform`'s own `accent` prop covers for the waveform's played
  * bars.
  */
-export default function PlayerControls({ accent }: { accent?: PlayerMoodAccent }) {
+export default function PlayerControls({
+  accent,
+  isPlaying,
+  onTogglePlay,
+  playDisabled,
+  volume,
+  onVolumeChange,
+}: {
+  accent?: PlayerMoodAccent
+  isPlaying: boolean
+  onTogglePlay: () => void
+  /** `true` once the current track's source is confirmed unplayable
+   *  (`usePlayerAudio`'s own `"error"` status) — disables the Play/Pause
+   *  button so clicking it can't look like it should do something when
+   *  nothing can play, without changing any of the button's own visual
+   *  classes (a real `disabled` attribute only changes default browser
+   *  interaction affordances, not this app's own styling). */
+  playDisabled?: boolean
+  /** `0–100`, this control's own existing slider range — unrelated to
+   *  `HTMLAudioElement.volume`'s own `0–1` range; `PlayerScreen` converts
+   *  at the boundary so this component's own markup/behavior stays
+   *  exactly as it already was. */
+  volume: number
+  onVolumeChange: (volume: number) => void
+}) {
   const { t } = useLanguage()
-  const [isPlaying, setIsPlaying] = useState(false)
   const [isShuffleOn, setIsShuffleOn] = useState(false)
   const [isRepeatOn, setIsRepeatOn] = useState(false)
-  const [volume, setVolume] = useState(70)
 
   return (
     // The gap here is the only spacing between this component's two rows
@@ -110,7 +140,8 @@ export default function PlayerControls({ accent }: { accent?: PlayerMoodAccent }
 
           <button
             type="button"
-            onClick={() => setIsPlaying((playing) => !playing)}
+            onClick={onTogglePlay}
+            disabled={playDisabled}
             aria-pressed={isPlaying}
             aria-label={isPlaying ? t.player.controls.pause : t.player.controls.play}
             style={accent ? { backgroundImage: accent.gradient } : undefined}
@@ -151,7 +182,7 @@ export default function PlayerControls({ accent }: { accent?: PlayerMoodAccent }
             min={0}
             max={100}
             value={volume}
-            onChange={(event) => setVolume(Number(event.target.value))}
+            onChange={(event) => onVolumeChange(Number(event.target.value))}
             aria-label={t.player.controls.volume}
             className="h-[8px] w-full appearance-none rounded-full outline-none [&::-webkit-slider-thumb]:size-[16px] [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:shadow-[0_0_0_1.5px_rgba(255,255,255,0.4)] [&::-moz-range-thumb]:size-[16px] [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:border-0 [&::-moz-range-thumb]:bg-white"
             style={{
