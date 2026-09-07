@@ -19,6 +19,25 @@ import { PLAYER_MOOD_ACCENTS } from "../data/playerMoodAccent"
  *  a live-updating one, in this UI-foundation-only milestone. */
 const PLACEHOLDER_PROGRESS = 84 / 236
 
+/** Shared "how strong should the artwork glow feel" recipe — the same
+ *  blur/spread/offset for every mood's artwork glow, whatever rgba color
+ *  that mood itself uses (`ARTWORK_GLOW_STYLE`'s own color below for any
+ *  mood without its own approved accent — currently Chill — or
+ *  `accent.artworkGlowMobile`/`Desktop` for Happy/Melancholic). A first
+ *  pass hardcoded `0 0 40px 0` separately at each of those call sites;
+ *  centralizing it here is what lets later intensity-only requests touch
+ *  one blur value instead of several duplicated shadow strings. 28px blur
+ *  / 0 spread / no vertical offset — reads as a soft ambient glow, not a
+ *  dominant halo, alongside each color's own alpha (normalized to 0.4
+ *  across all three moods — see `ARTWORK_GLOW_STYLE` below and each
+ *  mood's own `artworkGlowMobile`/`Desktop` in `data/playerMoodAccent.ts`
+ *  for that normalization's own history) so the glow stays visually
+ *  secondary to the artwork's own gradient ring, the track title, and the
+ *  Play button/transport controls. */
+function artworkGlowShadow(color: string) {
+  return `0 0 28px 0 ${color}`
+}
+
 /** A soft ambient glow behind the album artwork panel, reusing the exact
  *  RGB triple already backing the approved `--color-glow-purple` token
  *  (`index.css`) at low opacity — not a new color, and not Figma's own
@@ -27,8 +46,14 @@ const PLACEHOLDER_PROGRESS = 84 / 236
  *  set for any mood without its own approved override (below, `accent`
  *  passes Happy's own `backgroundGlows` through instead) — this is a
  *  small additional accent specifically on the artwork panel itself, the
- *  one element Figma gives its own glow. */
-const ARTWORK_GLOW_STYLE = { boxShadow: "0 0 40px 0 rgba(87, 32, 111, 0.45)" }
+ *  one element Figma gives its own glow. Alpha (0.4) matches the
+ *  cross-mood glow-intensity normalization applied to Happy's and
+ *  Melancholic's own `artworkGlowMobile`/`Desktop` in
+ *  `data/playerMoodAccent.ts` — this is Chill's (and any other
+ *  mood-without-its-own-accent's) equivalent, so all three read as
+ *  equally strong even though only this one has no `PLAYER_MOOD_ACCENTS`
+ *  entry yet. */
+const ARTWORK_GLOW_STYLE = { boxShadow: artworkGlowShadow("rgba(87, 32, 111, 0.4)") }
 
 /** The artwork panel's Happy-only gradient ring — same masked-gradient-
  *  ring technique (`mask-composite: exclude`) as the selected "Happy"
@@ -137,7 +162,7 @@ export default function PlayerScreen({ mood, onLogoClick }: PlayerScreenProps) {
 
           <div
             className="relative size-[196px] shrink-0 overflow-hidden rounded-[16px]"
-            style={accent ? { boxShadow: `0 0 40px 0 ${accent.artworkGlowMobile}` } : { ...gradientBorderStyle("2px"), ...ARTWORK_GLOW_STYLE }}
+            style={accent ? { boxShadow: artworkGlowShadow(accent.artworkGlowMobile) } : { ...gradientBorderStyle("2px"), ...ARTWORK_GLOW_STYLE }}
           >
             <img src={currentTrack.artwork} alt="" className="absolute inset-0 size-full object-cover" />
             {accent && (
@@ -181,7 +206,7 @@ export default function PlayerScreen({ mood, onLogoClick }: PlayerScreenProps) {
               <div className="flex w-full items-start gap-[31px]">
                 <div
                   className="relative size-[342px] shrink-0 overflow-hidden rounded-[24px]"
-                  style={accent ? { boxShadow: `0 0 40px 0 ${accent.artworkGlowDesktop}` } : { ...gradientBorderStyle("2px"), ...ARTWORK_GLOW_STYLE }}
+                  style={accent ? { boxShadow: artworkGlowShadow(accent.artworkGlowDesktop) } : { ...gradientBorderStyle("2px"), ...ARTWORK_GLOW_STYLE }}
                 >
                   <img src={currentTrack.artwork} alt="" className="absolute inset-0 size-full object-cover" />
                   {accent && (

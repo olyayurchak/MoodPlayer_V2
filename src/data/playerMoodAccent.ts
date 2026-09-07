@@ -12,28 +12,36 @@ import type { MoodId } from "./moods"
  * override yet).
  *
  * `PLAYER_MOOD_ACCENTS[mood]` is `undefined` for any mood without its own
- * approved Figma frame yet (currently Melancholic and Chill) — every
- * consumer of this map treats a missing entry as "keep today's existing
- * universal purple treatment, unchanged," never as a fallback to invented
- * colors. That's what lets this file grow one mood at a time without a
- * broader refactor.
+ * approved Figma frame yet (currently Chill) — every consumer of this map
+ * treats a missing entry as "keep today's existing universal purple
+ * treatment, unchanged," never as a fallback to invented colors. That's
+ * what lets this file grow one mood at a time without a broader refactor.
  *
- * All values below are copied verbatim from the approved Happy frames
- * (`f0SWAvXDVVtGkhXDm3DkNZ`, Desktop `284:3402` / Mobile `289:8515`) — see
- * each field's own comment for exactly which node it came from. None are
- * derived, rounded, or invented.
+ * All values below are copied verbatim from each mood's own approved
+ * Figma frames (`f0SWAvXDVVtGkhXDm3DkNZ` — Happy: Desktop `284:3402` /
+ * Mobile `289:8515`; Melancholic: Desktop `284:3764` / Mobile `290:9092`)
+ * — see each field's own comment for exactly which node it came from.
+ * None are derived, rounded, or invented.
  */
 export type PlayerMoodAccent = {
-  /** The artwork panel's ambient glow (`box-shadow`, replacing this
-   *  screen's universal `ARTWORK_GLOW_STYLE`) — Figma's own `0 0 40px`
-   *  spread/blur at each breakpoint's own accent color, 60% alpha
-   *  (Mobile `289:8617`, Desktop `284:3612`). The panel's own *ring*
-   *  instead reuses `gradient` below (the same masked-gradient-ring
-   *  technique the selected "Happy" mood-selector pill's ring and the Up
-   *  Next current-track row's ring already reuse) — a first attempt
-   *  painted this ring as a flat solid border in each breakpoint's own
-   *  authored hex (`#f1a04e` Desktop / `#f18e4c` Mobile) instead, which
-   *  read as one flat stroke rather than the full approved
+  /** The artwork panel's ambient glow color (`box-shadow`, replacing this
+   *  screen's universal `ARTWORK_GLOW_STYLE`) — each breakpoint's own
+   *  accent color (Mobile `289:8617`, Desktop `284:3612`) at 40% alpha.
+   *  Figma's own export used this same color at a much stronger 60%
+   *  alpha with a `0 0 40px` blur/spread; a later "make the glow read as
+   *  subtle/ambient, not a dominant halo" request first reduced that to
+   *  20%, and a follow-up "normalize glow intensity across all three
+   *  moods" request settled on the 40% used here (`ARTWORK_GLOW_STYLE`'s
+   *  own fallback color below uses the same 40%) — `PlayerScreen`'s own
+   *  `artworkGlowShadow` helper owns the shared blur/spread/offset applied
+   *  to whichever color this field provides, so only the alpha channel
+   *  changed, not the hue. The panel's
+   *  own *ring* instead reuses `gradient` below (the same
+   *  masked-gradient-ring technique the selected "Happy" mood-selector
+   *  pill's ring and the Up Next current-track row's ring already reuse)
+   *  — a first attempt painted this ring as a flat solid border in each
+   *  breakpoint's own authored hex (`#f1a04e` Desktop / `#f18e4c` Mobile)
+   *  instead, which read as one flat stroke rather than the full approved
    *  orange→coral→red sweep Figma shows. */
   artworkGlowMobile: string
   artworkGlowDesktop: string
@@ -102,8 +110,8 @@ export type PlayerMoodAccent = {
 
 export const PLAYER_MOOD_ACCENTS: Partial<Record<MoodId, PlayerMoodAccent>> = {
   happy: {
-    artworkGlowMobile: "rgba(241,142,76,0.6)",
-    artworkGlowDesktop: "rgba(241,160,78,0.6)",
+    artworkGlowMobile: "rgba(241,142,76,0.4)",
+    artworkGlowDesktop: "rgba(241,160,78,0.4)",
     accentSecondaryTint: "rgba(241,142,76,0.1)",
     gradient: "linear-gradient(105deg, #f1a04e 0%, #eb6e51 39.29%, #e54d56 100%)",
     gradientFrom: "#f1a04e",
@@ -174,6 +182,104 @@ export const PLAYER_MOOD_ACCENTS: Partial<Record<MoodId, PlayerMoodAccent>> = {
           height: 620,
           gradient:
             "url(\"data:image/svg+xml;utf8,<svg viewBox='0 0 1200 620' xmlns='http://www.w3.org/2000/svg' preserveAspectRatio='none'><rect x='0' y='0' height='100%' width='100%' fill='url(%23grad)' opacity='1'/><defs><radialGradient id='grad' gradientUnits='userSpaceOnUse' cx='0' cy='0' r='10' gradientTransform='matrix(3.6739e-15 31 -60 1.8982e-15 600 310)'><stop stop-color='rgba(255,138,61,0.32)' offset='0'/><stop stop-color='rgba(217,75,87,0.18)' offset='0.48'/><stop stop-color='rgba(217,75,87,0)' offset='1'/></radialGradient></defs></svg>\")",
+        },
+        {
+          id: "blue",
+          left: -380,
+          top: 300,
+          width: 620,
+          height: 780,
+          gradient:
+            "url(\"data:image/svg+xml;utf8,<svg viewBox='0 0 620 780' xmlns='http://www.w3.org/2000/svg' preserveAspectRatio='none'><rect x='0' y='0' height='100%' width='100%' fill='url(%23grad)' opacity='1'/><defs><radialGradient id='grad' gradientUnits='userSpaceOnUse' cx='0' cy='0' r='10' gradientTransform='matrix(1.8982e-15 39 -31 2.3881e-15 310 390)'><stop stop-color='rgba(23,59,105,0.1)' offset='0'/><stop stop-color='rgba(23,59,105,0.05)' offset='0.55'/><stop stop-color='rgba(23,59,105,0)' offset='1'/></radialGradient></defs></svg>\")",
+        },
+      ],
+    },
+  },
+  melancholic: {
+    // Unlike Happy's own ~6-unit Mobile/Desktop hex gap, Melancholic's
+    // artwork glow is a genuinely different color per breakpoint in
+    // Figma (Desktop `#4A4F9F`, the gradient's own last stop; Mobile
+    // `#8B8BF2`, the gradient's own first stop/border color) — both kept
+    // exactly as authored. Alpha normalized to 0.4 across all three
+    // moods for consistent glow intensity (Figma's own export used a
+    // stronger 60% here; a later explicit "normalize to 0.4" request
+    // superseded that, same as Happy's own artwork-glow alpha below).
+    artworkGlowMobile: "rgba(139,139,242,0.4)",
+    artworkGlowDesktop: "rgba(74,79,159,0.4)",
+    accentSecondaryTint: "rgba(139,139,242,0.1)",
+    // Play button's own exported SVG gradient (Desktop `287:5308`, Mobile
+    // `290:9239` — identical stops/geometry on both breakpoints, unlike
+    // Happy's first-stop discrepancy, so no canonicalization is needed
+    // here).
+    gradient: "linear-gradient(105deg, #8b8bf2 0%, #6b6dc8 39.29%, #4a4f9f 100%)",
+    gradientFrom: "#8b8bf2",
+    gradientTo: "#4a4f9f",
+    backgroundGlows: {
+      mobile: [
+        {
+          id: "navy",
+          left: -122,
+          top: -373,
+          width: 412,
+          height: 692,
+          gradient:
+            "url(\"data:image/svg+xml;utf8,<svg viewBox='0 0 412 692' xmlns='http://www.w3.org/2000/svg' preserveAspectRatio='none'><rect x='0' y='0' height='100%' width='100%' fill='url(%23grad)' opacity='1'/><defs><radialGradient id='grad' gradientUnits='userSpaceOnUse' cx='0' cy='0' r='10' gradientTransform='matrix(1.2614e-15 34.6 -20.6 2.1186e-15 206 346)'><stop stop-color='rgba(23,32,68,0.42)' offset='0'/><stop stop-color='rgba(23,32,68,0.18)' offset='0.55'/><stop stop-color='rgba(23,32,68,0)' offset='1'/></radialGradient></defs></svg>\")",
+        },
+        {
+          id: "coral",
+          left: 238,
+          top: -28,
+          width: 360,
+          height: 940,
+          gradient:
+            "url(\"data:image/svg+xml;utf8,<svg viewBox='0 0 360 940' xmlns='http://www.w3.org/2000/svg' preserveAspectRatio='none'><rect x='0' y='0' height='100%' width='100%' fill='url(%23grad)' opacity='1'/><defs><radialGradient id='grad' gradientUnits='userSpaceOnUse' cx='0' cy='0' r='10' gradientTransform='matrix(1.1022e-15 47 -18 2.8779e-15 180 470)'><stop stop-color='rgba(83,98,143,0.5)' offset='0'/><stop stop-color='rgba(61,71,111,0.22)' offset='0.5'/><stop stop-color='rgba(61,71,111,0)' offset='1'/></radialGradient></defs></svg>\")",
+        },
+        {
+          id: "orange",
+          left: 28,
+          top: 650,
+          width: 380,
+          height: 500,
+          gradient:
+            "url(\"data:image/svg+xml;utf8,<svg viewBox='0 0 380 500' xmlns='http://www.w3.org/2000/svg' preserveAspectRatio='none'><rect x='0' y='0' height='100%' width='100%' fill='url(%23grad)' opacity='1'/><defs><radialGradient id='grad' gradientUnits='userSpaceOnUse' cx='0' cy='0' r='10' gradientTransform='matrix(1.1634e-15 25 -19 1.5308e-15 190 250)'><stop stop-color='rgba(107,91,131,0.38)' offset='0'/><stop stop-color='rgba(64,81,111,0.18)' offset='0.48'/><stop stop-color='rgba(64,81,111,0)' offset='1'/></radialGradient></defs></svg>\")",
+        },
+        {
+          id: "blue",
+          left: -112,
+          top: 272,
+          width: 380,
+          height: 500,
+          gradient:
+            "url(\"data:image/svg+xml;utf8,<svg viewBox='0 0 380 500' xmlns='http://www.w3.org/2000/svg' preserveAspectRatio='none'><rect x='0' y='0' height='100%' width='100%' fill='url(%23grad)' opacity='1'/><defs><radialGradient id='grad' gradientUnits='userSpaceOnUse' cx='0' cy='0' r='10' gradientTransform='matrix(1.1634e-15 25 -19 1.5308e-15 190 250)'><stop stop-color='rgba(23,59,105,0.1)' offset='0'/><stop stop-color='rgba(23,59,105,0.05)' offset='0.55'/><stop stop-color='rgba(23,59,105,0)' offset='1'/></radialGradient></defs></svg>\")",
+        },
+      ],
+      desktop: [
+        {
+          id: "navy",
+          left: -410,
+          top: -410,
+          width: 1380,
+          height: 760,
+          gradient:
+            "url(\"data:image/svg+xml;utf8,<svg viewBox='0 0 1380 760' xmlns='http://www.w3.org/2000/svg' preserveAspectRatio='none'><rect x='0' y='0' height='100%' width='100%' fill='url(%23grad)' opacity='1'/><defs><radialGradient id='grad' gradientUnits='userSpaceOnUse' cx='0' cy='0' r='10' gradientTransform='matrix(4.225e-15 38 -69 2.3268e-15 690 380)'><stop stop-color='rgba(23,32,68,0.42)' offset='0'/><stop stop-color='rgba(23,32,68,0.18)' offset='0.55'/><stop stop-color='rgba(23,32,68,0)' offset='1'/></radialGradient></defs></svg>\")",
+        },
+        {
+          id: "coral",
+          left: 820,
+          top: -40,
+          width: 1040,
+          height: 1120,
+          gradient:
+            "url(\"data:image/svg+xml;utf8,<svg viewBox='0 0 1040 1120' xmlns='http://www.w3.org/2000/svg' preserveAspectRatio='none'><rect x='0' y='0' height='100%' width='100%' fill='url(%23grad)' opacity='1'/><defs><radialGradient id='grad' gradientUnits='userSpaceOnUse' cx='0' cy='0' r='10' gradientTransform='matrix(3.1841e-15 56 -52 3.429e-15 520 560)'><stop stop-color='rgba(83,98,143,0.44)' offset='0'/><stop stop-color='rgba(61,71,111,0.2)' offset='0.5'/><stop stop-color='rgba(61,71,111,0)' offset='1'/></radialGradient></defs></svg>\")",
+        },
+        {
+          id: "orange",
+          left: 120,
+          top: 690,
+          width: 1200,
+          height: 620,
+          gradient:
+            "url(\"data:image/svg+xml;utf8,<svg viewBox='0 0 1200 620' xmlns='http://www.w3.org/2000/svg' preserveAspectRatio='none'><rect x='0' y='0' height='100%' width='100%' fill='url(%23grad)' opacity='1'/><defs><radialGradient id='grad' gradientUnits='userSpaceOnUse' cx='0' cy='0' r='10' gradientTransform='matrix(3.6739e-15 31 -60 1.8982e-15 600 310)'><stop stop-color='rgba(107,91,131,0.28)' offset='0'/><stop stop-color='rgba(64,81,111,0.16)' offset='0.48'/><stop stop-color='rgba(64,81,111,0)' offset='1'/></radialGradient></defs></svg>\")",
         },
         {
           id: "blue",

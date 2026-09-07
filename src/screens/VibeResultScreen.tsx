@@ -273,27 +273,21 @@ export default function VibeResultScreen({
                   <p className="text-center text-[24px] font-medium leading-[1.4] text-[#f1f1f1] lg:text-left lg:text-[28px]">
                     {t.vibeResult.heading}
                   </p>
-                  {/* Gradient text treatment per Figma node `284:2640` — its
-                      own design-context export reports an actual 2-stop
-                      `bg-gradient-to-r from-[#c23a86] to-[#5e62c6]`
-                      text-fill (unlike a gradient *border*, a gradient
-                      *fill* has a real Figma→code output primitive, so this
-                      one isn't a lossy single-color simplification like the
-                      mood-pill border was). Deliberately kept at 2 stops
-                      rather than 3: Figma's own export for this specific
-                      node has only two, and adding a third would visibly
-                      shift this large (60px) heading's color curve away
-                      from that reference. The *colors* themselves have
-                      since moved on from that original Figma export,
-                      though — this now reads the shared, approved
-                      `--color-cta-button-from`/`--color-cta-button-to`
-                      endpoints (the same palette every other gradient
-                      element in the app uses) rather than its own
-                      original, separate `--color-cta-from`/`--color-cta-to`
-                      pair, once that older trio was retired as redundant.
-                      Direction is `bg-gradient-to-r` (left-to-right) in
-                      Figma's export, i.e. this project's `bg-linear-to-r`. */}
-                  <p className="bg-linear-to-r from-cta-button-from to-cta-button-to bg-clip-text text-center text-[36px] font-medium leading-[1.2] text-transparent lg:text-left lg:text-[60px]">
+                  {/* Previously a gradient text-fill per Figma node
+                      `284:2640` (`bg-gradient-to-r from-[#c23a86]
+                      to-[#5e62c6]`, later recolored to the shared
+                      `--color-cta-button-from/-to` endpoints). A later,
+                      explicit "simplify the visual hierarchy" request
+                      removed that gradient here: mood identity now comes
+                      from the background atmosphere, CTA, selected mood
+                      pill, artwork border/glow, logo accent, and waveform/
+                      volume instead, so this title reads as plain neutral
+                      white (`text-white`, the same primary-white token
+                      every other main heading in this app already uses —
+                      e.g. the Player screen's own track-title text) for
+                      all three moods, not just Happy/Melancholic/Chill's
+                      own individual gradient. */}
+                  <p className="text-center text-[36px] font-medium leading-[1.2] text-white lg:text-left lg:text-[60px]">
                     {activeMood.name}
                   </p>
                 </div>
