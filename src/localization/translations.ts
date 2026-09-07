@@ -142,6 +142,25 @@ export type Translations = {
   player: {
     upNextHeading: string
     upNextSubtitle: (moodName: string) => string
+    /** Accessible name for the Mobile Up Next bottom sheet's drag-handle
+     *  toggle (`MobileUpNextSheet.tsx`) — state-dependent (mirrors
+     *  `controls.play`/`pause`'s own "label describes the action a press
+     *  performs next" convention), read alongside a real `aria-expanded`
+     *  so assistive tech gets both the action and the current state. */
+    upNextSheetExpandLabel: string
+    upNextSheetCollapseLabel: string
+    /** A track row's own accessible name in the Mobile sheet (`title` +
+     *  `artist`, per this feature's own explicit "must contain at least
+     *  track title and artist" requirement) — a function, not a plain
+     *  string, for the same reason `upNextSubtitle` above is: it needs
+     *  per-track values spliced in. */
+    selectTrack: (title: string, artist: string) => string
+    /** Appended to `selectTrack`'s label (and shown as a small visible
+     *  badge) on the Mobile sheet's current-track row only — a second,
+     *  non-color signal for "this is the current track" alongside the
+     *  existing gradient ring, per this feature's own explicit
+     *  "don't rely only on color" requirement. */
+    nowPlayingLabel: string
     controls: {
       shuffle: string
       previous: string
@@ -254,6 +273,10 @@ export const translations: Record<Language, Translations> = {
     player: {
       upNextHeading: "Up next",
       upNextSubtitle: (moodName) => `from the “${moodName}” playlist`,
+      upNextSheetExpandLabel: "Expand Up Next",
+      upNextSheetCollapseLabel: "Collapse Up Next",
+      selectTrack: (title, artist) => `Play ${title} by ${artist}`,
+      nowPlayingLabel: "Now playing",
       controls: {
         shuffle: "Shuffle",
         previous: "Previous track",
@@ -355,6 +378,10 @@ export const translations: Record<Language, Translations> = {
     player: {
       upNextHeading: "Далі в черзі",
       upNextSubtitle: (moodName) => `з плейліста «${moodName}»`,
+      upNextSheetExpandLabel: "Розгорнути «Далі в черзі»",
+      upNextSheetCollapseLabel: "Згорнути «Далі в черзі»",
+      selectTrack: (title, artist) => `Відтворити ${title} — ${artist}`,
+      nowPlayingLabel: "Зараз грає",
       controls: {
         shuffle: "Перемішати",
         previous: "Попередній трек",

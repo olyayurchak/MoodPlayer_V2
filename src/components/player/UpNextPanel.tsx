@@ -66,22 +66,22 @@ function TrackRow({
 }
 
 /**
- * The "Up next" playlist panel — Desktop's right-side panel and Mobile's
- * final section (see `PlayerScreen.tsx` for where each is placed in its
- * own responsive tree). Same track list, same current-track highlight
- * treatment, on both breakpoints; only the panel's own container sizing
- * and scroll behavior differ.
+ * The "Up next" playlist panel — Desktop's right-side panel only (see
+ * `PlayerScreen.tsx`). Mobile now has its own dedicated bottom-sheet
+ * implementation, `MobileUpNextSheet.tsx` (real drag-to-expand/collapse,
+ * its own internal scroll, and real track selection, per the approved
+ * Mobile Up Next sheet feature) — this component is no longer rendered on
+ * the Mobile tree at all, and this file itself carries no `lg:`-only
+ * behavior changes from that work; everything below is exactly as it was
+ * before that feature, Desktop-only, unchanged.
  *
- * Rows are still not clickable (no queue-jump-by-click yet) and this
- * component still owns no playback/switching logic of its own — it's a
- * read-only view of whatever `tracks`/`currentTrackId` `PlayerScreen`
- * hands it. `PlayerScreen` is the one that now slices `data/playerTrack.ts`'s
- * `testTracks` down to "current track and everything after it" before
- * passing `tracks` here (an earlier version hardcoded `isCurrent={index
- * === 0}` against a `upNextTracks` array that only ever contained clones
- * of one track, since there was nothing real to switch to yet) — this
- * component's own only change is comparing each row's real `track.id`
- * against `currentTrackId` instead of assuming position `0`.
+ * Rows are still not clickable (no queue-jump-by-click on Desktop) and
+ * this component still owns no playback/switching logic of its own — it's
+ * a read-only view of whatever `tracks`/`currentTrackId` `PlayerScreen`
+ * hands it. `PlayerScreen` slices `data/playerTrack.ts`'s `testTracks`
+ * down to "current track and everything after it" before passing `tracks`
+ * here — this component's own job is just comparing each row's real
+ * `track.id` against `currentTrackId`.
  *
  * Desktop keeps its own internal scroll area (`lg:overflow-y-auto` with a
  * capped height, styled via the `.up-next-scroll` class in `index.css`
@@ -94,21 +94,6 @@ function TrackRow({
  * further ~6px inside the panel's own right edge) has real breathing room
  * there — this screen's previous, unpadded version instead sat the
  * scrollbar flush against the row content, which this padding fixes.
- * `lg:`-only:
- * Mobile has no scroll container/scrollbar here at all (see below), so
- * this padding must never narrow its own row content. Mobile
- * deliberately has no nested scroll container — the list simply
- * continues in normal document flow and the page itself scrolls, the
- * more usual mobile pattern (and the approved Mobile Figma frame itself
- * only ever showed a single preview row here, cut off by the viewport
- * edge — implying the same "the page scrolls" behavior, not a fixed
- * nested sheet).
- * deliberately has no nested scroll container — the list simply
- * continues in normal document flow and the page itself scrolls, the
- * more usual mobile pattern (and the approved Mobile Figma frame itself
- * only ever showed a single preview row here, cut off by the viewport
- * edge — implying the same "the page scrolls" behavior, not a fixed
- * nested sheet).
  */
 export default function UpNextPanel({
   mood,

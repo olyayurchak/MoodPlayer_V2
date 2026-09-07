@@ -6,8 +6,12 @@ import { useLanguage } from "../localization/LanguageContext"
 /** The five bar paths from `logo-mark.svg` itself — copied verbatim (same
  *  `d` values, same 31×22 viewBox) so the Happy-accent render below is
  *  pixel-identical in shape/size to the plain `<img>` render every other
- *  caller still uses; only which `<linearGradient>` fills them differs. */
-const LOGO_BAR_PATHS = [
+ *  caller still uses; only which `<linearGradient>` fills them differs.
+ *  Exported so `MobileUpNextSheet.tsx`'s own current-track equalizer-style
+ *  indicator can reuse this exact shape (the approved Figma expanded Up
+ *  Next frame's own current-row indicator is byte-identical in size —
+ *  31×22 — to this mark) instead of a second, invented icon. */
+export const LOGO_BAR_PATHS = [
   "M0 7.5C0 6.67157 0.671573 6 1.5 6C2.32843 6 3 6.67157 3 7.5V14.5C3 15.3284 2.32843 16 1.5 16C0.671573 16 0 15.3284 0 14.5V7.5Z",
   "M7 1.5C7 0.671573 7.67157 0 8.5 0C9.32843 0 10 0.671573 10 1.5V20.5C10 21.3284 9.32843 22 8.5 22C7.67157 22 7 21.3284 7 20.5V1.5Z",
   "M14 3.5C14 2.67157 14.6716 2 15.5 2C16.3284 2 17 2.67157 17 3.5V18.5C17 19.3284 16.3284 20 15.5 20C14.6716 20 14 19.3284 14 18.5V3.5Z",

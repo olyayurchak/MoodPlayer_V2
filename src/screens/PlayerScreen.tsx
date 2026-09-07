@@ -8,6 +8,7 @@ import PlayerWaveform from "../components/player/PlayerWaveform"
 import PlayerControls from "../components/player/PlayerControls"
 import GestureControlsPanel from "../components/player/GestureControlsPanel"
 import UpNextPanel from "../components/player/UpNextPanel"
+import MobileUpNextSheet from "../components/player/MobileUpNextSheet"
 import { useLanguage } from "../localization/LanguageContext"
 import type { MoodId } from "../data/moods"
 import { testTracks } from "../data/playerTrack"
@@ -126,7 +127,13 @@ type PlayerScreenProps = {
  * own explicit required Mobile order. A single `lg:`-varianted tree can't
  * express "same three groups, different row structure" without duplicating
  * most of the markup anyway, so this follows `CameraPermissionVisual.tsx`'s
- * own established precedent for exactly this situation instead.
+ * own established precedent for exactly this situation instead. Up Next
+ * itself now genuinely diverges between the two trees for the same
+ * reason: Mobile renders `MobileUpNextSheet` (a draggable bottom sheet,
+ * portaled to `document.body` — see that component's own doc comment),
+ * Desktop keeps rendering the plain `UpNextPanel` it always has, fully
+ * unchanged; both are still driven by this same `currentTrackIndex`/
+ * `selectTrack` below, never a second independent copy of that state.
  *
  * `activeMood` is local UI state seeded from the `mood` prop (the same
  * "seed from a prop, re-sync if it ever changes while mounted" pattern
@@ -235,6 +242,28 @@ export default function PlayerScreen({ mood, onLogoClick }: PlayerScreenProps) {
   // `tracks` any further; see that component's own doc comment.
   const upNextTracks = testTracks.slice(currentTrackIndex)
 
+  // The Mobile Up Next sheet's own track-selection handler
+  // (`MobileUpNextSheet`'s `onSelectTrack`) — the one small shared entry
+  // point this feature's own scope explicitly allows extracting here,
+  // rather than a second independent track-switching system living inside
+  // that component. Reuses the exact same `currentTrackIndex` state (and,
+  // through it, `usePlayerAudio`'s own existing resume-on-switch logic)
+  // Next/Previous already drive — selecting a track is nothing more than
+  // moving that same index directly instead of by ±1.
+  const selectTrack = (trackId: string) => {
+    // Already playing — do nothing, per this feature's own explicit
+    // "selecting the already-current track should not unnecessarily
+    // reload the audio source" requirement. Without this guard,
+    // `setCurrentTrackIndex` would still be called with the *same* value
+    // React already has, which wouldn't itself trigger a re-render — but
+    // relying on that implementation detail rather than checking it
+    // directly here would make the guarantee incidental, not guaranteed.
+    if (trackId === currentTrack.id) return
+    const index = testTracks.findIndex((track) => track.id === trackId)
+    if (index === -1) return
+    setCurrentTrackIndex(index)
+  }
+
   return (
     <main className="relative flex min-h-[max(100dvh,var(--spacing-frame-h))] items-center justify-center overflow-hidden bg-bg-base p-[24px] lg:min-h-[max(100dvh,var(--spacing-frame-h-lg))]">
       <AppBackground mobileGlows={accent?.backgroundGlows.mobile} desktopGlows={accent?.backgroundGlows.desktop} />
@@ -289,7 +318,13 @@ export default function PlayerScreen({ mood, onLogoClick }: PlayerScreenProps) {
 
           <GestureControlsPanel />
 
-          <UpNextPanel mood={moodName} tracks={upNextTracks} currentTrackId={currentTrack.id} accent={accent} />
+          <MobileUpNextSheet
+            mood={moodName}
+            tracks={upNextTracks}
+            currentTrackId={currentTrack.id}
+            accent={accent}
+            onSelectTrack={selectTrack}
+          />
         </div>
 
         {/* ---------- Desktop (`lg` and up) ---------- */}

@@ -582,3 +582,31 @@
   display: none;
   background: transparent;
 }
+
+/*
+ * Mobile Up Next bottom sheet (`MobileUpNextSheet.tsx`) — the collapse/
+ * expand slide. `transform` only (never `top`/`height`), so this animates
+ * on the compositor rather than triggering layout on every frame.
+ * `[data-dragging]` (set while an active pointer drag is following the
+ * finger 1:1) drops the transition entirely so the sheet tracks the
+ * pointer with zero lag; it comes back the instant the drag ends and the
+ * sheet snaps to whichever side it landed closer to.
+ */
+.mobile-up-next-sheet {
+  transition: transform 320ms cubic-bezier(0.32, 0.72, 0, 1);
+  will-change: transform;
+}
+
+.mobile-up-next-sheet[data-dragging="true"] {
+  transition: none;
+}
+
+/* Reduced motion: the sheet still moves between states (this feature's own
+   explicit "may transition, but reduced-motion users shouldn't get
+   unnecessary animated movement") — dropping the transition means it jumps
+   straight to the target position instead of animating there. */
+@media (prefers-reduced-motion: reduce) {
+  .mobile-up-next-sheet {
+    transition: none;
+  }
+}
