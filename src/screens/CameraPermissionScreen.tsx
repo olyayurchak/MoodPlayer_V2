@@ -78,6 +78,48 @@ const REQUESTING_LABEL_DELAY_MS = 700
  * which holds correctly across viewport heights Figma's own fixed number
  * wouldn't.
  *
+ * Mobile's own `<main>` no longer forces a `932px` floor the way Intro/
+ * Vibe Result/Player still do (`min-h-[max(100dvh,var(--spacing-frame-h))]`)
+ * — a measured audit found that floor pushing "Allow Camera" fully or
+ * partially below the initial viewport on shorter iPhones (375×667,
+ * 375×812), even though this screen's own real content only needs
+ * ~724px, nowhere near 932. `min-h-[100dvh]` alone (no `max()`, no shared
+ * token) is enough: at the 430×932 reference size `100dvh` already equals
+ * 932, so the approved composition there is unaffected; on shorter
+ * viewports the box now shrinks to whatever's actually needed instead of
+ * an arbitrary floor. This intentionally only touches *this* screen's own
+ * Mobile branch, not the shared `--spacing-frame-h` token itself (Intro/
+ * Vibe Result/Player still reference it, unchanged) and not Desktop's own
+ * `lg:min-h-[max(100dvh,var(--spacing-frame-h-lg))]`.
+ *
+ * Four of this Mobile column's own pure-spacing gaps additionally compact
+ * under a combined `(max-width:1023px) and (max-height:700px)` variant —
+ * 700px sits comfortably below 375×812 (never triggers there — that
+ * viewport is already fully fixed by the `min-h` change alone) and
+ * comfortably above 375×667 (always triggers there), so 812/852/932 all
+ * render with their exact original gaps; only the shortest supported
+ * viewport gets this further compaction:
+ * - the card's own `gap-[64px]` (header row → visual/text block) → `40px`;
+ * - the Mobile visual→text-column row gap (`gap-[24px]`, this row's own
+ *   image-to-content separator, not tied to any text's own line-height
+ *   rhythm) → `14px`;
+ * - the heading-block→feature-list gap (`gap-[36px]`, a section break) →
+ *   `16px`;
+ * - the text column's own `gap-[54px]` (features → CTA) → `22px`.
+ *
+ * An earlier pass pushed all four gaps much further (down to as little as
+ * `2px`) specifically to eliminate scroll entirely at 375×667 — that
+ * technically fit, but read as visually collapsed, with too little
+ * separation between the visual, heading, feature list, and CTA to still
+ * feel like distinct sections. The values above restore a clearly readable
+ * gap at each of those boundaries instead, deliberately accepting a small
+ * amount of natural scroll at 375×667 (this screen's own real content is
+ * still slightly taller than that one viewport) rather than compressing
+ * hierarchy away to chase zero scroll. Deliberately left untouched, to
+ * keep each block's own internal rhythm legible: the tighter `gap-[8px]`
+ * heading-to-subtitle spacing, and the feature list's own `gap-[16px]`
+ * *between* its three rows.
+ *
  * Scanning state (reached after granting camera access): approved Figma
  * frames Desktop `284:2460`, Mobile `289:6820` — confirmed (by comparing
  * both frames' metadata against this one's) to share this exact same
@@ -381,15 +423,15 @@ export default function CameraPermissionScreen({
   const ctaOnClick = errorKind !== null ? handleTryAgain : requestAccess
 
   return (
-    <main className="relative flex min-h-[max(100dvh,var(--spacing-frame-h))] items-center justify-center overflow-hidden bg-bg-base p-[24px] lg:min-h-[max(100dvh,var(--spacing-frame-h-lg))]">
+    <main className="relative flex min-h-[100dvh] items-center justify-center overflow-hidden bg-bg-base p-[24px] lg:min-h-[max(100dvh,var(--spacing-frame-h-lg))]">
       <AppBackground />
-      <div className="relative flex w-full max-w-[382px] flex-col items-start gap-[64px] rounded-[24px] backdrop-blur-[20px] lg:max-w-[1242px] lg:border-[1.5px] lg:border-[rgba(255,255,255,0.12)] lg:bg-[rgba(118,118,118,0.08)] lg:p-[64px]">
+      <div className="relative flex w-full max-w-[382px] flex-col items-start gap-[64px] rounded-[24px] backdrop-blur-[20px] [@media(max-width:1023px)_and_(max-height:700px)]:gap-[40px] lg:max-w-[1242px] lg:border-[1.5px] lg:border-[rgba(255,255,255,0.12)] lg:bg-[rgba(118,118,118,0.08)] lg:p-[64px]">
         <div className="flex w-full items-center justify-between">
           <MoodPlayerLogo onClick={onLogoClick} />
           <LanguageSwitcher />
         </div>
 
-        <div className="flex w-full flex-col items-center gap-[24px] lg:flex-row lg:items-start lg:gap-[54px]">
+        <div className="flex w-full flex-col items-center gap-[24px] [@media(max-width:1023px)_and_(max-height:700px)]:gap-[14px] lg:flex-row lg:items-start lg:gap-[54px]">
           <div className={cameraFadeClassName}>
             {isScanning ? (
               <ScanningVisual
@@ -404,8 +446,8 @@ export default function CameraPermissionScreen({
             )}
           </div>
 
-          <div className="flex w-full flex-col items-start gap-[54px] lg:w-[568px]">
-            <div className="flex flex-col items-start gap-[36px]">
+          <div className="flex w-full flex-col items-start gap-[54px] [@media(max-width:1023px)_and_(max-height:700px)]:gap-[22px] lg:w-[568px]">
+            <div className="flex flex-col items-start gap-[36px] [@media(max-width:1023px)_and_(max-height:700px)]:gap-[16px]">
               <div className="flex flex-col items-center gap-[8px] text-center lg:items-start lg:text-left">
                 <h1 className="text-[38px] font-medium leading-[1.2] text-white lg:whitespace-nowrap lg:text-[60px]">
                   {heading}
