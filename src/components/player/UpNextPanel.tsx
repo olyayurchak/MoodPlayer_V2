@@ -72,11 +72,16 @@ function TrackRow({
  * treatment, on both breakpoints; only the panel's own container sizing
  * and scroll behavior differ.
  *
- * No new playlist/audio-switching logic per this task's scope — rows are
- * not clickable, this is a read-only visual list of `data/playerTrack.ts`'s
- * placeholder tracks (see that file's own doc comment on why they're all
- * the same placeholder track/artwork, matching the approved Figma frames
- * themselves).
+ * Rows are still not clickable (no queue-jump-by-click yet) and this
+ * component still owns no playback/switching logic of its own — it's a
+ * read-only view of whatever `tracks`/`currentTrackId` `PlayerScreen`
+ * hands it. `PlayerScreen` is the one that now slices `data/playerTrack.ts`'s
+ * `testTracks` down to "current track and everything after it" before
+ * passing `tracks` here (an earlier version hardcoded `isCurrent={index
+ * === 0}` against a `upNextTracks` array that only ever contained clones
+ * of one track, since there was nothing real to switch to yet) — this
+ * component's own only change is comparing each row's real `track.id`
+ * against `currentTrackId` instead of assuming position `0`.
  *
  * Desktop keeps its own internal scroll area (`lg:overflow-y-auto` with a
  * capped height, styled via the `.up-next-scroll` class in `index.css`
@@ -108,10 +113,19 @@ function TrackRow({
 export default function UpNextPanel({
   mood,
   tracks,
+  currentTrackId,
   accent,
 }: {
   mood: string
+  /** Already sliced by the caller to "current track and every track after
+   *  it" (`PlayerScreen`'s own `testTracks.slice(currentTrackIndex)`) —
+   *  this component never sees already-played tracks and never reorders
+   *  or filters `tracks` itself. */
   tracks: PlayerTrack[]
+  /** Which of `tracks` is the one actually playing — compared against
+   *  each row's own `track.id` rather than assumed to be at index `0`,
+   *  so this stays correct however `tracks` itself is produced. */
+  currentTrackId: string
   accent?: PlayerMoodAccent
 }) {
   const { t } = useLanguage()
@@ -123,8 +137,8 @@ export default function UpNextPanel({
         <p className="text-[16px] font-light text-[#cfcfcf]">{t.player.upNextSubtitle(mood)}</p>
       </div>
       <div className="up-next-scroll flex flex-col gap-[8px] lg:min-h-0 lg:flex-1 lg:overflow-y-auto lg:pr-[10px]">
-        {tracks.map((track, index) => (
-          <TrackRow key={track.id} track={track} isCurrent={index === 0} accent={accent} />
+        {tracks.map((track) => (
+          <TrackRow key={track.id} track={track} isCurrent={track.id === currentTrackId} accent={accent} />
         ))}
       </div>
     </div>

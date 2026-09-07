@@ -48,12 +48,17 @@ export type UsePlayerAudioResult = {
    *  committed yet. */
   toggle: () => void
   setVolume: (volume: number) => void
+  /** Jumps the *current* element's own playback position without
+   *  recreating it (unlike a `src` change) — a no-op if nothing has
+   *  loaded yet. Added for `PlayerScreen`'s own Previous behavior
+   *  ("restart the current track at `0:00`" past a threshold) rather
+   *  than a generic scrub feature this milestone doesn't otherwise need. */
+  seekTo: (seconds: number) => void
 }
 
 /**
  * Owns exactly one real `HTMLAudioElement` for the Player screen's one
- * current track (per this milestone's explicit scope — no queue, no
- * track switching yet). Deliberately lives in `PlayerScreen` (the parent
+ * current track. Deliberately lives in `PlayerScreen` (the parent
  * of both the Mobile and Desktop control trees — see that file's own doc
  * comment on why those are two independent trees, both mounted at once,
  * one hidden via CSS) rather than inside `PlayerControls` itself: if each
@@ -80,6 +85,18 @@ export function usePlayerAudio(src: string | undefined): UsePlayerAudioResult {
   const [duration, setDuration] = useState(0)
   const [volume, setVolumeState] = useState(0.7)
 
+  // Bridges "was the *previous* `src`'s element actually playing" across
+  // this effect's own teardown/recreation boundary — read once (and
+  // immediately consumed/reset) at the top of a *later* run, never on the
+  // very first mount, since nothing has torn anything down yet to have
+  // set it. That's what keeps a user-triggered Next/Previous track change
+  // able to continue playback automatically (this milestone's own
+  // explicit requirement) without ever introducing autoplay on the
+  // Player's own initial load — the two are structurally different here,
+  // not just by convention: only a *second-or-later* run of this effect
+  // can ever see this ref as `true`.
+  const wasPlayingRef = useRef(false)
+
   // Creates (and fully tears down) the one `Audio` instance whenever `src`
   // itself changes — not whenever `volume` changes, which is its own
   // effect below so adjusting the slider never recreates/reloads the
@@ -99,10 +116,20 @@ export function usePlayerAudio(src: string | undefined): UsePlayerAudioResult {
     audio.preload = "metadata"
     audioRef.current = audio
 
+    // Consumed immediately (reset to `false` right after reading) so a
+    // later `src` change can never accidentally resume based on a stale
+    // value from two tracks ago rather than the one just switched away
+    // from.
+    const shouldResume = wasPlayingRef.current
+    wasPlayingRef.current = false
+
     const handleLoadedMetadata = () => {
       if (Number.isFinite(audio.duration)) setDuration(audio.duration)
     }
-    const handleCanPlay = () => setStatus((current) => (current === "loading" ? "ready" : current))
+    const handleCanPlay = () => {
+      setStatus((current) => (current === "loading" ? "ready" : current))
+      if (shouldResume) audio.play().catch(() => setStatus("error"))
+    }
     const handleTimeUpdate = () => setCurrentTime(audio.currentTime)
     const handlePlay = () => setStatus("playing")
     const handlePause = () => setStatus((current) => (current === "ended" ? current : "paused"))
@@ -118,6 +145,12 @@ export function usePlayerAudio(src: string | undefined): UsePlayerAudioResult {
     audio.addEventListener("error", handleError)
 
     return () => {
+      // Read *before* `audio.pause()` below (which would otherwise always
+      // leave `.paused` `true` by the time this ran) — `ended` already
+      // sets `.paused` `true` itself per the media spec, so a track that
+      // finished naturally before Next/Previous was pressed correctly
+      // reads as "was not playing" here, with no special-casing needed.
+      wasPlayingRef.current = !audio.paused
       audio.pause()
       audio.removeEventListener("loadedmetadata", handleLoadedMetadata)
       audio.removeEventListener("canplay", handleCanPlay)
@@ -166,7 +199,17 @@ export function usePlayerAudio(src: string | undefined): UsePlayerAudioResult {
     setVolumeState(Math.min(1, Math.max(0, next)))
   }, [])
 
-  return { status, currentTime, duration, volume, play, pause, toggle, setVolume }
+  const seekTo = useCallback((seconds: number) => {
+    const audio = audioRef.current
+    if (!audio) return
+    audio.currentTime = Math.max(0, seconds)
+    // `timeupdate` alone can lag a discrete seek by a frame or two on some
+    // browsers; setting this straight from the value we just assigned
+    // keeps the UI's own progress/elapsed display exact immediately.
+    setCurrentTime(audio.currentTime)
+  }, [])
+
+  return { status, currentTime, duration, volume, play, pause, toggle, setVolume, seekTo }
 }
 
 /** `123.4` → `"2:03"` — the same `m:ss` shape (no hours, no leading zero

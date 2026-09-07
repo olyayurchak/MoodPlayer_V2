@@ -27,18 +27,22 @@ const ICON_BUTTON_BASE =
  * play/pause), so this component itself carries no `lg:` breakpoint
  * logic — only its caller's surrounding layout differs per breakpoint.
  *
- * Shuffle/Repeat/Previous/Next remain UI foundation only, per this task's
- * explicit scope (real single-track playback now exists — see below —
- * but per-mood playlists/queue-switching/shuffle/repeat *logic* don't):
+ * Shuffle/Repeat remain UI foundation only; Previous/Next are now fully
+ * real, per this task's explicit scope (real multi-track playback now
+ * exists — see below — but per-mood playlists/shuffle/repeat *logic*
+ * still don't):
  * - Shuffle/Repeat are real toggle buttons (`aria-pressed`, tinted when
  *   "on") holding their own local UI-only state, with no shuffle/repeat
- *   *logic* behind them (this placeholder "playlist" is one track
- *   repeated).
- * - Previous/Next are plain buttons with a real accessible name but no
- *   handler wired — there is exactly one placeholder track, so "skip" has
- *   nothing real to do yet; still real `<button>` elements (never `<div>`
- *   click targets), so they remain keyboard-reachable and correctly
- *   announced, matching this task's "real semantic buttons" requirement.
+ *   *logic* behind them.
+ * - Previous/Next are real `<button>`s wired to `PlayerScreen`'s own
+ *   `onPrevious`/`onNext` handlers (which own the actual Previous
+ *   3-second-threshold restart-vs-switch decision and the Next
+ *   end-of-queue guard — see that screen's own doc comment), each with a
+ *   real `disabled` attribute (`previousDisabled`/`nextDisabled`) rather
+ *   than a `<div>` click target — keyboard-reachable, correctly
+ *   announced, and (via `disabled:opacity-40`) visually distinguishable
+ *   from an enabled control without any other change to this row's
+ *   layout.
  *
  * Play/Pause and Volume are now fully controlled by the caller
  * (`PlayerScreen`'s own `usePlayerAudio` — see that hook's own doc
@@ -71,6 +75,10 @@ export default function PlayerControls({
   playDisabled,
   volume,
   onVolumeChange,
+  onPrevious,
+  previousDisabled,
+  onNext,
+  nextDisabled,
 }: {
   accent?: PlayerMoodAccent
   isPlaying: boolean
@@ -88,6 +96,21 @@ export default function PlayerControls({
    *  exactly as it already was. */
   volume: number
   onVolumeChange: (volume: number) => void
+  /** `PlayerScreen`'s own Previous handler — the 3-second-threshold
+   *  restart-vs-switch decision lives entirely up there (see that
+   *  screen's own doc comment); this component only ever forwards the
+   *  click. */
+  onPrevious: () => void
+  /** `true` only at the very first track within its own first few
+   *  seconds (see `PlayerScreen`'s own `previousDisabled`) — same plain
+   *  `disabled` attribute technique as `playDisabled` above, no new
+   *  visual classes. */
+  previousDisabled?: boolean
+  /** `PlayerScreen`'s own Next handler. */
+  onNext: () => void
+  /** `true` only at the final track — Next never wraps back to the
+   *  first. */
+  nextDisabled?: boolean
 }) {
   const { t } = useLanguage()
   const [isShuffleOn, setIsShuffleOn] = useState(false)
@@ -132,8 +155,10 @@ export default function PlayerControls({
         <div className="flex items-center gap-[12px]">
           <button
             type="button"
+            onClick={onPrevious}
+            disabled={previousDisabled}
             aria-label={t.player.controls.previous}
-            className={`${ICON_BUTTON_BASE} size-[48px]`}
+            className={`${ICON_BUTTON_BASE} size-[48px] disabled:cursor-not-allowed disabled:opacity-40`}
           >
             <PreviousIcon size={24} />
           </button>
@@ -152,7 +177,13 @@ export default function PlayerControls({
             {isPlaying ? <PauseGlyph size={28} /> : <PlayGlyph size={28} className="translate-x-[1px]" />}
           </button>
 
-          <button type="button" aria-label={t.player.controls.next} className={`${ICON_BUTTON_BASE} size-[48px]`}>
+          <button
+            type="button"
+            onClick={onNext}
+            disabled={nextDisabled}
+            aria-label={t.player.controls.next}
+            className={`${ICON_BUTTON_BASE} size-[48px] disabled:cursor-not-allowed disabled:opacity-40`}
+          >
             <NextIcon size={24} />
           </button>
         </div>

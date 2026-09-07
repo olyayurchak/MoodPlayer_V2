@@ -10,7 +10,7 @@ import GestureControlsPanel from "../components/player/GestureControlsPanel"
 import UpNextPanel from "../components/player/UpNextPanel"
 import { useLanguage } from "../localization/LanguageContext"
 import type { MoodId } from "../data/moods"
-import { currentTrack, upNextTracks } from "../data/playerTrack"
+import { testTracks } from "../data/playerTrack"
 import { PLAYER_MOOD_ACCENTS } from "../data/playerMoodAccent"
 import { formatPlaybackTime, usePlayerAudio } from "../hooks/usePlayerAudio"
 
@@ -49,6 +49,15 @@ function artworkGlowShadow(color: string) {
  *  equally strong even though only this one has no `PLAYER_MOOD_ACCENTS`
  *  entry yet. */
 const ARTWORK_GLOW_STYLE = { boxShadow: artworkGlowShadow("rgba(87, 32, 111, 0.4)") }
+
+/** Previous's own "restart vs. actually go back" threshold, per this
+ *  milestone's explicit spec: past this many seconds into the current
+ *  track, Previous restarts it at `0:00` instead of switching tracks —
+ *  the usual media-player convention (a press well into a track almost
+ *  never means "I meant the *previous* track", it means "start this one
+ *  over"). Below/at this threshold (and only if an earlier track exists),
+ *  Previous switches back instead. */
+const PREVIOUS_RESTART_THRESHOLD_SECONDS = 3
 
 /** The artwork panel's Happy-only gradient ring — same masked-gradient-
  *  ring technique (`mask-composite: exclude`) as the selected "Happy"
@@ -144,12 +153,27 @@ export default function PlayerScreen({ mood, onLogoClick }: PlayerScreenProps) {
   // unchanged," so nothing here needs its own mood-by-mood branching.
   const accent = PLAYER_MOOD_ACCENTS[activeMood]
 
+  // Real Previous/Next state — an index into `testTracks` (see that
+  // file's own doc comment for why it replaced the old single static
+  // `currentTrack` + cloned `upNextTracks`). Owned here, not inside
+  // `UpNextPanel`/`PlayerControls`, for the same "one shared source of
+  // truth above both the Mobile and Desktop trees" reason `usePlayerAudio`
+  // itself is owned here (see that hook's own doc comment).
+  const [currentTrackIndex, setCurrentTrackIndex] = useState(0)
+  const currentTrack = testTracks[currentTrackIndex]
+  const isFirstTrack = currentTrackIndex === 0
+  const isLastTrack = currentTrackIndex === testTracks.length - 1
+
   // The one real `<audio>` element for `currentTrack`'s own `audioSrc` —
   // owned here, not inside either `PlayerControls` copy below, so both
   // the Mobile and Desktop transport rows (and both `PlayerWaveform`
   // copies) stay in sync with the exact same playback no matter which
   // breakpoint's tree is currently visible. See `usePlayerAudio`'s own
-  // doc comment for the full reasoning.
+  // doc comment for the full reasoning. A `currentTrackIndex` change
+  // (Next/Previous switching tracks) changes `currentTrack.audioSrc`,
+  // which is exactly the `src` this hook recreates its element around —
+  // see that hook's own `wasPlayingRef` for how it resumes playback
+  // across that recreation when the previous track was playing.
   const audio = usePlayerAudio(currentTrack.audioSrc)
   const isPlaying = audio.status === "playing"
   const playDisabled = audio.status === "error"
@@ -168,6 +192,48 @@ export default function PlayerScreen({ mood, onLogoClick }: PlayerScreenProps) {
   const waveformProgress = audio.duration > 0 ? audio.currentTime / audio.duration : 0
   const elapsedLabel = formatPlaybackTime(audio.currentTime)
   const durationLabel = audio.duration > 0 ? formatPlaybackTime(audio.duration) : currentTrack.durationLabel
+
+  // Next: per this milestone's explicit spec, disabled (a no-op) at the
+  // final track — never wraps back to the first. Playback state itself
+  // needs no explicit handling here: `usePlayerAudio`'s own
+  // `wasPlayingRef` already resumes automatically once the new track is
+  // ready if (and only if) the *previous* track was actually playing, and
+  // stays paused otherwise — this handler only ever needs to move the
+  // index.
+  const handleNext = () => {
+    if (isLastTrack) return
+    setCurrentTrackIndex((index) => index + 1)
+  }
+
+  // Previous: per this milestone's explicit spec, a 3-second threshold
+  // decides "restart the current track" vs. "switch to the previous
+  // track" — never both. `seekTo(0)` (not a `src`/index change) is used
+  // for the restart branch specifically because it must *not* recreate
+  // the `<audio>` element: a real switch already correctly preserves
+  // playing/paused state via `usePlayerAudio`'s own resume-on-switch
+  // logic, but a restart should just as clearly *keep whatever was
+  // already playing* (or stay paused) without ever pausing/reloading
+  // the element that logic would otherwise trigger.
+  const handlePrevious = () => {
+    if (audio.currentTime > PREVIOUS_RESTART_THRESHOLD_SECONDS) {
+      audio.seekTo(0)
+      return
+    }
+    if (isFirstTrack) return
+    setCurrentTrackIndex((index) => index - 1)
+  }
+
+  // Previous is disabled/no-op only at the very first track within its
+  // own first `PREVIOUS_RESTART_THRESHOLD_SECONDS` — past that threshold
+  // it always has *something* to do (restart), even on the first track.
+  const previousDisabled = isFirstTrack && audio.currentTime <= PREVIOUS_RESTART_THRESHOLD_SECONDS
+  const nextDisabled = isLastTrack
+
+  // "Current track and every track after it" — already-played tracks
+  // never remain above the current one (this milestone's own explicit
+  // Up Next requirement). `UpNextPanel` itself never reorders/filters
+  // `tracks` any further; see that component's own doc comment.
+  const upNextTracks = testTracks.slice(currentTrackIndex)
 
   return (
     <main className="relative flex min-h-[max(100dvh,var(--spacing-frame-h))] items-center justify-center overflow-hidden bg-bg-base p-[24px] lg:min-h-[max(100dvh,var(--spacing-frame-h-lg))]">
@@ -215,11 +281,15 @@ export default function PlayerScreen({ mood, onLogoClick }: PlayerScreenProps) {
             playDisabled={playDisabled}
             volume={volume}
             onVolumeChange={handleVolumeChange}
+            onPrevious={handlePrevious}
+            previousDisabled={previousDisabled}
+            onNext={handleNext}
+            nextDisabled={nextDisabled}
           />
 
           <GestureControlsPanel />
 
-          <UpNextPanel mood={moodName} tracks={upNextTracks} accent={accent} />
+          <UpNextPanel mood={moodName} tracks={upNextTracks} currentTrackId={currentTrack.id} accent={accent} />
         </div>
 
         {/* ---------- Desktop (`lg` and up) ---------- */}
@@ -267,6 +337,10 @@ export default function PlayerScreen({ mood, onLogoClick }: PlayerScreenProps) {
                     playDisabled={playDisabled}
                     volume={volume}
                     onVolumeChange={handleVolumeChange}
+                    onPrevious={handlePrevious}
+                    previousDisabled={previousDisabled}
+                    onNext={handleNext}
+                    nextDisabled={nextDisabled}
                   />
                 </div>
               </div>
@@ -274,7 +348,7 @@ export default function PlayerScreen({ mood, onLogoClick }: PlayerScreenProps) {
               <GestureControlsPanel />
             </div>
 
-            <UpNextPanel mood={moodName} tracks={upNextTracks} accent={accent} />
+            <UpNextPanel mood={moodName} tracks={upNextTracks} currentTrackId={currentTrack.id} accent={accent} />
           </div>
         </div>
       </div>
