@@ -172,12 +172,13 @@ export function gradientBorderStyle(borderWidth: string) {
 }
 
 // A later, explicit task's request: the decorative video should read as
-// playing very slightly faster than its own natural speed — subtle, not a
-// noticeably sped-up effect. `HTMLMediaElement.playbackRate` (not a video
+// playing faster than its own natural speed, clearly enough for the
+// speed increase itself to be perceptible (an audited 1.5x read as too
+// subtle to notice). `HTMLMediaElement.playbackRate` (not a video
 // re-export/re-encode) is the standard way to do this; it can be set at
 // any point in the element's lifecycle, before or after playback actually
 // starts, and the browser applies it once frames are actually rendered.
-const PLAYBACK_RATE = 1.5
+const PLAYBACK_RATE = 1.8
 
 export default function CameraPermissionVisual() {
   const mobileVideoRef = useRef<HTMLVideoElement | null>(null)
