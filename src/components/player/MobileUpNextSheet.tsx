@@ -368,7 +368,37 @@ export default function MobileUpNextSheet({
         // string too — an inline style computed from the same constant
         // can't go stale that way.
         style={{ height: `calc(100dvh - ${EXPANDED_TOP_REVEAL_PX}px)` }}
-        className="flex w-full max-w-[382px] flex-col overflow-hidden rounded-t-[24px] bg-[rgba(255,255,255,0.08)] backdrop-blur-[20px]"
+        // A measured audit found this sheet visually merging with
+        // `GestureControlsPanel` right above it: both use the exact same
+        // `bg-[rgba(255,255,255,0.08)]` glass fill, and sit close together
+        // (collapsed, or right at the ~8px clearance the Player layout
+        // reserves above it) with nothing distinguishing the sheet as its
+        // own elevated surface. Fixed by strengthening only the *top-edge*
+        // separation — the fill color itself is untouched, per this task's
+        // explicit "don't change it in the first pass":
+        // - `border-t-[1px] border-t-[rgba(255,255,255,0.14)]` — a hairline
+        //   translucent highlight along the top edge only (matches this
+        //   codebase's own subtle-border convention, e.g.
+        //   `GestureControlsPanel`'s own toggle-group ring, just at a
+        //   noticeably lower alpha — 0.14 vs that ring's 0.25 — so this
+        //   reads as a soft edge-highlight, not a bright outline). Adds no
+        //   geometry: Tailwind's global `box-sizing: border-box` reset
+        //   means this 1px eats into the box's own already-fixed
+        //   `calc(100dvh - 224px)` height rather than growing it.
+        // - `shadow-[0px_-16px_32px_0px_rgba(0,0,0,0.35)]` — a soft,
+        //   *upward*-facing dark shadow (negative Y offset, since this
+        //   sheet sits at the very bottom of the viewport and needs to
+        //   read as elevated *above* the content behind/above it, not
+        //   below it) — dark rather than a bright glow per this task's
+        //   explicit "avoid strong glow" instruction, and soft/diffuse
+        //   (32px blur, 0.35 alpha) rather than a heavy hard-edged drop
+        //   shadow. `overflow-hidden` on this same element clips only its
+        //   *content* (the track list scrolling underneath), never its own
+        //   border or box-shadow, so neither is clipped by that.
+        // Both apply identically across Happy/Melancholic/Chill — neither
+        // reads any `accent` prop, so there is no mood-specific branching
+        // to keep in sync.
+        className="flex w-full max-w-[382px] flex-col overflow-hidden rounded-t-[24px] border-t-[1px] border-t-[rgba(255,255,255,0.14)] bg-[rgba(255,255,255,0.08)] shadow-[0px_-16px_32px_0px_rgba(0,0,0,0.35)] backdrop-blur-[20px]"
       >
         {/* A measured audit found this handle's real hit area was only
             36px tall (the button's own box hugs the 5px visible bar plus
