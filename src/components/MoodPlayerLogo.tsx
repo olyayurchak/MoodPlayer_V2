@@ -57,6 +57,23 @@ export const LOGO_BAR_PATHS = [
  * brand name ("MoodPlayer"), not the action activating it performs.
  * Omitting `onClick` renders the original inert lockup, unchanged.
  *
+ * A measured audit found the clickable button's real hit area was only
+ * ~151×22px — its own box hugs the 22px-tall icon/text exactly, with no
+ * padding at all (`p-0`), well under the ~44px iOS ergonomic baseline on
+ * the height axis (width was already fine, so it's untouched here). Fixed
+ * with the same invisible `before:` pseudo-element technique
+ * `LanguageSwitcher.tsx` already uses: `-top-[12px] -bottom-[12px]` grows
+ * the *clickable* area by 12px on each side (22px + 24px = 46px, clearing
+ * 44px) without adding any real padding to the button itself — an
+ * absolutely-positioned pseudo-element never affects its own parent's
+ * flex sizing, so the header row it sits in (`justify-between` against
+ * `LanguageSwitcher` on every current caller) keeps its exact height/
+ * alignment, and the visible icon+wordmark don't shift at all. Left/right
+ * stay at `before:left-0`/`before:right-0` (no horizontal growth) — a
+ * live measurement found ~101px of clearance to `LanguageSwitcher` at the
+ * narrowest supported Mobile width, so horizontal growth was never needed
+ * to hit the ergonomic target and would only add unnecessary risk.
+ *
  * `accent` (`data/playerMoodAccent.ts`, `undefined` for any mood without
  * its own approved override yet — only `PlayerScreen` ever passes this)
  * recolors just the icon mark, from the universal Mood Gradient baked
@@ -136,7 +153,7 @@ export default function MoodPlayerLogo({
         type="button"
         onClick={onClick}
         aria-label={t.common.logoHomeAriaLabel}
-        className="flex shrink-0 items-center gap-[12px] border-0 bg-transparent p-0 text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+        className="relative flex shrink-0 items-center gap-[12px] border-0 bg-transparent p-0 text-left before:absolute before:-top-[12px] before:-bottom-[12px] before:left-0 before:right-0 before:content-[''] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
       >
         {content}
       </button>
