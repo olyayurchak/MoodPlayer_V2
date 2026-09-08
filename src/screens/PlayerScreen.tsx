@@ -269,7 +269,44 @@ export default function PlayerScreen({ mood, onLogoClick }: PlayerScreenProps) {
       <AppBackground mobileGlows={accent?.backgroundGlows.mobile} desktopGlows={accent?.backgroundGlows.desktop} />
       <div className="relative flex w-full max-w-[382px] flex-col gap-[24px] rounded-[24px] backdrop-blur-[20px] lg:max-w-[1242px] lg:gap-[64px] lg:border-[1.5px] lg:border-[rgba(255,255,255,0.12)] lg:bg-[rgba(118,118,118,0.08)] lg:p-[64px]">
         {/* ---------- Mobile (below `lg`) ---------- */}
-        <div className="flex w-full flex-col items-center gap-[24px] lg:hidden">
+        {/* `pb-[56px]` — a measured audit found the last real content here
+            (`GestureControlsPanel`, since `MobileUpNextSheet` right below
+            it is portaled to `document.body` and takes up no space in
+            this flow) overlapped the fixed, always-present collapsed Up
+            Next sheet — its On/Off toggle's own *effective*, invisible-
+            hit-area-inclusive bottom (`GestureControlsPanel.tsx`'s own
+            `before:-bottom-[5px]`) sat ~19.8px past the sheet's top edge —
+            at every Mobile viewport tested (375×667 through 430×932),
+            including 430×932, the approved reference frame, where
+            there's no scrolling at all: this isn't a "can't scroll far
+            enough" bug, the collapsed sheet's 111px peek
+            (`MobileUpNextSheet.tsx`'s own `PEEK_HEIGHT_PX`, unchanged by
+            this fix) was never accounted for anywhere in this column's
+            own layout.
+            This whole column sits centered inside `<main>`'s own
+            `min-h-[max(100dvh,932px)]` box (`justify-center` above,
+            `items-center` on this row) — a fixed 932px document height on
+            every Mobile viewport under test (confirmed via
+            `document.documentElement.scrollHeight`), so adding bottom
+            padding here doesn't push the page taller, it only reduces the
+            equal empty space centering already leaves above and below
+            this column: half of any added padding is "spent" pushing the
+            column's *top* down less (i.e. the whole column shifts up by
+            exactly half of whatever's added here — confirmed live as a
+            uniform shift on every element checked: artwork,
+            `PlayerControls`, `GestureControlsPanel` itself). That's why
+            this is 56px, not the 111px full peek height the task
+            explicitly warns against reserving outright: the minimum
+            needed to turn the ~19.8px *effective* overlap into the
+            requested ~8px of clearance is `(19.8 + 8) × 2 ≈ 55.7px`; 56px
+            (a clean multiple of this codebase's own 8px spacing scale)
+            rounds that up just enough, landing at ~8.2px measured
+            clearance on the toggle's real invisible hit area rather than
+            a sub-8px margin. Scoped to this `lg:hidden` Mobile-only
+            column — Desktop never mounts this div, so `UpNextPanel`'s own
+            layout (no fixed overlay, no overlap to begin with) is
+            untouched. */}
+        <div className="flex w-full flex-col items-center gap-[24px] pb-[56px] lg:hidden">
           <div className="flex w-full items-center justify-between">
             <MoodPlayerLogo onClick={onLogoClick} accent={accent} />
             <LanguageSwitcher />
