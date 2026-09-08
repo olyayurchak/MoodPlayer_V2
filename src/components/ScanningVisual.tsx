@@ -253,13 +253,19 @@ export default forwardRef<ScanningVisualHandle, ScanningVisualProps>(function Sc
         ? [
             {
               connectors: tessellationConnectors,
-              // Lavender mesh-line color per explicit request — #C9C7FF at
-              // 65% opacity, i.e. rgb(201,199,255). Restored back to this
-              // after a cyan visual test (`rgba(105,213,255,0.70)`,
-              // #69D5FF at 70%). Only this layer's `strokeStyle` changed;
-              // its `lineWidth`/`pointRadius`/`pointFillStyle` (the dot
-              // color) are untouched, along with every other layer.
-              strokeStyle: "rgba(201,199,255,0.65)",
+              // Lavender mesh-line color per explicit request — #C9C7FF,
+              // originally at 65% opacity. Bumped to 75% (a ~15.4%
+              // visibility increase, within an explicitly requested
+              // ~15–20% range) per a later "make the mesh slightly more
+              // visible" request — still clearly lighter than the face
+              // itself and well short of the earlier 100%-opacity corner-
+              // mark territory this task explicitly avoided. Alpha only:
+              // the RGB hue, `lineWidth`, `pointRadius`, and
+              // `pointFillStyle` (the dot color) are all untouched, along
+              // with every other layer — this is the one value this
+              // module's own `MeshLayer.strokeStyle` doc comment
+              // identifies as "mesh line color / alpha" for this layer.
+              strokeStyle: "rgba(201,199,255,0.75)",
               lineWidth: 0.5,
               pointRadius: 0.9,
               pointFillStyle: "rgba(255,255,255,0.5)",
