@@ -370,6 +370,33 @@ export default function MobileUpNextSheet({
         style={{ height: `calc(100dvh - ${EXPANDED_TOP_REVEAL_PX}px)` }}
         className="flex w-full max-w-[382px] flex-col overflow-hidden rounded-t-[24px] bg-[rgba(255,255,255,0.08)] backdrop-blur-[20px]"
       >
+        {/* A measured audit found this handle's real hit area was only
+            36px tall (the button's own box hugs the 5px visible bar plus
+            its own vertical centering padding) — under the ~44px iOS
+            ergonomic baseline. Fixed with the same invisible `before:`
+            pseudo-element technique `LanguageSwitcher.tsx`/
+            `MoodPlayerLogo.tsx` already use, not a real height/padding
+            increase: the button's own real box (and therefore
+            `PEEK_HEIGHT_PX`'s own 111px collapsed-peek content, which
+            starts counting from this button's real top) must stay exactly
+            36px, or a genuinely taller handle would push the heading/row
+            content it reveals downward, cropping more of the peeked
+            current-track row than Figma's own approved collapsed frame
+            shows.
+            Only extends *downward* (`before:-bottom-[10px]`, none
+            upward): extending upward would land outside this card's own
+            `overflow-hidden` box (the direct parent right above), which
+            clips — and un-hit-tests — anything beyond its edges
+            regardless of collapsed/expanded state, so an upward
+            expansion would silently not work at all. Downward instead
+            lands inside the card, over the top of the (non-interactive,
+            no `onClick`) "Up next" heading text below — 10px is well
+            short of where the real `SelectableTrackRow` buttons begin
+            (the heading block's own height is ~57px), so this can never
+            intercept a track-row tap. Left/right stay flush
+            (`before:inset-x-0`) — the button is already `w-full`, so
+            width was never the problem. Net effective hit height: 36 + 10
+            = 46px, clearing the ~44px target. */}
         <button
           type="button"
           aria-expanded={isExpanded}
@@ -380,7 +407,7 @@ export default function MobileUpNextSheet({
           onPointerUp={handlePointerUp}
           onPointerCancel={handlePointerUp}
           onClick={handleToggleClick}
-          className="flex h-[36px] w-full shrink-0 touch-none items-center justify-center focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-white"
+          className="relative flex h-[36px] w-full shrink-0 touch-none items-center justify-center before:absolute before:inset-x-0 before:top-0 before:-bottom-[10px] before:content-[''] focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-white"
         >
           <span aria-hidden="true" className="h-[5px] w-[64px] rounded-full bg-white/40" />
         </button>
