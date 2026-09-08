@@ -262,12 +262,48 @@ export default function GestureControlsPanel() {
               : { left: 0, width: 0, opacity: 0 }
           }
         />
+        {/* A measured audit found each On/Off button's real hit area was
+            only ~35.5px tall on Mobile (`py-[8px]` plus the `text-[13px]`
+            line) — under the ~44px iOS ergonomic baseline. Fixed with the
+            same invisible `before:` pseudo-element technique
+            `LanguageSwitcher.tsx`/`MoodPlayerLogo.tsx`/
+            `MobileUpNextSheet.tsx` already use, not a real padding
+            increase: a real `py` increase would grow this pill's own
+            layout box, which (being a flex sibling of the four gesture
+            columns in the same single row) would grow the whole Gesture
+            Controls panel's height to match — this component's own doc
+            comment already documents how easily that row's height moves
+            when any cell's own content grows.
+            Growth here is vertical-only (`before:-top-[5px] before:-bottom-
+            [5px]`), taking real 35.5px to an effective ~45.5px: On and
+            Off already touch directly (`gap-x-0` in the shared
+            `toggleGroupRef` group — confirmed via measurement, not
+            assumed), so any *horizontal* growth on either button's inward-
+            facing edge would immediately overlap the other's hit region;
+            left/right stay at the button's own edges (`before:inset-x-0`,
+            no negative inset) to avoid that entirely, since the task's own
+            audit only flagged height, not width. Vertical growth has no
+            such neighbor — On/Off are the only two buttons in this row —
+            and the toggle sits vertically centered inside a taller
+            (~93.6px) panel with ~29px of clearance above/below it before
+            the panel's own edge, so 5px each side lands nowhere near a
+            clip. Both buttons already carry `relative`, so no `position`
+            change was needed to add the pseudo-element.
+            `lg:before:top-0 lg:before:bottom-0` resets that vertical
+            growth to nothing at Desktop widths: Desktop's own real button
+            is already 44px tall there (`lg:py-[10px]` plus `lg:text-
+            [16px]`), so this fix is Mobile-only by design — without this
+            reset the same unscoped inset would have silently grown
+            Desktop's already-sufficient hit area to ~54px too, which
+            this task's own "Desktop must remain unaffected" scope
+            explicitly rules out, even though it would have stayed
+            invisible there. */}
         <button
           ref={onButtonRef}
           type="button"
           onClick={() => setIsEnabled(true)}
           aria-pressed={isEnabled}
-          className="relative z-10 rounded-pill px-[10px] py-[8px] text-[13px] font-medium text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white lg:px-[24px] lg:py-[10px] lg:text-[16px]"
+          className="relative z-10 rounded-pill px-[10px] py-[8px] text-[13px] font-medium text-white before:absolute before:inset-x-0 before:-top-[5px] before:-bottom-[5px] before:content-[''] lg:before:top-0 lg:before:bottom-0 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white lg:px-[24px] lg:py-[10px] lg:text-[16px]"
         >
           {t.player.gestures.on}
         </button>
@@ -276,7 +312,7 @@ export default function GestureControlsPanel() {
           type="button"
           onClick={() => setIsEnabled(false)}
           aria-pressed={!isEnabled}
-          className="relative z-10 rounded-pill px-[10px] py-[8px] text-[13px] font-medium text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white lg:px-[24px] lg:py-[10px] lg:text-[16px]"
+          className="relative z-10 rounded-pill px-[10px] py-[8px] text-[13px] font-medium text-white before:absolute before:inset-x-0 before:-top-[5px] before:-bottom-[5px] before:content-[''] lg:before:top-0 lg:before:bottom-0 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white lg:px-[24px] lg:py-[10px] lg:text-[16px]"
         >
           {t.player.gestures.off}
         </button>
