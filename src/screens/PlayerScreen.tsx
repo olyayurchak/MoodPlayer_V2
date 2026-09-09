@@ -545,7 +545,10 @@ export default function PlayerScreen({ mood, onLogoClick }: PlayerScreenProps) {
             column — Desktop never mounts this div, so `UpNextPanel`'s own
             layout (no fixed overlay, no overlap to begin with) is
             untouched. */}
-        <div className="flex w-full flex-col items-center gap-[24px] pb-[56px] lg:hidden">
+        {/* `gap-[16px]` (was `gap-[24px]`) — the tighter mobile gap keeps
+            the final `GestureControlsPanel` from overlapping the fixed
+            Mobile Up Next sheet below it. */}
+        <div className="flex w-full flex-col items-center gap-[16px] pb-[56px] lg:hidden">
           <div className="flex w-full items-center justify-between">
             <MoodPlayerLogo onClick={onLogoClick} accent={accent} />
             <LanguageSwitcher />
