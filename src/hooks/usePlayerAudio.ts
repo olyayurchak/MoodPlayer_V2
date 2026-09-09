@@ -54,6 +54,34 @@ export type UsePlayerAudioResult = {
    *  ("restart the current track at `0:00`" past a threshold) rather
    *  than a generic scrub feature this milestone doesn't otherwise need. */
   seekTo: (seconds: number) => void
+  /** Reads the *current* live `HTMLAudioElement` at call time (or `null`
+   *  before the very first element has mounted) — a plain getter, not a
+   *  piece of returned state, so reading it never itself causes a
+   *  re-render. Added for `useWaveformAnalyser` (`PlayerScreen`'s own real-
+   *  audio waveform): that hook needs to wire a Web Audio
+   *  `MediaElementAudioSourceNode` to whichever element is *currently*
+   *  live, including right after a track switch recreates it — a plain
+   *  getter reading `audioRef` lets that hook re-check "is this the same
+   *  element I already wired, or a new one from a track switch" at its own
+   *  effect-run time without this hook needing to know Web Audio exists at
+   *  all (see that hook's own doc comment for the full reasoning). */
+  getAudioElement: () => HTMLAudioElement | null
+  /** Marks the *next* `src` change (i.e. the next track switch) as one
+   *  that should start playing regardless of whether the element being
+   *  torn down was actually still playing at that moment — call this
+   *  right before switching `currentTrackIndex` in response to the real
+   *  `<audio>` element's own `"ended"` event (`PlayerScreen`'s Shuffle/
+   *  Repeat auto-advance). Added specifically because `ended` always
+   *  leaves `HTMLMediaElement.paused` `true` (per spec) the instant it
+   *  fires — so the ordinary `wasPlayingRef` teardown logic below, which
+   *  reads that real `.paused` value, would otherwise (correctly, for
+   *  every *other* track-change reason) conclude "this track wasn't
+   *  playing, don't resume" and leave a Repeat-driven "continue from the
+   *  start"/Shuffle-driven auto-advance sitting paused on the new track —
+   *  the opposite of what "continue playback" means. A user-initiated
+   *  Next/Previous/manual track pick never calls this, so their own
+   *  existing paused-state-preserving behavior is completely unaffected. */
+  resumeOnNextTrack: () => void
 }
 
 /**
@@ -96,6 +124,15 @@ export function usePlayerAudio(src: string | undefined): UsePlayerAudioResult {
   // not just by convention: only a *second-or-later* run of this effect
   // can ever see this ref as `true`.
   const wasPlayingRef = useRef(false)
+  // Set only by `resumeOnNextTrack` (below), consumed alongside
+  // `wasPlayingRef` in the very next run of the recreate-effect — kept as
+  // a *separate* flag rather than just writing `true` into `wasPlayingRef`
+  // directly, because that same effect's own teardown unconditionally
+  // recomputes `wasPlayingRef.current` from the real (by-then-paused)
+  // element right before this runs, which would silently clobber a forced
+  // `true` back to `false` before it was ever read. See this ref's own
+  // field doc comment on `resumeOnNextTrack` above for why this exists.
+  const forceResumeRef = useRef(false)
 
   // Creates (and fully tears down) the one `Audio` instance whenever `src`
   // itself changes — not whenever `volume` changes, which is its own
@@ -120,15 +157,29 @@ export function usePlayerAudio(src: string | undefined): UsePlayerAudioResult {
     // later `src` change can never accidentally resume based on a stale
     // value from two tracks ago rather than the one just switched away
     // from.
-    const shouldResume = wasPlayingRef.current
+    const shouldResume = wasPlayingRef.current || forceResumeRef.current
     wasPlayingRef.current = false
+    forceResumeRef.current = false
 
+    // Consumed (set `false`) the first time `handleCanPlay` below actually
+    // acts on `shouldResume` — `canplay` is not a one-shot event: a real
+    // seek (`seekTo`, used by `PlayerScreen`'s own Previous-restart and now
+    // the waveform's own click/tap-to-seek) legitimately refires `canplay`
+    // once the browser is ready to play from the new position again, and
+    // without this guard `handleCanPlay` would call `audio.play()` on
+    // *every* one of those later refires too — silently resuming a track
+    // the user had genuinely paused, just because it happened to once need
+    // to auto-resume right after this same element was first created.
+    let resumePending = shouldResume
     const handleLoadedMetadata = () => {
       if (Number.isFinite(audio.duration)) setDuration(audio.duration)
     }
     const handleCanPlay = () => {
       setStatus((current) => (current === "loading" ? "ready" : current))
-      if (shouldResume) audio.play().catch(() => setStatus("error"))
+      if (resumePending) {
+        resumePending = false
+        audio.play().catch(() => setStatus("error"))
+      }
     }
     const handleTimeUpdate = () => setCurrentTime(audio.currentTime)
     const handlePlay = () => setStatus("playing")
@@ -209,7 +260,25 @@ export function usePlayerAudio(src: string | undefined): UsePlayerAudioResult {
     setCurrentTime(audio.currentTime)
   }, [])
 
-  return { status, currentTime, duration, volume, play, pause, toggle, setVolume, seekTo }
+  const getAudioElement = useCallback(() => audioRef.current, [])
+
+  const resumeOnNextTrack = useCallback(() => {
+    forceResumeRef.current = true
+  }, [])
+
+  return {
+    status,
+    currentTime,
+    duration,
+    volume,
+    play,
+    pause,
+    toggle,
+    setVolume,
+    seekTo,
+    getAudioElement,
+    resumeOnNextTrack,
+  }
 }
 
 /** `123.4` → `"2:03"` — the same `m:ss` shape (no hours, no leading zero

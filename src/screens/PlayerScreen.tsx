@@ -1,10 +1,10 @@
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import AppBackground from "../components/AppBackground"
 import MoodPlayerLogo from "../components/MoodPlayerLogo"
 import LanguageSwitcher from "../components/LanguageSwitcher"
 import { gradientBorderStyle } from "../components/CameraPermissionVisual"
 import PlayerMoodSelector from "../components/player/PlayerMoodSelector"
-import PlayerWaveform from "../components/player/PlayerWaveform"
+import PlayerWaveform, { BAR_COUNT } from "../components/player/PlayerWaveform"
 import PlayerControls from "../components/player/PlayerControls"
 import GestureControlsPanel from "../components/player/GestureControlsPanel"
 import UpNextPanel from "../components/player/UpNextPanel"
@@ -14,6 +14,7 @@ import type { MoodId } from "../data/moods"
 import { testTracks } from "../data/playerTrack"
 import { PLAYER_MOOD_ACCENTS } from "../data/playerMoodAccent"
 import { formatPlaybackTime, usePlayerAudio } from "../hooks/usePlayerAudio"
+import { useWaveformAnalyser } from "../hooks/useWaveformAnalyser"
 
 /** Shared "how strong should the artwork glow feel" recipe — the same
  *  blur/spread/offset for every mood's artwork glow, whatever rgba color
@@ -60,6 +61,31 @@ const ARTWORK_GLOW_STYLE = { boxShadow: artworkGlowShadow("rgba(87, 32, 111, 0.4
  *  Previous switches back instead. */
 const PREVIOUS_RESTART_THRESHOLD_SECONDS = 3
 
+/**
+ * Returns a random permutation of every valid `testTracks` index (Fisher–
+ * Yates), then — when there's an actual alternative (`length > 1`) —
+ * guarantees the *first* entry never equals `excludeIndex` by swapping it
+ * with the second one if it landed there. `excludeIndex` is always the
+ * track already playing when a new shuffled run starts (either Shuffle
+ * just turned on, or the previous shuffled cycle just finished), which is
+ * exactly this feature's own "don't immediately repeat the current track
+ * when alternatives exist" requirement — a single targeted swap, not a
+ * rejection-sampling loop, since one swap is enough to fix the only
+ * position that can ever violate it (every position deeper in the array is
+ * already guaranteed different from `excludeIndex` because Fisher–Yates
+ * produces a permutation with no duplicates). */
+function buildShuffleQueue(excludeIndex: number): number[] {
+  const indices = testTracks.map((_, index) => index)
+  for (let i = indices.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1))
+    ;[indices[i], indices[j]] = [indices[j], indices[i]]
+  }
+  if (indices.length > 1 && indices[0] === excludeIndex) {
+    ;[indices[0], indices[1]] = [indices[1], indices[0]]
+  }
+  return indices
+}
+
 /** The artwork panel's Happy-only gradient ring — same masked-gradient-
  *  ring technique (`mask-composite: exclude`) as the selected "Happy"
  *  mood-selector pill's ring and the Up Next current-track row's ring
@@ -98,10 +124,11 @@ type PlayerScreenProps = {
 
 /**
  * The Player screen. Reached from Vibe Result's "Start listening" CTA
- * (`App.tsx`). Real single-track playback exists (`usePlayerAudio`,
- * below) — no gesture recognition, per-mood playlists, queue/Next/
- * Previous, or shuffle/repeat logic yet, all still explicitly out of
- * scope for the milestone that added real audio.
+ * (`App.tsx`). Real playback exists (`usePlayerAudio`, below), including
+ * real Shuffle/Repeat playback modes (`isShuffleOn`/`isRepeatOn` and the
+ * shuffle queue/history/`"ended"`-auto-advance logic further down this
+ * file) — no gesture recognition or per-mood playlists yet, still
+ * explicitly out of scope.
  *
  * Approved Figma frames: Mobile `289:7420` (430×932 — a duplicated-and-
  * repurposed "iPhone 14 & 15 Pro Max - Intro" frame; its actual content is
@@ -171,6 +198,32 @@ export default function PlayerScreen({ mood, onLogoClick }: PlayerScreenProps) {
   const isFirstTrack = currentTrackIndex === 0
   const isLastTrack = currentTrackIndex === testTracks.length - 1
 
+  // Shuffle/Repeat playback modes — both off by default (no persisted
+  // preference exists anywhere in this codebase to read instead), lifted
+  // here rather than left as `PlayerControls`' own former local UI-only
+  // state for the same "one shared source of truth above both the Mobile
+  // and Desktop trees" reason every other piece of playback state already
+  // is (see `usePlayerAudio`'s own doc comment) — both breakpoints' own
+  // `PlayerControls` copy below are now fully controlled for these two,
+  // matching Play/Pause/Volume/Previous/Next.
+  const [isShuffleOn, setIsShuffleOn] = useState(false)
+  const [isRepeatOn, setIsRepeatOn] = useState(false)
+
+  // Shuffle's own upcoming order for the *current* shuffled cycle (front
+  // of the array is the next track Next/auto-advance will pick) and the
+  // real history of tracks actually played while shuffled (used by
+  // Previous, below, instead of a fixed "index − 1" — an actual shuffled
+  // order has no well-defined "previous" without remembering where
+  // playback really came from). Plain `useState`, not a ref: both directly
+  // gate this screen's own `nextDisabled`/`previousDisabled` (a shuffled
+  // cycle that's run out, with Repeat off, must visibly disable Next the
+  // same way reaching the last track already does normally), which needs
+  // to be reactive — a ref mutation alone wouldn't force that re-render.
+  // Both arrays stay tiny (never longer than `testTracks.length`), so
+  // plain state here carries no meaningful cost.
+  const [shuffleQueue, setShuffleQueue] = useState<number[]>([])
+  const [shuffleHistory, setShuffleHistory] = useState<number[]>([])
+
   // The one real `<audio>` element for `currentTrack`'s own `audioSrc` —
   // owned here, not inside either `PlayerControls` copy below, so both
   // the Mobile and Desktop transport rows (and both `PlayerWaveform`
@@ -184,6 +237,44 @@ export default function PlayerScreen({ mood, onLogoClick }: PlayerScreenProps) {
   const audio = usePlayerAudio(currentTrack.audioSrc)
   const isPlaying = audio.status === "playing"
   const playDisabled = audio.status === "error"
+
+  // Live `prefers-reduced-motion`, re-checked on the OS setting's own
+  // `change` event (unlike `useFadeTransition.ts`'s one-shot check at the
+  // start of a transition, this hook's own animation loop is long-lived —
+  // it needs to notice a mid-session setting change, not just whatever was
+  // true when the Player first mounted).
+  const [reducedMotion, setReducedMotion] = useState(
+    () => window.matchMedia("(prefers-reduced-motion: reduce)").matches,
+  )
+  useEffect(() => {
+    const query = window.matchMedia("(prefers-reduced-motion: reduce)")
+    const handleChange = () => setReducedMotion(query.matches)
+    query.addEventListener("change", handleChange)
+    return () => query.removeEventListener("change", handleChange)
+  }, [])
+
+  // The one shared real-audio waveform analyser for both `PlayerWaveform`
+  // copies below — see that hook's own doc comment for why exactly one
+  // instance lives here, alongside `usePlayerAudio` itself.
+  const waveformAnalyser = useWaveformAnalyser({
+    getAudioElement: audio.getAudioElement,
+    src: currentTrack.audioSrc,
+    isPlaying,
+    barCount: BAR_COUNT,
+    reducedMotion,
+  })
+
+  // Both `PlayerControls` copies' own Play/Pause button call this instead
+  // of `audio.toggle` directly — `ensureStarted` must run synchronously
+  // inside this real click handler, the same call stack as the user's own
+  // gesture, for the `AudioContext` autoplay-resume policy Guidelines §8/
+  // §12 call out (see `useWaveformAnalyser`'s own doc comment for the full
+  // reasoning); it never affects whether playback itself starts, only
+  // whether the waveform's own analyser is wired up to see it.
+  const handleTogglePlay = () => {
+    waveformAnalyser.ensureStarted()
+    audio.toggle()
+  }
   // `0–100` for `PlayerControls`' own existing slider range — converted
   // here, at the one boundary between this screen and the `0–1` range
   // `HTMLAudioElement.volume` (and this hook) actually use.
@@ -200,41 +291,165 @@ export default function PlayerScreen({ mood, onLogoClick }: PlayerScreenProps) {
   const elapsedLabel = formatPlaybackTime(audio.currentTime)
   const durationLabel = audio.duration > 0 ? formatPlaybackTime(audio.duration) : currentTrack.durationLabel
 
-  // Next: per this milestone's explicit spec, disabled (a no-op) at the
-  // final track — never wraps back to the first. Playback state itself
-  // needs no explicit handling here: `usePlayerAudio`'s own
-  // `wasPlayingRef` already resumes automatically once the new track is
-  // ready if (and only if) the *previous* track was actually playing, and
-  // stays paused otherwise — this handler only ever needs to move the
-  // index.
+  // Shared by the Next button and the real end-of-track auto-advance
+  // (below) — the one place shuffled navigation actually happens, so
+  // neither path can ever drift into its own separate shuffle logic.
+  // `forceResume` is `true` only from the auto-advance path (see that
+  // effect's own doc comment on why "the track ended" must force
+  // playback to continue regardless of the real element's own paused
+  // state); the Next *button* always passes `false`, preserving this
+  // screen's existing "Next while paused stays paused" behavior exactly.
+  const advanceShuffled = (forceResume: boolean) => {
+    let queue = shuffleQueue
+    if (queue.length === 0) {
+      // This shuffled cycle just ran out. With Repeat off, that's this
+      // feature's own explicit "existing end-of-playlist behavior" — do
+      // nothing, the same as Next already no-ops on the final track in
+      // normal order. With Repeat on, start a brand new valid shuffled
+      // cycle (excluding an immediate repeat of the track that just
+      // finished the previous one) rather than stopping.
+      if (!isRepeatOn) return
+      queue = buildShuffleQueue(currentTrackIndex)
+    }
+    const [nextIndex, ...rest] = queue
+    setShuffleHistory((history) => [...history, currentTrackIndex])
+    setShuffleQueue(rest)
+    if (forceResume) audio.resumeOnNextTrack()
+    setCurrentTrackIndex(nextIndex)
+  }
+
+  // Next: shuffled order while Shuffle is on (`advanceShuffled`, above);
+  // otherwise the original normal-order behavior, now also wrapping back
+  // to the first track when Repeat is on instead of always no-op'ing at
+  // the final track. Playback state itself needs no explicit handling in
+  // either branch: `usePlayerAudio`'s own `wasPlayingRef` already resumes
+  // automatically once the new track is ready if (and only if) the
+  // *previous* track was actually playing, and stays paused otherwise —
+  // this handler only ever needs to move the index.
   const handleNext = () => {
-    if (isLastTrack) return
+    if (isShuffleOn) {
+      advanceShuffled(false)
+      return
+    }
+    if (isLastTrack) {
+      if (isRepeatOn) setCurrentTrackIndex(0)
+      return
+    }
     setCurrentTrackIndex((index) => index + 1)
   }
 
-  // Previous: per this milestone's explicit spec, a 3-second threshold
-  // decides "restart the current track" vs. "switch to the previous
-  // track" — never both. `seekTo(0)` (not a `src`/index change) is used
-  // for the restart branch specifically because it must *not* recreate
-  // the `<audio>` element: a real switch already correctly preserves
-  // playing/paused state via `usePlayerAudio`'s own resume-on-switch
-  // logic, but a restart should just as clearly *keep whatever was
-  // already playing* (or stay paused) without ever pausing/reloading
-  // the element that logic would otherwise trigger.
+  // Previous: a 3-second threshold still decides "restart the current
+  // track" vs. "switch to the previous track" — never both, and unchanged
+  // by Shuffle/Repeat. Below that threshold, Shuffle follows *actual
+  // playback history* (`shuffleHistory`, above) rather than "index − 1":
+  // a shuffled order has no well-defined previous-by-position, only
+  // wherever playback actually came from. `seekTo(0)` (not a `src`/index
+  // change) is used for both the restart branch and the "no history yet"
+  // fallback specifically because it must *not* recreate the `<audio>`
+  // element: a real switch already correctly preserves playing/paused
+  // state via `usePlayerAudio`'s own resume-on-switch logic, but a
+  // restart should just as clearly *keep whatever was already playing*
+  // (or stay paused) without ever pausing/reloading the element that
+  // logic would otherwise trigger.
   const handlePrevious = () => {
     if (audio.currentTime > PREVIOUS_RESTART_THRESHOLD_SECONDS) {
       audio.seekTo(0)
+      return
+    }
+    if (isShuffleOn) {
+      if (shuffleHistory.length === 0) {
+        audio.seekTo(0)
+        return
+      }
+      const previousIndex = shuffleHistory[shuffleHistory.length - 1]
+      setShuffleHistory((history) => history.slice(0, -1))
+      setCurrentTrackIndex(previousIndex)
       return
     }
     if (isFirstTrack) return
     setCurrentTrackIndex((index) => index - 1)
   }
 
-  // Previous is disabled/no-op only at the very first track within its
-  // own first `PREVIOUS_RESTART_THRESHOLD_SECONDS` — past that threshold
-  // it always has *something* to do (restart), even on the first track.
-  const previousDisabled = isFirstTrack && audio.currentTime <= PREVIOUS_RESTART_THRESHOLD_SECONDS
-  const nextDisabled = isLastTrack
+  // Previous is disabled/no-op only within its own first
+  // `PREVIOUS_RESTART_THRESHOLD_SECONDS` — past that threshold it always
+  // has *something* to do (restart), even on the first track/with no
+  // history yet. Below that threshold: normally only the very first track
+  // disables it; while Shuffle is on, "no history yet" (nothing to go
+  // back to) is the equivalent condition instead of `isFirstTrack`, which
+  // has no real meaning once order isn't sequential.
+  const previousDisabled =
+    audio.currentTime <= PREVIOUS_RESTART_THRESHOLD_SECONDS &&
+    (isShuffleOn ? shuffleHistory.length === 0 : isFirstTrack)
+  // Next disables only when there is genuinely nothing left to advance
+  // to: normal order at the final track with Repeat off, or a shuffled
+  // cycle that's run out with Repeat off. Repeat being on always gives
+  // Next something to do (wrap, or start a fresh shuffled cycle), so it
+  // never disables Next in either mode.
+  const nextDisabled = isShuffleOn ? shuffleQueue.length === 0 && !isRepeatOn : isLastTrack && !isRepeatOn
+
+  // Shuffle toggling seeds a fresh shuffled cycle (excluding an immediate
+  // repeat of whatever's currently playing) and clears playback history —
+  // a clean slate each time Shuffle turns on, rather than resuming
+  // whatever an earlier shuffle session happened to leave behind, which
+  // would otherwise let a stale, already-consumed queue silently reappear.
+  // Turning Shuffle off intentionally leaves the queue/history arrays
+  // alone (simply unused while off) rather than clearing them — nothing
+  // reads them in normal mode, and turning Shuffle back on already reseeds
+  // both from scratch above.
+  const handleToggleShuffle = () => {
+    const next = !isShuffleOn
+    setIsShuffleOn(next)
+    if (next) {
+      setShuffleQueue(buildShuffleQueue(currentTrackIndex))
+      setShuffleHistory([])
+    }
+  }
+  const handleToggleRepeat = () => setIsRepeatOn((on) => !on)
+
+  // The real `<audio>` element's own `"ended"` event, surfaced here as
+  // `audio.status === "ended"` — this is genuinely new: before Shuffle/
+  // Repeat, nothing in this screen ever reacted to a track actually
+  // finishing (the hook only recorded the state; Next/Previous were the
+  // only things that ever moved `currentTrackIndex`). Repeat's "continue
+  // from the start"/"start another shuffled cycle" behavior has nothing
+  // to hook into without this, so it's added here rather than inside
+  // `usePlayerAudio` itself, reusing this same screen's own navigation
+  // logic (`advanceShuffled`/the normal-order branch below) instead of a
+  // second, separate implementation.
+  //
+  // `handledEndedRef` guards against acting on the same "ended" occurrence
+  // more than once: advancing here changes `currentTrackIndex`/
+  // `shuffleQueue`, both of which this effect also depends on — so React
+  // re-evaluates this effect on the very next render *before*
+  // `usePlayerAudio`'s own `[src]` effect has had a chance to move
+  // `status` away from `"ended"` (that only happens once the new
+  // `Audio(src)` element is actually constructed, a render later). Without
+  // this guard that intermediate re-run would see `status` still
+  // `"ended"` and advance a *second* time off the same event.
+  const handledEndedRef = useRef(false)
+  useEffect(() => {
+    if (audio.status !== "ended") {
+      handledEndedRef.current = false
+      return
+    }
+    if (handledEndedRef.current) return
+    handledEndedRef.current = true
+
+    if (isShuffleOn) {
+      advanceShuffled(true)
+      return
+    }
+    if (isLastTrack) {
+      if (isRepeatOn) {
+        audio.resumeOnNextTrack()
+        setCurrentTrackIndex(0)
+      }
+      // Repeat off: retain the existing end-of-playlist behavior — stop.
+      return
+    }
+    audio.resumeOnNextTrack()
+    setCurrentTrackIndex((index) => index + 1)
+  }, [audio.status, audio.resumeOnNextTrack, isShuffleOn, isRepeatOn, isLastTrack, currentTrackIndex, shuffleQueue])
 
   // "Current track and every track after it" — already-played tracks
   // never remain above the current one (this milestone's own explicit
@@ -261,6 +476,30 @@ export default function PlayerScreen({ mood, onLogoClick }: PlayerScreenProps) {
     if (trackId === currentTrack.id) return
     const index = testTracks.findIndex((track) => track.id === trackId)
     if (index === -1) return
+    // While Shuffle is on, record where playback actually came from
+    // (matching every other navigation path — Next, Previous, and the
+    // auto-advance-on-`ended` effect above — per this feature's own
+    // "all navigation paths use consistent behavior" requirement), so a
+    // later Previous can back out of a manual jump the same way it backs
+    // out of a shuffled Next.
+    //
+    // The just-selected track is also pulled out of the *pending* shuffle
+    // queue here — it was left in place until now, which could let Next
+    // immediately re-select the very track the user just manually chose
+    // (a real duplicate in a small playlist: pick Track 3 by hand, press
+    // Next, land right back on Track 3 because it was still sitting in
+    // the queue). `filter` rather than a full reshuffle keeps every other
+    // still-pending track in its already-decided order (this feature's
+    // own "keep the remaining shuffled order intact rather than rebuild
+    // the whole cycle" requirement) — removing one entry from an existing
+    // permutation can't disturb the relative order of the rest. At most
+    // one occurrence of `index` can ever be in the queue (it's built from
+    // a permutation of every track index), so this never removes more
+    // than the one real duplicate risk.
+    if (isShuffleOn) {
+      setShuffleHistory((history) => [...history, currentTrackIndex])
+      setShuffleQueue((queue) => queue.filter((queuedIndex) => queuedIndex !== index))
+    }
     setCurrentTrackIndex(index)
   }
 
@@ -338,12 +577,16 @@ export default function PlayerScreen({ mood, onLogoClick }: PlayerScreenProps) {
             elapsedLabel={elapsedLabel}
             durationLabel={durationLabel}
             accent={accent}
+            analyser={waveformAnalyser}
+            currentTime={audio.currentTime}
+            duration={audio.duration}
+            onSeek={audio.seekTo}
           />
 
           <PlayerControls
             accent={accent}
             isPlaying={isPlaying}
-            onTogglePlay={audio.toggle}
+            onTogglePlay={handleTogglePlay}
             playDisabled={playDisabled}
             volume={volume}
             onVolumeChange={handleVolumeChange}
@@ -351,6 +594,10 @@ export default function PlayerScreen({ mood, onLogoClick }: PlayerScreenProps) {
             previousDisabled={previousDisabled}
             onNext={handleNext}
             nextDisabled={nextDisabled}
+            isShuffleOn={isShuffleOn}
+            onToggleShuffle={handleToggleShuffle}
+            isRepeatOn={isRepeatOn}
+            onToggleRepeat={handleToggleRepeat}
           />
 
           <GestureControlsPanel />
@@ -373,7 +620,33 @@ export default function PlayerScreen({ mood, onLogoClick }: PlayerScreenProps) {
           </div>
 
           <div className="flex w-full items-center gap-[32px]">
-            <div className="flex w-[698px] shrink-0 flex-col gap-[42px]">
+            {/* `h-[492px]` (matching `UpNextPanel`'s own already-fixed
+                `lg:h-[492px]`) + `justify-between` (replacing a fixed
+                `gap-[42px]`) — added to fix a confirmed ~11.4px bottom-edge
+                misalignment between this column's own Gesture Controls
+                panel and the Up Next panel beside it: with no explicit
+                height here, this column's real content height (measured
+                ~514.8px — the artwork row's 342px, the old 42px gap, and
+                the Gesture Controls panel's own real ~118px, which has
+                grown since that panel's last independent sizing pass) no
+                longer matched Up Next's own fixed 492px, so the outer
+                row's `items-center` (unchanged) split that ~22.8px
+                difference evenly above and below, leaving both panels'
+                bottoms (and tops) each off by ~11.4px instead of flush.
+                Pinning this column to that same 492px and swapping the
+                fixed gap for `justify-between` closes exactly that gap
+                (now computed automatically as whatever space is actually
+                left over between the two children, not a re-guessed fixed
+                number) — the artwork row still starts flush at this
+                column's own top (nothing about its own position changed),
+                and the Gesture Controls panel's own internal padding/
+                sizing is completely untouched, only its Y position shifts
+                up to reach this column's new bottom edge exactly, which is
+                Up Next's own bottom edge too. Both panels are Desktop-only
+                (this whole subtree is `hidden lg:flex`, `w-[698px]` right
+                beside this is itself an unprefixed literal for the same
+                reason), so no Mobile-facing class changed. */}
+            <div className="flex h-[492px] w-[698px] shrink-0 flex-col justify-between">
               <div className="flex w-full items-start gap-[31px]">
                 <div
                   className="relative size-[342px] shrink-0 overflow-hidden rounded-[24px]"
@@ -400,12 +673,16 @@ export default function PlayerScreen({ mood, onLogoClick }: PlayerScreenProps) {
                     elapsedLabel={elapsedLabel}
                     durationLabel={durationLabel}
                     accent={accent}
+                    analyser={waveformAnalyser}
+                    currentTime={audio.currentTime}
+                    duration={audio.duration}
+                    onSeek={audio.seekTo}
                   />
 
                   <PlayerControls
                     accent={accent}
                     isPlaying={isPlaying}
-                    onTogglePlay={audio.toggle}
+                    onTogglePlay={handleTogglePlay}
                     playDisabled={playDisabled}
                     volume={volume}
                     onVolumeChange={handleVolumeChange}
@@ -413,6 +690,10 @@ export default function PlayerScreen({ mood, onLogoClick }: PlayerScreenProps) {
                     previousDisabled={previousDisabled}
                     onNext={handleNext}
                     nextDisabled={nextDisabled}
+                    isShuffleOn={isShuffleOn}
+                    onToggleShuffle={handleToggleShuffle}
+                    isRepeatOn={isRepeatOn}
+                    onToggleRepeat={handleToggleRepeat}
                   />
                 </div>
               </div>

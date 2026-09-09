@@ -1,4 +1,3 @@
-import { useState } from "react"
 import type { PlayerMoodAccent } from "../../data/playerMoodAccent"
 import { useLanguage } from "../../localization/LanguageContext"
 import { NextIcon, PauseGlyph, PlayGlyph, PreviousIcon, RepeatIcon, ShuffleIcon, VolumeIcon } from "./icons"
@@ -27,13 +26,22 @@ const ICON_BUTTON_BASE =
  * play/pause), so this component itself carries no `lg:` breakpoint
  * logic — only its caller's surrounding layout differs per breakpoint.
  *
- * Shuffle/Repeat remain UI foundation only; Previous/Next are now fully
- * real, per this task's explicit scope (real multi-track playback now
- * exists — see below — but per-mood playlists/shuffle/repeat *logic*
- * still don't):
- * - Shuffle/Repeat are real toggle buttons (`aria-pressed`, tinted when
- *   "on") holding their own local UI-only state, with no shuffle/repeat
- *   *logic* behind them.
+ * Shuffle/Repeat are now fully real playback modes too, controlled the
+ * exact same way Play/Pause/Volume/Previous/Next already are —
+ * `isShuffleOn`/`isRepeatOn` and their own `onToggleShuffle`/
+ * `onToggleRepeat` handlers all live in `PlayerScreen`, not as local state
+ * here. They used to be local `useState` in this component — one
+ * independent copy per Mobile/Desktop `PlayerControls` instance, harmless
+ * while nothing but their own tint read that state, but exactly the same
+ * "two independent copies can desync across a breakpoint resize" bug this
+ * file's own doc comment already describes Play/Pause/Volume/Previous/Next
+ * being lifted to avoid (see below) — lifting these last two closes that
+ * same gap now that real shuffle/repeat playback logic (`PlayerScreen`'s
+ * own shuffle queue/history and repeat-at-end-of-playlist handling — see
+ * that file's own doc comments) actually drives them. This component still
+ * owns nothing but the `aria-pressed`/tint rendering; both toggles are
+ * called on click, never touching local state here, same as every other
+ * control in this row.
  * - Previous/Next are real `<button>`s wired to `PlayerScreen`'s own
  *   `onPrevious`/`onNext` handlers (which own the actual Previous
  *   3-second-threshold restart-vs-switch decision and the Next
@@ -79,6 +87,10 @@ export default function PlayerControls({
   previousDisabled,
   onNext,
   nextDisabled,
+  isShuffleOn,
+  onToggleShuffle,
+  isRepeatOn,
+  onToggleRepeat,
 }: {
   accent?: PlayerMoodAccent
   isPlaying: boolean
@@ -108,13 +120,24 @@ export default function PlayerControls({
   previousDisabled?: boolean
   /** `PlayerScreen`'s own Next handler. */
   onNext: () => void
-  /** `true` only at the final track — Next never wraps back to the
-   *  first. */
+  /** `true` only at the final track (normal order) or once a shuffled
+   *  cycle is exhausted, and only when Repeat is off in either case — see
+   *  `PlayerScreen`'s own `nextDisabled`; Repeat wraps/reshuffles instead
+   *  of stopping, so Next never disables while Repeat is on. */
   nextDisabled?: boolean
+  /** Whether Shuffle mode is currently on — drives this button's own
+   *  `aria-pressed`/tint exactly like `isPlaying` does for Play/Pause; the
+   *  actual shuffled-order/history logic lives entirely in `PlayerScreen`
+   *  (see that file's own doc comments). */
+  isShuffleOn: boolean
+  onToggleShuffle: () => void
+  /** Whether playlist Repeat is currently on — same "just reflect it"
+   *  role as `isShuffleOn` above; the actual repeat-at-end-of-playlist
+   *  behavior lives in `PlayerScreen`. */
+  isRepeatOn: boolean
+  onToggleRepeat: () => void
 }) {
   const { t } = useLanguage()
-  const [isShuffleOn, setIsShuffleOn] = useState(false)
-  const [isRepeatOn, setIsRepeatOn] = useState(false)
 
   return (
     // The gap here is the only spacing between this component's two rows
@@ -144,7 +167,7 @@ export default function PlayerControls({
       <div className="flex w-full items-center justify-between">
         <button
           type="button"
-          onClick={() => setIsShuffleOn((on) => !on)}
+          onClick={onToggleShuffle}
           aria-pressed={isShuffleOn}
           aria-label={t.player.controls.shuffle}
           className={`${ICON_BUTTON_BASE} size-[44px] lg:size-[36px] ${isShuffleOn ? ACTIVE_ACCENT_CLASS : ""}`}
@@ -190,7 +213,7 @@ export default function PlayerControls({
 
         <button
           type="button"
-          onClick={() => setIsRepeatOn((on) => !on)}
+          onClick={onToggleRepeat}
           aria-pressed={isRepeatOn}
           aria-label={t.player.controls.repeat}
           className={`${ICON_BUTTON_BASE} size-[44px] lg:size-[36px] ${isRepeatOn ? ACTIVE_ACCENT_CLASS : ""}`}

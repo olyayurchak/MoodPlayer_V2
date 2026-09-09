@@ -169,6 +169,12 @@ export type Translations = {
       next: string
       repeat: string
       volume: string
+      /** The waveform's own `role="slider"` accessible name (seeking) —
+       *  the dynamic "elapsed of total" position itself is announced via
+       *  that same control's `aria-valuetext`, not repeated here; this is
+       *  only ever the control's static purpose, same as `volume` above
+       *  is for the volume slider. */
+      seek: string
     }
     gestures: {
       heading: string
@@ -285,6 +291,7 @@ export const translations: Record<Language, Translations> = {
         next: "Next track",
         repeat: "Repeat",
         volume: "Volume",
+        seek: "Seek",
       },
       gestures: {
         heading: "Gesture controls",
@@ -390,6 +397,7 @@ export const translations: Record<Language, Translations> = {
         next: "Наступний трек",
         repeat: "Повтор",
         volume: "Гучність",
+        seek: "Перемотка",
       },
       gestures: {
         heading: "Керування жестами",

@@ -1,4 +1,7 @@
+import { useEffect, useRef, type KeyboardEvent } from "react"
 import type { PlayerMoodAccent } from "../../data/playerMoodAccent"
+import type { WaveformAnalyserHandle } from "../../hooks/useWaveformAnalyser"
+import { useLanguage } from "../../localization/LanguageContext"
 
 /**
  * The track-progress waveform visualization + elapsed/total time row.
@@ -75,13 +78,100 @@ import type { PlayerMoodAccent } from "../../data/playerMoodAccent"
  * and `justify-between` distributes only the small remainder (e.g. ~17px
  * over 61 gaps on the 324px Desktop column) evenly between bars, which is
  * imperceptible at this bar density.
+ *
+ * Click/tap-to-seek (this task): the same bar row is now also the seek
+ * control — clicking/tapping anywhere along it moves playback to that
+ * horizontal position, reusing `usePlayerAudio`'s own existing `seekTo`
+ * (`PlayerScreen`'s own `onSeek` prop below, a thin wrapper around it; see
+ * that hook's own doc comment) rather than inventing a second, parallel
+ * way to move playback — this component still owns no playback state of
+ * its own, only a pointer-position → time *conversion*. `pointerdown`
+ * (not `click`) is the one handler used for both mouse and touch (a
+ * pointer event already unifies both input types, so no separate
+ * touch-specific handling exists here), computed directly from the same
+ * row's own `getBoundingClientRect()` at the moment of the event — never
+ * a duplicated/cached measurement that could go stale if the row's real
+ * width ever changes (a language switch, a resize). No drag-to-scrub
+ * exists (a `pointerdown` deliberately doesn't attach a `pointermove`
+ * listener) — the brief asks for click/tap-to-seek, not a draggable
+ * scrubber, and adding one would be new interaction surface beyond scope.
+ *
+ * The row's own accessible role changes from `role="img"` to
+ * `role="slider"` here (a slider is exactly what this row now behaves
+ * like) — `aria-valuemin`/`aria-valuemax`/`aria-valuenow` carry the real
+ * numeric position a slider needs, `aria-valuetext` carries this file's
+ * own pre-existing human-readable "`elapsed` of `duration`" string (moved
+ * here from the old `aria-label`, since `aria-valuetext` — not `aria-
+ * label` — is the correct place for a slider's *current value* to be
+ * announced; `aria-label` now holds only the control's static purpose,
+ * `t.player.controls.seek`, matching every other control in this screen).
+ * `tabIndex={0}` plus an `onKeyDown` handling `ArrowLeft`/`ArrowRight`
+ * (a fixed 5-second step — the same "small, sensible, unrelated to a
+ * particular track's own length" convention most media players already
+ * use) makes the same control keyboard-operable, not just pointer-driven.
+ *
+ * The row's own visual box is completely unchanged (still exactly
+ * `h-[42px]`, same bars, same colors, same position) — no second visible
+ * progress bar or scrubber handle was added, per this task's own explicit
+ * "preserve the current waveform visual appearance" requirement. Mobile's
+ * own ~44px comfortable touch target instead reuses the exact invisible-
+ * hit-area `before:` pseudo-element technique `GestureControlsPanel.tsx`'s
+ * On/Off toggle and `PlayerControls.tsx`'s Shuffle/Repeat buttons already
+ * use for the same reason: growing the *hit area* only, not the rendered
+ * box, so nothing here needs to move or resize to gain those two extra
+ * pixels top and bottom. Desktop gets `cursor-pointer` instead (a mouse
+ * has no comparable "hit area vs. visual size" concern — the existing 42px
+ * height is already comfortable for a precise pointer — so this is purely
+ * an affordance cue, not a functional change), reset back to
+ * `cursor-default` nowhere else needed since a fresh `<div>` has no cursor
+ * override by default.
+ *
+ * Real-audio reactivity (this task): bar *height* now animates from the
+ * actual playing audio via `useWaveformAnalyser` (`PlayerScreen` owns the
+ * one shared analyser instance — see that hook's own doc comment for why),
+ * while everything else here — bar count, the measured `BAR_HEIGHTS`
+ * silhouette, colors, dimensions, played/unplayed tinting via `progress` —
+ * stays exactly as rounds one through four left it, per this task's own
+ * "existing waveform design... should remain visually consistent"
+ * requirement. Each bar's *base* height (`BAR_HEIGHTS[i]`) is treated as
+ * its own resting silhouette, multiplied each frame by that bar's own
+ * live audio-reactive scale (`1` at rest, below `1` for a quiet moment,
+ * above `1` for a loud/bassy one) — never replaced by raw per-bin
+ * frequency data, which would abandon the approved silhouette for a
+ * generic spectrum-analyzer look.
+ *
+ * That per-frame height is applied by writing `style.height` directly on
+ * each bar's own DOM node (via `barRefs` below) inside `analyser`'s
+ * `subscribe` callback, deliberately *not* through React state — a
+ * `requestAnimationFrame`-driven state update per bar, 62 times a frame,
+ * would mean a full component re-render at animation-frame frequency for
+ * no benefit React's own diffing would ever need; direct DOM mutation is
+ * this file's own equivalent of `useFadeTransition.ts`'s "adjust the one
+ * property that actually changed" discipline, just applied to Web Audio
+ * output instead of a fade. This never conflicts with this component's
+ * existing per-render JSX `style.height` (the played/unplayed base
+ * value): React's own reconciliation only rewrites a DOM node's `style`
+ * property when the *computed* value for that property actually differs
+ * between renders, and `progress`/`accent` changes never touch `height`
+ * (they only ever change `className`/`backgroundImage`) — so this
+ * imperative animation and React's own re-renders coexist without either
+ * fighting the other for the same bar.
  */
-const BAR_COUNT = 62
+// Exported so `PlayerScreen` can size its one shared `useWaveformAnalyser`
+// instance's per-bar scale array to match exactly, rather than that hook
+// guessing/duplicating this file's own bar count.
+export const BAR_COUNT = 62
 
 /** Bar heights (0–1, fraction of the 42px-tall source artwork), measured
  *  left-to-right from Figma node `290:9505`'s own exported waveform vector
  *  — see this file's doc comment above for how. Not generated, not
  *  random: this *is* the approved waveform's silhouette. */
+// `ArrowLeft`/`ArrowRight`'s own step size, in seconds — a fixed, small
+// value (not a fraction of the track's own duration) so the step feels
+// the same regardless of whether the current track is 3 minutes or 30,
+// matching the same convention most media players/scrubbers already use.
+const ARROW_KEY_SEEK_SECONDS = 5
+
 const BAR_HEIGHTS = [
   0.337, 0.158, 0.37, 0.304, 0.174, 0.283, 0.653, 0.538, 0.321, 0.489, 0.315,
   0.255, 0.202, 0.478, 0.299, 0.382, 0.305, 0.467, 0.217, 0.261, 0.571, 0.625,
@@ -96,6 +186,10 @@ export default function PlayerWaveform({
   elapsedLabel,
   durationLabel,
   accent,
+  analyser,
+  currentTime,
+  duration,
+  onSeek,
 }: {
   /** 0–1 fraction of the track considered "played" — see this file's own
    *  doc comment on why this is a fixed placeholder, not a live value. */
@@ -109,19 +203,119 @@ export default function PlayerWaveform({
    *  this codebase's volume slider already established for this same
    *  "brand gradient, from/to only" treatment. */
   accent?: PlayerMoodAccent
+  /** `PlayerScreen`'s one shared `useWaveformAnalyser` instance —
+   *  `undefined` only in the moment before that hook has returned a value
+   *  (never in practice, since it's called unconditionally), handled the
+   *  same "just render the static resting look" way `analyser` reporting
+   *  no frames yet (reduced motion, not-yet-started) already is. See this
+   *  file's own doc comment above for how frames are applied. */
+  analyser?: WaveformAnalyserHandle
+  /** The real `HTMLAudioElement.currentTime`, in seconds — used only for
+   *  `aria-valuenow` and as the base for `ArrowLeft`/`ArrowRight` stepping;
+   *  `progress`/`elapsedLabel` (above) still drive the actual visible bar
+   *  tinting and text exactly as before, this prop adds nothing to that. */
+  currentTime: number
+  /** The real `HTMLAudioElement.duration`, in seconds — `0` before the
+   *  browser reports real metadata (see `PlayerScreen`'s own
+   *  `durationLabel` fallback), in which case seeking is a deliberate
+   *  no-op below: a fraction of an unknown duration has nothing sensible
+   *  to seek *to* yet. */
+  duration: number
+  /** Reuses `usePlayerAudio`'s own existing `seekTo` — `PlayerScreen`
+   *  passes that same function straight through (see this file's own doc
+   *  comment above); this component only ever computes *where* to seek,
+   *  never how. */
+  onSeek: (time: number) => void
 }) {
+  const { t } = useLanguage()
   const playedBarCount = Math.round(BAR_COUNT * progress)
+  const barRefs = useRef<(HTMLSpanElement | null)[]>([])
+  const rowRef = useRef<HTMLDivElement | null>(null)
+
+  // Shared by the pointer and keyboard handlers below — converts a real
+  // seconds value into whatever `onSeek` (i.e. `usePlayerAudio.seekTo`)
+  // itself expects, clamped to a valid position within the *actual*
+  // current track. A `duration` that hasn't loaded yet (`0`, or any other
+  // non-finite/non-positive value) has no valid range to clamp into, so
+  // this is a no-op rather than seeking to a nonsensical `0`-length range.
+  const seekToClamped = (time: number) => {
+    if (!(duration > 0)) return
+    onSeek(Math.min(duration, Math.max(0, time)))
+  }
+
+  // The one place `clientX` → track time is actually computed — reused by
+  // both the pointer handler (from the real event's own `clientX`) and
+  // nothing else; keyboard stepping below works in seconds directly
+  // instead, since it has no pointer position to convert. Reads the row's
+  // own live `getBoundingClientRect()` at the moment of the event (never a
+  // cached measurement), per this task's own explicit formula.
+  const handlePointerSeek = (clientX: number) => {
+    const row = rowRef.current
+    if (!row) return
+    const rect = row.getBoundingClientRect()
+    if (rect.width <= 0) return
+    const relativePosition = (clientX - rect.left) / rect.width
+    seekToClamped(relativePosition * duration)
+  }
+
+  const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+    if (event.key === "ArrowLeft") {
+      event.preventDefault()
+      seekToClamped(currentTime - ARROW_KEY_SEEK_SECONDS)
+    } else if (event.key === "ArrowRight") {
+      event.preventDefault()
+      seekToClamped(currentTime + ARROW_KEY_SEEK_SECONDS)
+    }
+  }
+
+  useEffect(() => {
+    if (!analyser) return
+    return analyser.subscribe((scales) => {
+      const bars = barRefs.current
+      for (let index = 0; index < BAR_COUNT; index++) {
+        const bar = bars[index]
+        if (!bar) continue
+        const scale = scales[index] ?? 1
+        // Clamped to a `6%..100%` range: the same visible-sliver floor
+        // (`Math.max(height * 100, 6)`) this file's static render already
+        // used for a bar whose own measured height rounds near zero, and a
+        // 100% ceiling so a loud/bassy peak's scale multiplier can never
+        // push a bar taller than this row's own fixed 42px box (there is
+        // no `overflow-hidden` here — see round three's doc comment on why
+        // this row is bottom-anchored, not clipped — so an unclamped bar
+        // could otherwise visibly overlap the title/artist text above it).
+        const heightPercent = Math.min(100, Math.max(BAR_HEIGHTS[index] * scale * 100, 6))
+        bar.style.height = `${heightPercent}%`
+      }
+    })
+  }, [analyser])
 
   return (
     <div className="flex w-full flex-col items-center gap-[8px]">
       <div
-        role="img"
-        aria-label={`${elapsedLabel} of ${durationLabel} played`}
-        className="flex h-[42px] w-full items-end justify-between gap-[3px]"
+        ref={rowRef}
+        role="slider"
+        aria-label={t.player.controls.seek}
+        aria-valuemin={0}
+        aria-valuemax={duration > 0 ? duration : 0}
+        aria-valuenow={currentTime}
+        aria-valuetext={`${elapsedLabel} of ${durationLabel} played`}
+        tabIndex={0}
+        onPointerDown={(event) => handlePointerSeek(event.clientX)}
+        onKeyDown={handleKeyDown}
+        // Mobile-only invisible hit-area growth (`before:-top-[1px]
+        // before:-bottom-[1px]`, reset to `0` at `lg:`) — takes this row's
+        // real ~42px touch target to ~44px without changing its own
+        // rendered height by a single pixel; see this file's own doc
+        // comment above for why Desktop instead only gets `cursor-pointer`.
+        className="relative flex h-[42px] w-full cursor-pointer items-end justify-between gap-[3px] before:absolute before:inset-x-0 before:-top-[1px] before:-bottom-[1px] before:content-[''] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white lg:before:top-0 lg:before:bottom-0"
       >
         {BAR_HEIGHTS.slice(0, BAR_COUNT).map((height, index) => (
           <span
             key={index}
+            ref={(el) => {
+              barRefs.current[index] = el
+            }}
             className={
               index < playedBarCount
                 ? accent
