@@ -141,7 +141,8 @@ export default function MoodPlayerLogo({
   const content = (
     <>
       {icon}
-      <p className="whitespace-nowrap font-display text-[24px] font-bold leading-[0.9] tracking-[-3px] text-text-primary lg:text-[32px]">
+      {/* Mobile-only tracking loosened (-3px -> -1px) so the letters don't read as touching at 24px; Desktop's -3px is unchanged. */}
+      <p className="whitespace-nowrap font-display text-[24px] font-bold leading-[0.9] tracking-[-1px] text-text-primary lg:text-[32px] lg:tracking-[-3px]">
         {t.common.wordmark}
       </p>
     </>
