@@ -85,7 +85,8 @@
   --spacing-frame-w-lg: 1440px;
   --spacing-frame-h: 932px;
   --spacing-frame-h-lg: 1024px;
-  --spacing-tagline-w: 228px;
+  /* Shared mobile width keeps EN/UA intro tagline on two lines. */
+  --spacing-tagline-w: 310px;
   --spacing-tagline-w-lg: 600px;
   --spacing-cta-w: 320px;
   --spacing-cta-w-lg: 380px;

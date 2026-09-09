@@ -220,7 +220,8 @@ export const translations: Record<Language, Translations> = {
     },
     cameraPermission: {
       heading: "Find your vibe",
-      body: "With your permission, MoodPlayer uses your camera to analyze facial cues and suggest a playlist for your vibe.",
+      // \u00A0 keeps "a playlist" from wrapping onto separate lines at mobile widths.
+      body: "With your permission, MoodPlayer uses your camera to analyze facial cues and suggest a\u00A0playlist for your vibe.",
       ctaLabel: "Allow Camera",
       requestingLabel: "Requesting access…",
       features: {
