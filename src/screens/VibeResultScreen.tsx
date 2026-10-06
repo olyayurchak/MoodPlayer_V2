@@ -2,7 +2,7 @@ import { useEffect, useState } from "react"
 import AppBackground from "../components/AppBackground"
 import MoodPlayerLogo from "../components/MoodPlayerLogo"
 import LanguageSwitcher from "../components/LanguageSwitcher"
-import { gradientBorderStyle } from "../components/CameraPermissionVisual"
+import { CIRCLE_FILL_STYLE } from "../components/CameraPermissionVisual"
 import { useLanguage } from "../localization/LanguageContext"
 import { MOOD_IDS, type MoodId } from "../data/moods"
 import portraitDesktop from "../imports/VibeResult/portrait-desktop.png"
@@ -189,8 +189,21 @@ export default function VibeResultScreen({
           {/* Photo panel — the captured still frame when one exists,
               otherwise the same static Figma decorative asset this panel
               always used (see doc comment above); either way the *frame*
-              around it (border/radius) is identical, only the image
-              content inside changes.
+              around it is identical, only the image content inside changes.
+
+              `overflow-clip`, not `overflow-hidden`: the glass layer's rotated
+              highlight overflows the box, which makes an `overflow-hidden`
+              orb a hidden scroll container — scrolling the "Scan again"
+              pill into view could then shift the whole image inside the
+              circle. `clip` clips the same (radius included) but can't scroll.
+
+              Now the same borderless glass orb as the Camera Permission and
+              live Scanning visuals (`rounded-full` + `CIRCLE_FILL_STYLE` +
+              the static `.scanner-orb-glass`, no scanning motion layers),
+              at the same 224/491px size (Desktop was 492px), so the live
+              orb settles into this still rather than changing shape. The
+              notes below describe the earlier square gradient-border frame
+              this replaced.
 
               Split into Mobile/Desktop trees (matching `ScanningVisual`'s
               own approach, not this screen's usual single responsive
@@ -230,36 +243,42 @@ export default function VibeResultScreen({
               this screen doesn't otherwise use, beyond a border/frame-
               only styling fix. */}
           <div
-            className="relative size-[224px] shrink-0 overflow-hidden rounded-[11px] lg:hidden"
-            style={gradientBorderStyle("2px")}
+            className="relative size-[224px] shrink-0 overflow-clip rounded-full lg:hidden"
+            style={CIRCLE_FILL_STYLE}
           >
             <img
               src={capturedFrame ?? portraitMobile}
               alt=""
               className="absolute inset-0 size-full object-cover pointer-events-none"
             />
+            {/* Static glass orb, shared with the Camera/Scanning orb (`.scanner-orb-glass`), settled softer here (`--settled`) — no motion. */}
+            <div aria-hidden="true" className="scanner-orb-glass scanner-orb-glass--settled" />
+            {/* Floating glass pill (`.orb-glass-pill`). Sized/placed so its ends — and the flush focus ring — stay inside the 224px circle even for the longer Ukrainian label. */}
             <button
               type="button"
               onClick={onScanAgain}
-              className="absolute inset-x-0 bottom-0 flex h-[44px] items-center justify-center gap-[8px] bg-[rgba(255,255,255,0.08)] px-[32px] py-[12px] text-[14px] font-medium text-white backdrop-blur-[20px] shadow-[0px_12px_24px_0px_rgba(255,255,255,0.08)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+              className="orb-glass-pill absolute bottom-[32px] left-1/2 flex h-[44px] -translate-x-1/2 items-center justify-center gap-[8px] whitespace-nowrap rounded-full px-[12px] text-[14px] font-medium text-white focus-visible:outline-2 focus-visible:outline-offset-0 focus-visible:outline-white"
             >
               <img src={reloadMobile} alt="" className="size-[20px] shrink-0 object-cover" />
               <span>{t.vibeResult.scanAgainLabel}</span>
             </button>
           </div>
           <div
-            className="relative hidden size-[492px] shrink-0 overflow-hidden rounded-[24px] lg:block"
-            style={gradientBorderStyle("2px")}
+            className="relative hidden size-[491px] shrink-0 overflow-clip rounded-full lg:block"
+            style={CIRCLE_FILL_STYLE}
           >
             <img
               src={capturedFrame ?? portraitDesktop}
               alt=""
               className="absolute inset-0 size-full object-cover pointer-events-none"
             />
+            {/* Static glass orb, shared with the Camera/Scanning orb (`.scanner-orb-glass`), settled softer here (`--settled`) — no motion. */}
+            <div aria-hidden="true" className="scanner-orb-glass scanner-orb-glass--settled" />
+            {/* Floating glass pill (`.orb-glass-pill`), same treatment as Mobile's. */}
             <button
               type="button"
               onClick={onScanAgain}
-              className="absolute inset-x-0 bottom-0 flex h-[72px] items-center justify-center gap-[8px] bg-[rgba(255,255,255,0.08)] px-[32px] py-[12px] text-[16px] font-medium text-white backdrop-blur-[20px] shadow-[0px_12px_24px_0px_rgba(255,255,255,0.08)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+              className="orb-glass-pill absolute bottom-[40px] left-1/2 flex h-[48px] -translate-x-1/2 items-center justify-center gap-[8px] whitespace-nowrap rounded-full px-[20px] text-[16px] font-medium text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
             >
               <img src={reloadDesktop} alt="" className="size-[24px] shrink-0 object-cover" />
               <span>{t.vibeResult.scanAgainLabel}</span>
@@ -299,7 +318,7 @@ export default function VibeResultScreen({
               <button
                 type="button"
                 onClick={() => onStartPlaylist?.(selectedMood)}
-                className="cta-pill relative flex h-cta-h w-full items-center justify-center overflow-hidden rounded-pill border-[1.5px] border-cta-border bg-linear-to-r from-cta-button-from via-cta-button-via to-cta-button-to px-cta-x text-center font-sans text-cta font-medium text-white backdrop-blur-cta drop-shadow-cta focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-white lg:w-[400px]"
+                className="cta-pill cta-drift relative flex h-cta-h w-full items-center justify-center overflow-hidden rounded-pill border-[1.5px] border-cta-border bg-linear-to-r from-cta-button-from via-cta-button-via to-cta-button-to px-cta-x text-center font-sans text-cta font-medium text-white backdrop-blur-cta drop-shadow-cta focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-white lg:w-[400px]"
               >
                 {/* The exact same approved shine/streak treatment as
                     `CtaPill` (Intro) and `CameraPermissionCta` — reused

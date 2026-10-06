@@ -33,9 +33,11 @@ import { useLanguage } from "../localization/LanguageContext"
  * `.cta-pill:focus-visible` in `index.css`) — no moving stroke, per the
  * accessibility requirement that neither may depend on motion.
  *
- * `.cta-icon` is just a layout wrapper (`display: inline-flex`) around the
- * play icon — no hover animation. The icon stays completely static; only
- * the border moves.
+ * `.cta-icon` is a layout wrapper (`display: inline-flex`) around the play
+ * icon, which stays static. On Intro, hover instead drifts the fill gradient
+ * right to left and the border stroke above is switched off (Intro-scoped
+ * rules in `index.css`, so the other screens' `.cta-pill` buttons are
+ * unchanged).
  *
  * Touch devices never trigger any of it — `index.css` gates the hover rules
  * to `(hover: hover) and (pointer: fine)`.

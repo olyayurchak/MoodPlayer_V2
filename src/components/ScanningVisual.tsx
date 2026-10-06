@@ -1,5 +1,5 @@
 import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from "react"
-import { gradientBorderStyle } from "./CameraPermissionVisual"
+import { CIRCLE_FILL_STYLE } from "./CameraPermissionVisual"
 import { drawFaceMesh, type MeshLayer } from "../camera/faceMeshDraw"
 import { useFaceLandmarker, type ExpressionSnapshot, type FaceLandmarkerStatus } from "../camera/useFaceLandmarker"
 import { FADE_ANCHOR_A, FADE_ANCHOR_B, useHeadPose } from "../camera/useHeadPose"
@@ -65,11 +65,12 @@ export type ScanningVisualHandle = {
  * Figma frames: Desktop `284:2460` (left-visual node `347:227`, 491×491),
  * Mobile `289:6820` (left-visual node `289:6890`, 224×224).
  *
- * Reuses `CameraPermissionVisual`'s exact panel treatment — size, radius,
- * the pink→purple→blue gradient border (`gradientBorderStyle`, imported
- * rather than duplicated), and the four corner marks — since Figma's own
- * geometry for this panel is identical to the permission-prompt panel's;
- * only the *contents* differ. Figma's own asset for those contents is two
+ * Reuses `CameraPermissionVisual`'s exact orb treatment — same size and
+ * position, the same borderless circle (`rounded-full` + its exported
+ * `CIRCLE_FILL_STYLE`) and the same `.scanner-orb-glass` overlay, with no
+ * border or corner marks — so granting access reads as the same orb going
+ * live rather than a different panel replacing it; only the *contents*
+ * differ. Figma's own asset for those contents is two
  * stacked static mockup photos (a 491×491 background + a 262×262
  * foreground crop) meant to represent what a live scan might look like —
  * necessarily a static illustration, since Figma can't export an actual
@@ -94,9 +95,8 @@ export type ScanningVisualHandle = {
  * computed against the raw, unmirrored video frame and drawn in that same
  * natural coordinate space (see `faceMeshDraw.ts`), so mirroring the
  * wrapper mirrors video and mesh together as one unit — no coordinate
- * flipping needed in the drawing code itself. The corner marks live
- * *outside* this wrapper so their approved Figma positions are never
- * mirrored.
+ * flipping needed in the drawing code itself. The glass overlay and
+ * caption live *outside* this wrapper, so they are never mirrored.
  *
  * A single small non-blocking caption (bottom-center, translucent pill)
  * covers the three states the static Figma export can't depict: model
@@ -340,31 +340,22 @@ export default forwardRef<ScanningVisualHandle, ScanningVisualProps>(function Sc
     <>
       {/* Mobile (below `lg`) — Figma node `289:6890`. */}
       <div
-        className="relative size-[224px] shrink-0 overflow-hidden rounded-[11px] lg:hidden"
-        style={gradientBorderStyle("2px")}
+        className="relative size-[224px] shrink-0 overflow-hidden rounded-full lg:hidden"
+        style={CIRCLE_FILL_STYLE}
       >
-        <div className="absolute inset-0 [transform:scaleX(-1)]">
+        <div className="absolute inset-0 overflow-hidden rounded-full [transform:scaleX(-1)]">
           <video ref={setDetectionVideoEl} muted playsInline autoPlay className="absolute inset-0 size-full object-cover" />
           <canvas ref={canvasMobileRef} width={224} height={224} className="absolute inset-0 size-full" />
         </div>
-        {/* Corner marks: 1.2px / 40% opacity here (Mobile, active scanning)
-            — reduced from the original 100% per this task's explicit
-            request, now matching `CameraPermissionVisual`'s Mobile tree
-            (pre-permission, "inactive") opacity exactly, so this state no
-            longer visually distinguishes itself from that one by opacity
-            alone. Desktop uses a thicker 3px in both files instead (see
-            that tree's own corner marks below) — same lengths/positions/
-            geometry across every combination; thickness alone now
-            distinguishes breakpoint. `VibeResultScreen`'s own photo panel
-            still intentionally uses 100% (out of this task's scope; see
-            its own doc comment), so it no longer matches this component's
-            opacity either — a known, accepted result of this change. */}
-        <div className="absolute left-[19.31px] top-[19.31px] size-[45.66px] border-t-[1.2px] border-l-[1.2px] border-white/40" />
-        <div className="absolute left-[157.65px] top-[19.31px] size-[45.66px] border-t-[1.2px] border-r-[1.2px] border-white/40" />
-        <div className="absolute left-[19.31px] top-[157.65px] size-[45.66px] border-b-[1.2px] border-l-[1.2px] border-white/40" />
-        <div className="absolute left-[157.65px] top-[157.65px] size-[45.66px] border-b-[1.2px] border-r-[1.2px] border-white/40" />
+        {/* Glass orb, shared with `CameraPermissionVisual` (`.scanner-orb-glass`) — above the live feed, below the caption. */}
+        <div aria-hidden="true" className="scanner-orb-glass">
+          {/* Scanning-only motion (`.scanner-orb-live` in `index.css`): a slow rim pulse. */}
+          <span className="scanner-orb-live">
+            <span className="scanner-orb-pulse" />
+          </span>
+        </div>
         {caption && (
-          <div className="absolute inset-x-0 bottom-[14px] flex justify-center px-[12px]" role="status" aria-live="polite">
+          <div className="absolute inset-x-0 bottom-[24px] flex justify-center px-[12px]" role="status" aria-live="polite">
             <span className="rounded-full bg-[rgba(0,0,0,0.45)] px-[10px] py-[4px] text-center text-[11px] font-light leading-[1.2] text-white">
               {caption}
             </span>
@@ -374,27 +365,20 @@ export default forwardRef<ScanningVisualHandle, ScanningVisualProps>(function Sc
 
       {/* Desktop (`lg` and up) — Figma node `347:227`. */}
       <div
-        className="relative hidden size-[491px] shrink-0 overflow-hidden rounded-[24px] lg:block"
-        style={gradientBorderStyle("2px")}
+        className="relative hidden size-[491px] shrink-0 overflow-hidden rounded-full lg:block"
+        style={CIRCLE_FILL_STYLE}
       >
-        <div className="absolute inset-0 [transform:scaleX(-1)]">
+        <div className="absolute inset-0 overflow-hidden rounded-full [transform:scaleX(-1)]">
           <video ref={videoDesktopRef} muted playsInline autoPlay className="absolute inset-0 size-full object-cover" />
           <canvas ref={canvasDesktopRef} width={491} height={491} className="absolute inset-0 size-full" />
         </div>
-        {/* Corner marks: 3px / 40% opacity (Desktop uses a thicker line
-            than Mobile's 1.2px; opacity reduced from 100% — see the Mobile
-            tree's own note above). Vertical position re-measured against
-            Figma node `398:11261` for the "Restore updated camera/
-            scanning visual" task — `top` moved from `43.5` to `40` (bottom
-            marks from `346.5` to `343`) to match that node's own rect
-            metadata and screenshot, same correction applied to
-            `CameraPermissionVisual`'s Desktop tree (see its own doc
-            comment) since both share this identical panel geometry;
-            `left`/`345.5` is unchanged. */}
-        <div className="absolute left-[42.5px] top-[40px] size-[100px] border-t-[3px] border-l-[3px] border-white/40" />
-        <div className="absolute left-[345.5px] top-[40px] size-[100px] border-t-[3px] border-r-[3px] border-white/40" />
-        <div className="absolute left-[42.5px] top-[343px] size-[100px] border-b-[3px] border-l-[3px] border-white/40" />
-        <div className="absolute left-[345.5px] top-[343px] size-[100px] border-b-[3px] border-r-[3px] border-white/40" />
+        {/* Glass orb, shared with `CameraPermissionVisual` (`.scanner-orb-glass`) — above the live feed, below the caption. */}
+        <div aria-hidden="true" className="scanner-orb-glass">
+          {/* Scanning-only motion (`.scanner-orb-live` in `index.css`): a slow rim pulse. */}
+          <span className="scanner-orb-live">
+            <span className="scanner-orb-pulse" />
+          </span>
+        </div>
         {caption && (
           <div className="absolute inset-x-0 bottom-[28px] flex justify-center" role="status" aria-live="polite">
             <span className="rounded-full bg-[rgba(0,0,0,0.45)] px-[16px] py-[8px] text-center text-[14px] font-light leading-[1.2] text-white">

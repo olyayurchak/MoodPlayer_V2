@@ -18,8 +18,10 @@ import ellipse25Desktop from "../imports/CameraPermission/ellipse-25-desktop.svg
  * entirely — nothing from that version carries over, including its asset.
  *
  * Structure (identical intent on both breakpoints, only the values scale):
- * - the panel itself: a dark diagonal-gradient rounded rect,
- *   `overflow-hidden` so nothing below spills past its corners, ringed by a
+ * - the panel itself: now a borderless circle (`rounded-full` +
+ *   `CIRCLE_FILL_STYLE`, same footprint as before), `overflow-hidden` so
+ *   nothing below spills past its edge. It used to be a dark rounded rect
+ *   ringed by a
  *   subtle-diagonal (`145deg`) *gradient* border (pink → purple → blue —
  *   the approved MoodPlayer palette, `BORDER_GRADIENT` below, the same
  *   colors every other gradient element in the app now uses). The
@@ -78,52 +80,10 @@ import ellipse25Desktop from "../imports/CameraPermission/ellipse-25-desktop.svg
  *   here): that overlay washed this new image out to a flat, low-contrast
  *   haze rather than reading as the intended darker/purple atmosphere, so
  *   it's removed rather than layered underneath;
- * - four corner marks (plain solid two-sided-border squares, no fill, no
- *   `border-dashed`) — a viewfinder-style framing cue for where the eventual
- *   live feed will sit. Figma's own metadata reports this as a single
- *   403×403 (Desktop) / 184×184 (Mobile) dashed-border rect, but the
- *   design's actual rendered screenshot shows only four short L-shaped
- *   marks at that rect's corners, not a continuous frame — a generic
- *   "dashed border" is the closest single-property approximation Figma's
- *   own export made of a stroke style it can't otherwise describe, so the
- *   screenshot (measured directly, arm length ≈100px of the 403px Desktop
- *   box, scaled proportionally for Mobile) is followed here instead of the
- *   metadata's literal rectangle. Desktop's vertical position (`top`) was
- *   re-measured against node `398:11261`'s own screenshot for this task —
- *   its raw rect metadata (`top: 40`, vs. this file's previous `43.5`) and
- *   a direct pixel scan of its screenshot (the corner mark's actual arm
- *   starts ≈y=41-42) agree closely, so Desktop's `top` moved from `43.5`
- *   to `40` (and the mirrored bottom marks from `346.5` to `343`, same
- *   303px span) to match; `left`/`345.5` (horizontal) is unchanged — this
- *   node's own rect metadata places it at the same `42.5`/`345.5` this
- *   file already had. Mobile has no equivalent fresh reference in this
- *   task, so its corner-mark position is intentionally left as-is.
- *
- *   A later, explicit task shortened Desktop's arm length from `100px` to
- *   `62px` (≈38% shorter, inside the requested 35–40%/60–65px range) so
- *   the marks read as a lighter, less "actively scanning" framing cue —
- *   they're only meant to suggest a scan *area* on this pre-permission
- *   screen, unlike `ScanningVisual`'s own full-opacity corner marks during
- *   a real scan. Each corner mark's own true vertex — the point where its
- *   two border sides actually meet (`top`/`left` for the top-left mark,
- *   `left + size`/`top` for top-right, `top + size`/`left` for
- *   bottom-left, `left + size`/`top + size` for bottom-right) — is kept
- *   fixed at exactly its previous position; only the `size` shrinks, so
- *   the marks still frame the same panel corners, just with a shorter
- *   reach inward. Concretely: the two `top`-anchored marks keep their
- *   `top` unchanged and the two `left`-anchored marks keep their `left`
- *   unchanged; the opposite offset (`left` for the right-side marks,
- *   `top` for the bottom marks) is recomputed as `old-offset + old-size -
- *   new-size` to hold that same vertex fixed. Stroke thickness (`3px`)
- *   and opacity (`40%`, `border-white/40` — already the requested value,
- *   unchanged) are both left as they were; `3px` didn't read as
- *   disproportionately heavy against the shorter `62px` arm, so it wasn't
- *   thinned. Mobile's own arms were scaled by that same ~38% factor
- *   applied to its *existing* size (`45.66px → 28.31px`) rather than
- *   re-deriving a Desktop-relative ratio from scratch — matching this
- *   file's own established Mobile/Desktop scaling precedent (the two
- *   already differ by roughly the same 224:491 panel-size ratio) — with
- *   its own vertices held fixed by the identical position-recompute rule;
+ * - no corner marks: the four viewfinder-style L-marks that used to frame a
+ *   rectangular capture area were removed once the panel became a circle.
+ *   `ScanningVisual`'s own corner marks (the active scan state) are separate
+ *   and unaffected.
  *
  * Two independent trees (Mobile below `lg`, Desktop at `lg` and up) rather
  * than one tree with a `lg:` variant on every value — matches
@@ -179,6 +139,13 @@ export function gradientBorderStyle(borderWidth: string) {
 // any point in the element's lifecycle, before or after playback actually
 // starts, and the browser applies it once frames are actually rendered.
 const PLAYBACK_RATE = 1.8
+
+/** This pre-permission visual is a borderless circle: same panel fill as
+ *  `gradientBorderStyle`, minus its gradient border. The shared helper itself
+ *  is untouched — `ScanningVisual`, Vibe Result and Player still use it.
+ *  `size-*` is a border-box size, so the outer footprint is unchanged.
+ *  Also used by `ScanningVisual`, so the live scan sits in the same orb. */
+export const CIRCLE_FILL_STYLE = { backgroundImage: PANEL_FILL_GRADIENT }
 
 export default function CameraPermissionVisual() {
   const mobileVideoRef = useRef<HTMLVideoElement | null>(null)
@@ -236,8 +203,8 @@ export default function CameraPermissionVisual() {
     <>
       {/* Mobile (below `lg`) — Figma node `347:372`. */}
       <div
-        className="relative size-[224px] shrink-0 overflow-hidden rounded-[11px] lg:hidden"
-        style={gradientBorderStyle("2px")}
+        className="relative size-[224px] shrink-0 overflow-hidden rounded-full lg:hidden"
+        style={CIRCLE_FILL_STYLE}
       >
         <video
           ref={mobileVideoRef}
@@ -251,7 +218,7 @@ export default function CameraPermissionVisual() {
           onLoadedMetadata={(event) => {
             event.currentTarget.playbackRate = PLAYBACK_RATE
           }}
-          className="pointer-events-none absolute inset-0 size-full rounded-[10.994px] object-cover"
+          className="scanner-orb-media pointer-events-none absolute inset-0 size-full rounded-full object-cover"
         />
         <div className="absolute left-[-49.7px] top-[36.87px] size-[97.569px]">
           <div className="absolute inset-[-65.73%]">
@@ -268,35 +235,14 @@ export default function CameraPermissionVisual() {
             <img alt="" className="block size-full max-w-none" src={ellipse25Mobile} />
           </div>
         </div>
-        {/* Corner marks: 1.2px / 30% opacity here (Mobile, pre-permission,
-            "inactive") vs. 1.2px / 100% opacity in `ScanningVisual`'s
-            Mobile tree (active scanning) — Desktop uses a thicker 3px in
-            both files instead (see that tree's own corner marks below).
-            Arm length (the `size` below) no longer matches `ScanningVisual`'s
-            own marks 1:1, though — a later, explicit task shortened only
-            this pre-permission screen's marks (`45.66px` → `28.31px`, the
-            same ~38% reduction as Desktop's below) so they read as a
-            lighter, less "actively scanning" cue here specifically;
-            `ScanningVisual`'s own corner marks (the real in-progress state)
-            are unaffected — see this file's own top-level doc comment for
-            the full before/after geometry and the position-recompute rule
-            that keeps each mark's outer vertex fixed while its arm
-            shrinks. Opacity itself was later lowered again, `40%` → `30%`
-            (still just this pre-permission screen, not `ScanningVisual`'s
-            own marks), per a further explicit request to read as even more
-            subtle/secondary to the face-mesh video beneath it — size,
-            position, stroke thickness, and color are all unaffected by
-            that one-property change. */}
-        <div className="absolute left-[19.31px] top-[19.31px] size-[28.31px] border-t-[1.2px] border-l-[1.2px] border-white/30" />
-        <div className="absolute left-[175px] top-[19.31px] size-[28.31px] border-t-[1.2px] border-r-[1.2px] border-white/30" />
-        <div className="absolute left-[19.31px] top-[175px] size-[28.31px] border-b-[1.2px] border-l-[1.2px] border-white/30" />
-        <div className="absolute left-[175px] top-[175px] size-[28.31px] border-b-[1.2px] border-r-[1.2px] border-white/30" />
+        {/* Glass-orb treatment (`.scanner-orb-glass` in `index.css`) — topmost, static, edge-weighted so the face stays clear. */}
+        <div aria-hidden="true" className="scanner-orb-glass" />
       </div>
 
       {/* Desktop (`lg` and up) — Figma node `347:336`. */}
       <div
-        className="relative hidden size-[491px] shrink-0 overflow-hidden rounded-[24px] lg:block"
-        style={gradientBorderStyle("2px")}
+        className="relative hidden size-[491px] shrink-0 overflow-hidden rounded-full lg:block"
+        style={CIRCLE_FILL_STYLE}
       >
         <video
           ref={desktopVideoRef}
@@ -310,7 +256,7 @@ export default function CameraPermissionVisual() {
           onLoadedMetadata={(event) => {
             event.currentTarget.playbackRate = PLAYBACK_RATE
           }}
-          className="pointer-events-none absolute inset-0 size-full rounded-[24px] object-cover"
+          className="scanner-orb-media pointer-events-none absolute inset-0 size-full rounded-full object-cover"
         />
         <div className="absolute left-[-108.5px] top-[77px] size-[213px]">
           <div className="absolute inset-[-65.73%]">
@@ -327,19 +273,8 @@ export default function CameraPermissionVisual() {
             <img alt="" className="block size-full max-w-none" src={ellipse25Desktop} />
           </div>
         </div>
-        {/* Corner marks: 3px / 30% opacity (Desktop uses a thicker line than
-            Mobile's 1.2px) — see the Mobile tree's own note above for the
-            pre-permission vs. scanning distinction this reflects, and for
-            the later `40%` → `30%` opacity-only reduction. Arm length
-            shortened from `100px` to `62px` (see this file's own top-level
-            doc comment) — each mark's `left`/`top` below is the same
-            recomputed-to-hold-the-vertex-fixed position that comment
-            describes, not the original `42.5`/`345.5`/`40`/`343` pairing
-            unchanged. */}
-        <div className="absolute left-[42.5px] top-[40px] size-[62px] border-t-[3px] border-l-[3px] border-white/30" />
-        <div className="absolute left-[383.5px] top-[40px] size-[62px] border-t-[3px] border-r-[3px] border-white/30" />
-        <div className="absolute left-[42.5px] top-[381px] size-[62px] border-b-[3px] border-l-[3px] border-white/30" />
-        <div className="absolute left-[383.5px] top-[381px] size-[62px] border-b-[3px] border-r-[3px] border-white/30" />
+        {/* Glass-orb treatment (`.scanner-orb-glass` in `index.css`) — topmost, static, edge-weighted so the face stays clear. */}
+        <div aria-hidden="true" className="scanner-orb-glass" />
       </div>
     </>
   )

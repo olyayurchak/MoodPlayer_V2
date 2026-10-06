@@ -432,7 +432,8 @@ export default function CameraPermissionScreen({
         </div>
 
         <div className="flex w-full flex-col items-center gap-[24px] [@media(max-width:1023px)_and_(max-height:700px)]:gap-[14px] lg:flex-row lg:items-start lg:gap-[54px]">
-          <div className={cameraFadeClassName}>
+          {/* `data-scan-complete` lets the scanner orb's motion settle (fade out) on completion — see `.scanner-orb-live` in `index.css`. */}
+          <div className={cameraFadeClassName} data-scan-complete={scanCompleted || undefined}>
             {isScanning ? (
               <ScanningVisual
                 ref={scanningVisualRef}

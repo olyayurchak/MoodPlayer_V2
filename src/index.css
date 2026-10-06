@@ -222,21 +222,21 @@
  *     both `0px` today), reserved for a future cursor-repulsion feature and
  *     left untouched so that feature can compose with this idle drift rather
  *     than replace it.
- * Amplitude (`--bubble-float-x` / `--bubble-float-y`) and timing
- * (`animation-duration` / `animation-delay`) are set inline per bubble in
+ * Amplitude (`--bubble-float-x` / `--bubble-float-y`, tiered 3-4.5px Desktop /
+ * 2.1-3.15px Mobile by each bubble's own visible mask diameter) and timing
+ * (`animation-duration` 6-9s, tiered the same way plus a small deterministic
+ * per-index offset, with a positive `animation-delay` of at least 450ms so
+ * drift never overlaps the mount entrance) are set inline per bubble in
  * `MoodBubble.tsx`, derived deterministically from each bubble's own size and
  * its stable array index — never `Math.random()` — so the composition is
- * identical on every reload. Three keyframe variants (`bubble-float-1/2/3`),
- * chosen by `index % 3`, trace slightly different 2D paths (translate3d only
- * — no rotation, scale, or opacity) so bubbles don't read as one synchronized
- * group; the duration/delay spread further desyncs their phase. Enabled on
- * Desktop wherever a real hover-capable, fine pointer is available, and on
- * Mobile at any input capability (gated by the same `lg` 1024px structural
- * breakpoint the rest of the Intro layout uses, not by hover/pointer, since
- * Mobile is normally touch-only) — disabled outright under
- * `prefers-reduced-motion` regardless of which of those matched. The
- * Mobile-only amplitude reduction (`isMobile` prop) lives in `MoodBubble.tsx`,
- * not here; every rule below still shares the one keyframe/property system.
+ * identical on every reload.
+ * Three keyframe variants (`bubble-float-1/2/3`), chosen by `index % 3`,
+ * trace slightly different 2D paths (translate3d only — no rotation, scale,
+ * or opacity) so bubbles don't read as one synchronized group. Enabled on
+ * both Desktop and Mobile, scoped to `.mood-bubble-cluster` and gated behind
+ * `prefers-reduced-motion: no-preference` below — reduced motion gets no
+ * spatial animation at all. The Mobile-only amplitude reduction (`isMobile`
+ * prop) lives in `MoodBubble.tsx`, not here.
  */
 .bubble-float {
   animation-name: none;
@@ -322,39 +322,140 @@
   }
 }
 
-@media (hover: hover) and (pointer: fine) {
-  .bubble-float-1 {
+/* Turns idle float on, scoped to `.mood-bubble-cluster` and gated behind
+   `prefers-reduced-motion: no-preference` — reduced-motion users keep
+   `.bubble-float`'s base `animation-name: none` (no spatial animation at
+   all), on both Desktop and Mobile. */
+@media (prefers-reduced-motion: no-preference) {
+  .mood-bubble-cluster .bubble-float-1 {
     animation-name: bubble-float-1;
   }
-  .bubble-float-2 {
+  .mood-bubble-cluster .bubble-float-2 {
     animation-name: bubble-float-2;
   }
-  .bubble-float-3 {
+  .mood-bubble-cluster .bubble-float-3 {
     animation-name: bubble-float-3;
   }
 }
 
-/* Mobile (below the `lg` 1024px structural breakpoint): float runs
-   regardless of input capability, since Mobile viewports are normally touch
-   and have no `hover: hover` to match the Desktop rule above. Desktop's own
-   rule above is untouched by this — the two conditions don't overlap. */
-@media (max-width: 1023.98px) {
-  .bubble-float-1 {
-    animation-name: bubble-float-1;
+/* `MoodBubbleCluster.tsx` sets this attribute via `visibilitychange` +
+   `IntersectionObserver`, not a per-frame loop, so the decorative drift
+   doesn't run in a background tab or while scrolled offscreen. */
+.mood-bubble-cluster[data-motion-paused="true"] .bubble-float {
+  animation-play-state: paused;
+}
+
+/*
+ * Mood bubble cluster mount entrance (`MoodBubbleCluster.tsx`) — a single,
+ * brief opacity-only fade-in for the whole decorative bubble bed, applied
+ * once on mount. `opacity: 1` is the base rule so the cluster is visible by
+ * default with no animation and no flash-of-invisible-content in any
+ * context where the media query below can't be evaluated. The animation
+ * itself only runs under `prefers-reduced-motion: no-preference`, is
+ * opacity-only (never a transform, so placement/idle-float/paint order are
+ * all untouched), runs once (`animation-iteration-count`'s default),
+ * with no delay, over 450ms `ease-out`.
+ */
+.mood-bubble-cluster {
+  opacity: 1;
+}
+
+@keyframes mood-bubble-cluster-entrance {
+  from {
+    opacity: 0;
   }
-  .bubble-float-2 {
-    animation-name: bubble-float-2;
-  }
-  .bubble-float-3 {
-    animation-name: bubble-float-3;
+  to {
+    opacity: 1;
   }
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .bubble-float-1,
-  .bubble-float-2,
-  .bubble-float-3 {
-    animation-name: none;
+@media (prefers-reduced-motion: no-preference) {
+  .mood-bubble-cluster {
+    animation: mood-bubble-cluster-entrance 450ms ease-out both;
+  }
+}
+
+/*
+ * CTA activation wave (`IntroScreen.tsx`'s `handleCtaClick`) — a single,
+ * coordinated lift-and-swell that travels from the CTA down through the
+ * bubble cluster and settles back, gated behind `prefers-reduced-motion: no-preference` exactly
+ * like the idle float and mount entrance above (reduced-motion users, and
+ * an already-hidden tab, skip it entirely in `IntroScreen.tsx` and never
+ * render `data-intro-activating` at all).
+ *
+ * `IntroScreen.tsx` sets `data-intro-activating="true"` on its own `<main>`
+ * for the transition; while it's set, the idle float (`.bubble-float`,
+ * above) is paused at its current displacement rather than stopped-and-
+ * reset, and stays paused through the screen's exit fade since
+ * `data-intro-activating` is never cleared again.
+ *
+ * The wave animates the standalone `translate` and `scale` properties (not
+ * `transform`) on `.bubble-motion`: that layer's `transform` is already set
+ * inline (`MoodBubble.tsx`) to `translate3d(var(--bubble-shift-x),
+ * var(--bubble-shift-y), 0)` for the Desktop pointer field, and the
+ * individual properties are composited with `transform` by the browser
+ * rather than cascading against it, so the wave stacks on top of any
+ * pointer shift with no shared-property conflict. Scale is centred on each
+ * bubble, so placement never drifts. No glow or opacity change.
+ *
+ * Each bubble runs the same single 440ms keyframe once: a quick ease-out
+ * lift (`--bubble-wave-x` / `--bubble-wave-y`, a few px straight up, from
+ * `MoodBubble.tsx`'s `responseX`/`responseY`) and swell to `scale(1.035)` by
+ * 40%, then an ease-in-out settle back to rest. `animation-fill-mode:
+ * backwards` holds each bubble at rest through its own
+ * `--bubble-wave-delay` (0-160ms), normalized from its distance to the top
+ * centre of the cluster, just under the CTA (`MoodBubbleCluster.tsx`), so
+ * the response starts nearest the button and travels outward and down.
+ * Every bubble has peaked by ~340ms; `IntroScreen.tsx` starts the exit fade
+ * at 500ms, while the last bubbles are already settling.
+ */
+@keyframes bubble-wave-lift {
+  0% {
+    translate: 0 0;
+    scale: 1;
+    animation-timing-function: cubic-bezier(0.33, 1, 0.68, 1);
+  }
+  100% {
+    translate: 0 0;
+    scale: 1;
+  }
+  40% {
+    translate: var(--bubble-wave-x, 0px) var(--bubble-wave-y, 0px);
+    scale: 1.035;
+    animation-timing-function: cubic-bezier(0.65, 0, 0.35, 1);
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .mood-bubble-cluster .bubble-motion {
+    translate: 0 0;
+    scale: 1;
+  }
+
+  [data-intro-activating="true"] .bubble-float {
+    animation-play-state: paused;
+  }
+
+  [data-intro-activating="true"] .bubble-motion {
+    animation: bubble-wave-lift 440ms linear var(--bubble-wave-delay, 0ms) 1 backwards;
+  }
+}
+
+/*
+ * Desktop pointer field (`MoodBubbleCluster.tsx`) — a very small outward
+ * drift for spheres near the cursor. Transitions the standalone `transform`
+ * property (`.bubble-motion`'s inline `translate3d(var(--bubble-shift-x),
+ * var(--bubble-shift-y), 0)`), never `translate` — that's the CTA wave's own
+ * property above — so the two never share a transitioned property and can't
+ * fight each other. Scoped to the exact same eligibility the JS gates the
+ * field itself on, so no transition exists outside Desktop/hover/fine-
+ * pointer/motion-allowed, and offsets always reach 0 the instant that gate
+ * closes (the effect resets them imperatively before/without relying on
+ * this transition to be present).
+ */
+@media (min-width: 1024px) and (hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference) {
+  .bubble-motion {
+    transition: transform 280ms ease-out;
   }
 }
 
@@ -610,4 +711,522 @@
   .mobile-up-next-sheet {
     transition: none;
   }
+}
+
+/*
+ * Intro headline entrance (`IntroScreen.tsx` / `TextStack.tsx`) — a one-time
+ * mount entrance for the `<h1>` wordmark as a whole (never per letter): it
+ * fades in from `opacity: 0`, rises from `translateY(14px)` into its normal
+ * position, and focuses from `blur(5px)` to fully sharp. Base rule is the
+ * fully-visible/sharp end state, and the animation only runs under
+ * `prefers-reduced-motion: no-preference`, so reduced-motion users get the
+ * heading visible and sharp immediately. `[data-intro-content] h1` scopes
+ * this to Intro's own heading (that attribute only exists on
+ * `IntroScreen.tsx`) without adding a class to `TextStack.tsx`. `transform`
+ * is paint-only, so the heading's layout box never moves.
+ *
+ * Two animations with their own curves, so the blur is actually readable:
+ * `intro-headline-rise` fades the heading in quickly (opacity 1 by 30%,
+ * ~240ms) while the rise eases out over the full 800ms, and
+ * `intro-headline-focus-in` holds most of the blur while the text becomes
+ * visible, then sharpens through an ease-in-out over 320ms. Sharing one
+ * curve spent the blur while the text was still mostly transparent.
+ */
+[data-intro-content] h1 {
+  opacity: 1;
+  transform: none;
+  filter: none;
+}
+
+@keyframes intro-headline-rise {
+  0% {
+    opacity: 0;
+    transform: translateY(14px);
+    animation-timing-function: cubic-bezier(0.33, 1, 0.68, 1);
+  }
+  30% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes intro-headline-focus-in {
+  from {
+    filter: blur(5px);
+  }
+  to {
+    filter: blur(0);
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  [data-intro-content] h1 {
+    /* backwards fill holds the hidden, blurred from-state through the 100ms delay */
+    animation:
+      intro-headline-rise 800ms linear 100ms 1 backwards,
+      intro-headline-focus-in 320ms cubic-bezier(0.37, 0, 0.63, 1) 100ms 1 backwards;
+  }
+}
+
+/*
+ * Intro tagline + CTA follow-on entrance — the next two beats after the
+ * headline above: the tagline fades up from 450ms, the CTA from 650ms, both
+ * over 500ms, so the whole intro sequence settles by ~1.15s. Opacity plus a
+ * small 8px rise on the individual `translate` property, not `transform`, so
+ * `.cta-pill:active`'s `scale(0.98)` press feedback still applies even
+ * mid-entrance. Purely visual: the CTA stays in the tab order and clickable
+ * from the first frame, and `IntroScreen.tsx`'s click handling never waits on
+ * this. Base state is fully visible, so reduced-motion users get both
+ * immediately.
+ */
+@keyframes intro-follow-in {
+  from {
+    opacity: 0;
+    translate: 0 8px;
+  }
+  to {
+    opacity: 1;
+    translate: 0 0;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  [data-intro-content] p {
+    animation: intro-follow-in 500ms cubic-bezier(0.33, 1, 0.68, 1) 450ms 1 backwards;
+  }
+
+  [data-intro-content] .cta-pill {
+    animation: intro-follow-in 500ms cubic-bezier(0.33, 1, 0.68, 1) 650ms 1 backwards;
+  }
+}
+
+/*
+ * Intro short-desktop fit. The Desktop composition is a fixed 1024px-tall
+ * frame: the hero starts 172px down and the bubble cluster spans y 580–886,
+ * whatever the viewport height, so at 1280×720 more than half the cluster
+ * (and most of the CTA wave) sits below the fold.
+ *
+ * `--intro-fit` is how far the composition needs to rise for the cluster's
+ * bottom edge (886px) to clear the viewport with a 24px margin — 0 at 910px
+ * tall and above, so the approved 1440×1024 layout is untouched — capped at
+ * 136px. That rise is taken from the two empty bands only: the hero's top
+ * padding shrinks by 108/136 of it (172px → 64px at the cap) and the
+ * CTA-to-cluster gap by the rest (76px → 48px), by lifting the whole cluster
+ * layer by the full amount. Bubbles keep their sizes and positions relative
+ * to each other; no scale, so the wave and pointer-field distances are
+ * unchanged. Linear in `100dvh`, so it tracks the viewport continuously.
+ * Mobile (below `lg`) is unaffected.
+ */
+@media (min-width: 1024px) {
+  [data-intro-root] {
+    --intro-fit: clamp(0px, 910px - 100dvh, 136px);
+  }
+
+  [data-intro-root] [data-intro-content] {
+    padding-top: calc(var(--spacing-hero-top-lg) - var(--intro-fit) * 108 / 136);
+  }
+
+  [data-intro-root] .mood-bubble-cluster {
+    transform: translateY(calc(var(--intro-fit) * -1));
+  }
+}
+
+/*
+ * Intro CTA hover + keyboard focus (`CtaPill.tsx`) — scoped to
+ * `[data-intro-content]`, so the other screens' `.cta-pill` buttons keep the
+ * shared border-stroke hover above. The other primary CTAs opt into the
+ * same gradient drift with `.cta-drift` (`CameraPermissionCta.tsx`'s "Allow
+ * Camera", `VibeResultScreen.tsx`'s "Start listening"); a disabled one
+ * doesn't drift. The Intro-only entrance, activation press,
+ * and mid-entrance focus override below stay Intro-scoped.
+ *
+ * Gradient drift: the fill is redrawn on a 200%-wide layer whose left half
+ * is exactly Tailwind's own `bg-linear-to-r from/via/to` gradient (same stops,
+ * same `in oklab` interpolation), so at rest the button is pixel-identical.
+ * The right half mirrors back toward `via`, and hover slides the layer 25%
+ * left over 1.1s — the colors drift right to left — and returns in 400ms on
+ * leave.
+ *
+ * The shared border stroke lap (`cta-border-travel`) is switched off here,
+ * so the gradient drift is the one hover motion.
+ *
+ * The drift sits behind `(hover: hover) and (pointer: fine)`, so touch
+ * never gets a stuck hover, and behind `prefers-reduced-motion:
+ * no-preference`; reduced-motion users keep the existing static brighter
+ * border on hover and the focus outline.
+ *
+ * Keyboard focus: `!important` beats the running entrance animation, so a
+ * focused CTA is fully visible at once even mid-entrance. It doesn't remove
+ * the animation (that would replay the entrance on blur), it only outranks
+ * it while focused. The white `focus-visible` outline is unchanged.
+ */
+[data-intro-content] .cta-pill,
+.cta-pill.cta-drift {
+  background-image: linear-gradient(
+    to right in oklab,
+    var(--color-cta-button-from) 0%,
+    var(--color-cta-button-via) 25%,
+    var(--color-cta-button-to) 50%,
+    var(--color-cta-button-via) 100%
+  );
+  background-size: 200% 100%;
+  background-position: 0% 50%;
+}
+
+[data-intro-content] .cta-pill:focus-visible {
+  opacity: 1 !important;
+  translate: none !important;
+}
+
+[data-intro-content] .cta-pill .cta-border-svg,
+.cta-pill.cta-drift .cta-border-svg {
+  display: none;
+}
+
+/*
+ * Intro CTA activation press: one short 140ms squeeze to `scale(0.98)` and
+ * back the moment `IntroScreen.tsx` accepts the click (`data-intro-
+ * activating`), so keyboard Enter gets the same press as a pointer. Uses the
+ * individual `scale` property, so it stacks with — rather than overrides —
+ * `.cta-pill:active`'s `transform: scale(0.98)` for mouse and touch. It
+ * replaces the entrance animation: a click mid-entrance shows the button
+ * fully at once. Reduced motion never sets `data-intro-activating`.
+ */
+@keyframes intro-cta-press {
+  0% {
+    scale: 1;
+    animation-timing-function: cubic-bezier(0.23, 1, 0.32, 1);
+  }
+  40% {
+    scale: 0.98;
+    animation-timing-function: cubic-bezier(0.33, 1, 0.68, 1);
+  }
+  100% {
+    scale: 1;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  [data-intro-activating="true"] [data-intro-content] .cta-pill {
+    animation: intro-cta-press 140ms linear 1;
+  }
+}
+
+/* Enter and exit are timed separately: a transition runs with the timing of
+   the state being entered, so the `:hover` rule carries the slow enter and
+   the base rule carries the exit. The gradient drifts in over 1.1s but
+   returns in 400ms so the button doesn't linger. */
+@media (hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference) {
+  [data-intro-content] .cta-pill,
+  .cta-pill.cta-drift {
+    transition:
+      border-color 250ms ease,
+      transform 110ms ease-out,
+      background-position 400ms cubic-bezier(0.23, 1, 0.32, 1);
+  }
+
+  [data-intro-content] .cta-pill:hover,
+  .cta-pill.cta-drift:hover:not(:disabled) {
+    background-position: 25% 50%;
+    transition:
+      border-color 250ms ease,
+      transform 110ms ease-out,
+      background-position 1100ms cubic-bezier(0.37, 0, 0.63, 1);
+  }
+}
+
+/*
+ * Intro ambient glow drift — the large violet glow on the right
+ * (`AppBackground`'s `data-glow="purple"` layer, inside the
+ * `.intro-ambient-motion` wrapper `IntroScreen.tsx` adds around its own
+ * instance) wanders slowly; the other glows, content and bubbles stay put.
+ * Every other screen that renders `AppBackground` is untouched, since this
+ * only matches inside that Intro-only wrapper.
+ *
+ * Two independent sine-like motions on separate properties — `translate`
+ * for x, `transform` for y — with different, non-multiple periods (43s for
+ * x, 31s for y). Equal periods traced the same oval every cycle; with these
+ * the path is a slowly evolving Lissajous curve that only comes back to the
+ * same point after 43 × 31 = 1333s (~22 minutes), so the direction keeps changing gradually
+ * instead of repeating. `alternate` plus an ease-in-out sine curve gives
+ * each axis soft turns with no seam between cycles, and since the two axes
+ * almost never turn at the same moment, the field rarely comes to rest.
+ * Each starts half a sweep in (negative delay), i.e. at the approved
+ * position moving outward, so the composition loads unshifted.
+ *
+ * Radius 120px × 72px on Desktop: the field is so soft (opacity falls
+ * ~0.001 per px across its 520px radius) that ±10px and ±40px read as still,
+ * while ±120px was clearly visible in diagnosis. Peak speed stays low
+ * (≤ ~23px/s, both axes combined; the 8s diagnostic boost ran ~5× faster),
+ * so it reads as drift, not motion. Mobile's glow is much narrower
+ * (180px radius), so 40px × 24px keeps the same proportion of the field.
+ * Position only: no opacity, scale, filter or hue change.
+ * The glow's radial gradient is already fully transparent at its box edges,
+ * and `AppBackground`'s `overflow-hidden` clips the box, so no edge shows.
+ *
+ * Paused (`animation-play-state`, not removed) via the same two existing
+ * lifecycle signals the bubble layer already reacts to, no new JS:
+ *   - `[data-intro-root]:has(.mood-bubble-cluster[data-motion-paused="true"])`
+ *     — `MoodBubbleCluster.tsx`'s own visibility/tab signal, reused as-is;
+ *   - `data-intro-activating="true"` — the CTA wave's own in-flight flag.
+ * Reduced motion keeps the glow static at its approved position.
+ */
+@keyframes intro-glow-drift-x {
+  from {
+    translate: calc(var(--glow-drift-x) * -1) 0;
+  }
+  to {
+    translate: var(--glow-drift-x) 0;
+  }
+}
+
+@keyframes intro-glow-drift-y {
+  from {
+    transform: translateY(calc(var(--glow-drift-y) * -1));
+  }
+  to {
+    transform: translateY(var(--glow-drift-y));
+  }
+}
+
+.intro-ambient-motion [data-glow="purple"] {
+  --glow-drift-x: 40px;
+  --glow-drift-y: 24px;
+}
+
+@media (min-width: 1024px) {
+  .intro-ambient-motion [data-glow="purple"] {
+    --glow-drift-x: 120px;
+    --glow-drift-y: 72px;
+  }
+}
+
+/* Each `alternate` iteration is one sweep (half a period): 21.5s for x
+   (43s period), 15.5s for y (31s period); delays are half a sweep. */
+@media (prefers-reduced-motion: no-preference) {
+  .intro-ambient-motion [data-glow="purple"] {
+    animation:
+      intro-glow-drift-x 21.5s cubic-bezier(0.37, 0, 0.63, 1) -10.75s infinite alternate,
+      intro-glow-drift-y 15.5s cubic-bezier(0.37, 0, 0.63, 1) -7.75s infinite alternate;
+  }
+}
+
+/* TEMPORARY diagnostic boost (`GlowDebugPanel.tsx`, `?glow-debug=1` only):
+   the panel's toggle sets `data-glow-debug-boost`, which never exists in the
+   normal preview. Bigger radius and an 8s cycle; color/size untouched. */
+[data-glow-debug-boost="true"] .intro-ambient-motion [data-glow="purple"] {
+  --glow-drift-x: 120px;
+  --glow-drift-y: 72px;
+  animation-duration: 4s, 4s;
+  animation-delay: 0s, -2s;
+}
+
+[data-intro-root]:has(.mood-bubble-cluster[data-motion-paused="true"]) .intro-ambient-motion [data-glow],
+[data-intro-activating="true"] .intro-ambient-motion [data-glow] {
+  animation-play-state: paused;
+}
+
+/*
+ * Camera Permission scanner glass orb (`CameraPermissionVisual.tsx`, and
+ * the live scan in `ScanningVisual.tsx`) — a
+ * static, lightweight stand-in for the Intro bubbles' glass. Those bubbles
+ * bake their glass into each PNG, so nothing is reused directly; this
+ * follows the same cues instead: a clear center, a thin bright rim, a
+ * specular streak following the upper-left curve, cool refraction toward
+ * the edge, and a faint warm reflection lower right. Kept softer than the
+ * Intro bubbles, since this is a functional scan area.
+ *
+ * Gradients and inset shadows only — no filters, blur, or motion, so
+ * reduced motion needs nothing extra. Sized in container units (`cqw`, the
+ * element is its own pseudo-elements' container) so one rule fits both the
+ * 224px Mobile and 491px Desktop circles. The custom properties are the
+ * tuning knobs.
+ */
+.scanner-orb-glass {
+  --orb-rim: rgb(255 255 255 / 0.14);
+  --orb-edge-tint: rgb(160 150 255 / 0.14);
+  --orb-edge-light: rgb(225 220 255 / 0.22);
+  --orb-inner-glow: rgb(150 140 255 / 0.17);
+  --orb-depth: rgb(8 5 28 / 0.4);
+  --orb-specular: rgb(255 255 255 / 0.36);
+  --orb-crescent: rgb(255 255 255 / 0.24);
+  --orb-warm: rgb(255 170 230 / 0.2);
+
+  position: absolute;
+  inset: 0;
+  border-radius: 9999px;
+  pointer-events: none;
+  container-type: size;
+  /* Edge refraction band: fully transparent across the face (inner ~60%),
+     brightening only toward the perimeter. */
+  background: radial-gradient(
+    circle closest-side,
+    transparent 62%,
+    var(--orb-edge-tint) 84%,
+    var(--orb-edge-light) 97%,
+    transparent 100%
+  );
+  box-shadow:
+    inset 0 0 0 1px var(--orb-rim),
+    inset 0 0 7cqw var(--orb-inner-glow),
+    inset -3cqw -4cqw 9cqw -3cqw var(--orb-depth);
+}
+
+/* Upper-left specular: a lit crescent along the rim plus one short streak.
+   The gradient is drawn at the top and the element rotated, so the streak
+   follows the curve rather than sitting flat. */
+.scanner-orb-glass::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  transform: rotate(-40deg);
+  background: radial-gradient(
+    ellipse 30% 2.6% at 50% 4.5%,
+    var(--orb-specular),
+    transparent 100%
+  );
+  box-shadow: inset 0 1.4cqw 2cqw -1.4cqw var(--orb-crescent);
+}
+
+/* Lower-right secondary reflection — warmer and dimmer than the specular. */
+.scanner-orb-glass::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  transform: rotate(140deg);
+  background: radial-gradient(
+    ellipse 30% 3.5% at 50% 5%,
+    var(--orb-warm),
+    transparent 100%
+  );
+}
+
+/* Vibe Result's captured-photo orb (`VibeResultScreen.tsx`): the same static
+   glass, settled ~14% softer so the photo reads more clearly — edge haze,
+   inner glow, and the upper-left specular/crescent come down; rim, depth,
+   and the warm reflection stay, so it still reads as glass. Permission and
+   scanning orbs keep the base values. */
+.scanner-orb-glass--settled {
+  --orb-edge-tint: rgb(160 150 255 / 0.12);
+  --orb-edge-light: rgb(225 220 255 / 0.19);
+  --orb-inner-glow: rgb(150 140 255 / 0.145);
+  --orb-specular: rgb(255 255 255 / 0.31);
+  --orb-crescent: rgb(255 255 255 / 0.2);
+}
+
+/* Face media framing inside the orb (both `<video>`s in
+   `CameraPermissionVisual.tsx`). The video is square in a square box, so
+   `object-position` can't shift it; instead it's lifted with `translate` and
+   scaled just enough that its bottom edge still covers the circle
+   (shift must stay <= half the scale increase, i.e. -2% needs >= 1.04). */
+.scanner-orb-media {
+  --orb-face-shift: -2%;
+  --orb-face-scale: 1.04;
+  translate: 0 var(--orb-face-shift);
+  scale: var(--orb-face-scale);
+}
+
+/*
+ * Scanner orb motion — active scanning only (`ScanningVisual.tsx`). These
+ * layers exist only inside `ScanningVisual`, which is mounted only while
+ * scanning is active, so the permission prompt, error states, and idle never
+ * get them. On completion (`data-scan-complete`, set by
+ * `CameraPermissionScreen`), `.scanner-orb-live` fades the motion out rather
+ * than stopping it mid-cycle.
+ *
+ * Opacity only, composited, so no repaint per frame. The video, mesh
+ * canvas, and orb size never move. The layer sits in the edge band only:
+ * the face area stays clear.
+ * - `.scanner-orb-pulse`: a rim glow breathing 30% → 100% opacity over 3.6s.
+ * (The moving light sweep that used to sit alongside it was removed — no
+ * highlight travels around the orb in any state.)
+ *
+ * Reduced motion: the pulse doesn't animate and rests at `opacity: 0`, so
+ * the orb is the same static glass as the permission prompt.
+ */
+.scanner-orb-live,
+.scanner-orb-pulse {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+}
+
+.scanner-orb-live {
+  transition: opacity 600ms ease-out;
+}
+
+[data-scan-complete] .scanner-orb-live {
+  opacity: 0;
+}
+
+.scanner-orb-pulse {
+  opacity: 0;
+  background: radial-gradient(
+    circle closest-side,
+    transparent 80%,
+    rgb(185 165 255 / 0.18) 93%,
+    rgb(235 228 255 / 0.26) 99%,
+    transparent 100%
+  );
+  box-shadow:
+    inset 0 0 5cqw rgb(170 150 255 / 0.22),
+    inset 0 0 0 1px rgb(255 255 255 / 0.1);
+}
+
+@keyframes scanner-orb-pulse {
+  0%,
+  100% {
+    opacity: 0.3;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .scanner-orb-pulse {
+    animation: scanner-orb-pulse 3.6s ease-in-out infinite;
+  }
+}
+
+/*
+ * Vibe Result "Scan again" — a compact dark-glass pill floating inside the
+ * photo orb (`VibeResultScreen.tsx`; size and position stay in Tailwind
+ * there, per breakpoint). Translucent dark fill, thin light border, a light
+ * backdrop blur, a 1px inner top highlight, and a soft drop shadow so it
+ * lifts off the captured image. Hover/press only brighten fill and border —
+ * no movement or scaling; keyboard focus keeps the button's own white
+ * outline and also brightens the border.
+ */
+.orb-glass-pill {
+  border: 1px solid rgb(255 255 255 / 0.18);
+  background-color: rgb(14 11 34 / 0.42);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.14),
+    0 6px 18px rgb(6 4 20 / 0.3);
+  transition:
+    background-color 200ms ease,
+    border-color 200ms ease;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .orb-glass-pill:hover {
+    background-color: rgb(34 30 66 / 0.52);
+    border-color: rgb(255 255 255 / 0.3);
+  }
+}
+
+.orb-glass-pill:focus-visible {
+  border-color: rgb(255 255 255 / 0.35);
+}
+
+.orb-glass-pill:active {
+  background-color: rgb(44 40 80 / 0.58);
 }

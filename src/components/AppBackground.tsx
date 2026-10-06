@@ -1,8 +1,9 @@
 import { desktopGlows, mobileGlows, type GlowSpec } from "../data/introGlows"
 
-export function GlowLayer({ left, top, width, height, gradient }: GlowSpec) {
+export function GlowLayer({ id, left, top, width, height, gradient }: GlowSpec) {
   return (
     <div
+      data-glow={id}
       className="absolute blur-glow"
       style={{ left, top, width, height, backgroundImage: gradient }}
     />
