@@ -103,6 +103,19 @@
 }
 
 /*
+ * The document canvas itself is the app's base navy, not the browser's
+ * default white. Every screen already paints `bg-bg-base` over its own
+ * area, so nothing visible changes there — but anything that reads past
+ * the page's edge does: the collapsed mobile Up Next card
+ * (`MobileUpNextSheet.tsx`) extends below the screen, and its
+ * `backdrop-blur(20px)` was blending the white canvas past the bottom edge
+ * into a pale haze along the bottom of the card. Same for overscroll.
+ */
+html {
+  background-color: var(--color-bg-base);
+}
+
+/*
  * CTA hover animation (`CtaPill.tsx`) — a single restrained, Desktop-only
  * effect driven by `:hover` / `:focus-visible` on the button itself so
  * pointer-leave and blur cleanly restore the exact idle appearance with no
@@ -703,6 +716,23 @@
   transition: none;
 }
 
+/* Mobile anchored utility popovers (`MobileTriggerPopover.tsx` — Choose
+   Vibe, Gesture Controls): a short fade + 4px rise toward their spot above
+   the trigger, on open only (they unmount on close). Reduced motion: they
+   simply appear. */
+@keyframes mobile-trigger-popover-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .mobile-trigger-popover {
+    animation: mobile-trigger-popover-in 160ms ease-out;
+  }
+}
+
 /* Reduced motion: the sheet still moves between states (this feature's own
    explicit "may transition, but reduced-motion users shouldn't get
    unnecessary animated movement") — dropping the transition means it jumps
@@ -1042,7 +1072,7 @@
  * Gradients and inset shadows only — no filters, blur, or motion, so
  * reduced motion needs nothing extra. Sized in container units (`cqw`, the
  * element is its own pseudo-elements' container) so one rule fits both the
- * 224px Mobile and 491px Desktop circles. The custom properties are the
+ * 248px Mobile and 491px Desktop circles. The custom properties are the
  * tuning knobs.
  */
 .scanner-orb-glass {

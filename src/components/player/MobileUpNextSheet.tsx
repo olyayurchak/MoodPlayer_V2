@@ -3,7 +3,7 @@ import { createPortal } from "react-dom"
 import logoMark from "../../imports/CameraPermission/logo-mark.svg"
 import { LOGO_BAR_PATHS } from "../MoodPlayerLogo"
 import type { PlayerTrack } from "../../data/playerTrack"
-import type { PlayerMoodAccent } from "../../data/playerMoodAccent"
+import { spectrumGradient, type MoodSpectrum, type PlayerMoodAccent } from "../../data/playerMoodAccent"
 import { copy as t } from "../../content/copy"
 
 /** Same gradient-ring-on-a-glass-surface technique `UpNextPanel.tsx` (and,
@@ -24,27 +24,13 @@ const CURRENT_TRACK_RING_STYLE = {
 }
 
 /** How much of the collapsed sheet stays visible above the viewport's
- *  bottom edge — the *exact* height Figma's own approved collapsed frame
- *  gives this sheet, not an estimate: node `289:7420`'s own sheet layer
- *  (`289:7966`, "cta-pill") measures `width=382 height=111` in the Figma
- *  document itself (its own bottom edge sits flush with that frame's
- *  home-indicator area, at document y=898, and its top edge at y=787 —
- *  898−787=111). That happens to land partway through the peeked current
- *  row's own 64px height (the row's own Figma layer starts at sheet-
- *  relative y=73 and is 64 tall, i.e. it would end at 137, past this
- *  111 — Figma's own collapsed frame deliberately shows that row cropped,
- *  not whole, as a "there's more, drag up" affordance), so this
- *  component's own peek reveals the same handle+heading+*partial*-row
- *  amount, not a fully visible row.
- *
- *  Not derived from a real DOM measurement: a fixed constant matching a
- *  value Figma itself specifies is simpler and can't drift out of sync
- *  with a measured value that depends on render timing, and (being a
- *  fixed *content* height rather than anything tied to total screen
- *  height) this same 111 is correct at both the 375px- and 430px-wide
- *  Mobile references this feature targets — screen *width* doesn't change
- *  how tall the handle/heading/row themselves render. */
-const PEEK_HEIGHT_PX = 111
+ *  bottom edge. Was Figma's 111px (which cropped the current-track row);
+ *  the mobile Player reference now shows that row whole under a one-line
+ *  header, so the peek is built from the sheet's own fixed parts:
+ *  handle 36 + header row 28 + 8 + track row 64 + 12 = 148px. Exported so
+ *  `PlayerScreen` reserves exactly this much space under its mobile
+ *  content (the sheet is `fixed` and takes no space in that flow). */
+export const PEEK_HEIGHT_PX = 148
 
 /** The expanded sheet's own total height — also an exact Figma value, not
  *  an estimate, but expressed relative to the real viewport height rather
@@ -149,11 +135,15 @@ function SelectableTrackRow({
   track,
   isCurrent,
   accent,
+  spectrum,
   onSelect,
 }: {
   track: PlayerTrack
   isCurrent: boolean
   accent?: PlayerMoodAccent
+  /** When set, the current row's ring is the same faint 1px mood-spectrum
+   *  edge as desktop `UpNextPanel`'s, instead of `accent.gradient`. */
+  spectrum?: MoodSpectrum
   onSelect: (trackId: string) => void
 }) {
   const label = isCurrent
@@ -174,7 +164,13 @@ function SelectableTrackRow({
       {isCurrent && (
         <span
           aria-hidden="true"
-          style={accent ? { ...CURRENT_TRACK_RING_STYLE, background: accent.gradient } : CURRENT_TRACK_RING_STYLE}
+          style={
+            spectrum
+              ? { ...CURRENT_TRACK_RING_STYLE, padding: "1px", background: spectrumGradient(spectrum, 0.45) }
+              : accent
+                ? { ...CURRENT_TRACK_RING_STYLE, background: accent.gradient }
+                : CURRENT_TRACK_RING_STYLE
+          }
           className="pointer-events-none absolute inset-0 rounded-[12px]"
         />
       )}
@@ -257,6 +253,7 @@ export default function MobileUpNextSheet({
   tracks,
   currentTrackId,
   accent,
+  spectrum,
   onSelectTrack,
 }: {
   mood: string
@@ -265,6 +262,7 @@ export default function MobileUpNextSheet({
   tracks: PlayerTrack[]
   currentTrackId: string
   accent?: PlayerMoodAccent
+  spectrum?: MoodSpectrum
   onSelectTrack: (trackId: string) => void
 }) {
   const [isExpanded, setIsExpanded] = useState(false)
@@ -278,7 +276,20 @@ export default function MobileUpNextSheet({
   const dragRef = useRef<DragState | null>(null)
   const justDraggedRef = useRef(false)
 
-  const restingTransform = isExpanded ? "translateY(0px)" : `translateY(calc(100% - ${PEEK_HEIGHT_PX}px))`
+  // Collapsed, the peek also rises by the bottom safe-area inset (the card's
+  // own `padding-bottom`, below), so the handle/header/row sit above the
+  // home indicator; 0 inset leaves it exactly `PEEK_HEIGHT_PX`.
+  const restingTransform = isExpanded
+    ? "translateY(0px)"
+    : `translateY(calc(100% - ${PEEK_HEIGHT_PX}px - env(safe-area-inset-bottom)))`
+  /** The peek in px including the bottom safe-area inset, for the drag
+   *  math (which works in plain px) — read from the card's computed
+   *  `padding-bottom`, the one place that inset resolves to a number. */
+  const peekWithInsetPx = () => {
+    const card = sheetRef.current?.firstElementChild
+    const inset = card ? parseFloat(getComputedStyle(card).paddingBottom) || 0 : 0
+    return PEEK_HEIGHT_PX + inset
+  }
   const transform = dragOffsetPx === null ? restingTransform : `translateY(${dragOffsetPx}px)`
 
   const handlePointerDown = (event: React.PointerEvent<HTMLButtonElement>) => {
@@ -292,7 +303,7 @@ export default function MobileUpNextSheet({
     // unrelated tap's own legitimate toggle.
     justDraggedRef.current = false
     const sheetHeightPx = sheet.getBoundingClientRect().height
-    const startOffsetPx = isExpanded ? 0 : Math.max(sheetHeightPx - PEEK_HEIGHT_PX, 0)
+    const startOffsetPx = isExpanded ? 0 : Math.max(sheetHeightPx - peekWithInsetPx(), 0)
     dragRef.current = { startClientY: event.clientY, startOffsetPx, sheetHeightPx, dragged: false, lastOffsetPx: startOffsetPx }
     // Guards a real (rare) edge case — a pointer that's already gone inactive
     // by the time this handler runs — rather than letting a thrown
@@ -313,7 +324,7 @@ export default function MobileUpNextSheet({
     if (!drag.dragged && Math.abs(deltaY) < DRAG_THRESHOLD_PX) return
     drag.dragged = true
     setIsDragging(true)
-    const collapsedOffsetPx = Math.max(drag.sheetHeightPx - PEEK_HEIGHT_PX, 0)
+    const collapsedOffsetPx = Math.max(drag.sheetHeightPx - peekWithInsetPx(), 0)
     const next = Math.min(collapsedOffsetPx, Math.max(0, drag.startOffsetPx + deltaY))
     drag.lastOffsetPx = next
     setDragOffsetPx(next)
@@ -328,7 +339,7 @@ export default function MobileUpNextSheet({
     if (!drag || !drag.dragged) return // tap or sub-threshold jitter — the handle's own onClick handles a tap
 
     justDraggedRef.current = true
-    const collapsedOffsetPx = Math.max(drag.sheetHeightPx - PEEK_HEIGHT_PX, 0)
+    const collapsedOffsetPx = Math.max(drag.sheetHeightPx - peekWithInsetPx(), 0)
     const midpoint = collapsedOffsetPx / 2
     // Read from the ref (`drag.lastOffsetPx`), not the `dragOffsetPx` state
     // closed over by this render — a fast enough pointerdown→move→up
@@ -356,7 +367,11 @@ export default function MobileUpNextSheet({
       ref={sheetRef}
       data-dragging={isDragging || undefined}
       style={{ transform }}
-      className="mobile-up-next-sheet fixed inset-x-0 bottom-0 z-40 flex justify-center lg:hidden"
+      // `px-[24px]`: the mobile Player's shared 24px gutter, so the sheet's
+      // card lines up with the artwork / waveform / volume / triggers above
+      // (it was only capped by `max-w-[382px]`, i.e. near edge-to-edge
+      // below 430px wide).
+      className="mobile-up-next-sheet fixed inset-x-0 bottom-0 z-40 flex justify-center px-[24px] lg:hidden"
     >
       <div
         // A literal `h-[calc(100dvh-224px)]` Tailwind class would work
@@ -365,7 +380,21 @@ export default function MobileUpNextSheet({
         // Figma value ever changed without someone remembering to edit this
         // string too — an inline style computed from the same constant
         // can't go stale that way.
-        style={{ height: `calc(100dvh - ${EXPANDED_TOP_REVEAL_PX}px)` }}
+        // `paddingBottom`: the bottom safe-area inset (0 where none), so
+        // nothing in the sheet ever sits under the home indicator.
+        // `background`: the white 8% glass on top. Collapsed only, a local
+        // navy base (the app's `#050a18`) sits *under* that glass, fading in
+        // from 112px to 92% at the peek's bottom edge (148px): at the
+        // screen edge the backdrop blur was leaving a pale band below the
+        // current row, and this keeps that edge dark while the strip above
+        // stays glassy. Expanded keeps the plain glass.
+        style={{
+          height: `calc(100dvh - ${EXPANDED_TOP_REVEAL_PX}px)`,
+          paddingBottom: "env(safe-area-inset-bottom)",
+          backgroundImage: isExpanded
+            ? "linear-gradient(rgba(255,255,255,0.08), rgba(255,255,255,0.08))"
+            : `linear-gradient(rgba(255,255,255,0.08), rgba(255,255,255,0.08)), linear-gradient(to bottom, rgba(5,10,24,0) 112px, rgba(5,10,24,0.92) ${PEEK_HEIGHT_PX}px)`,
+        }}
         // A measured audit found this sheet visually merging with
         // `GestureControlsPanel` right above it: both use the exact same
         // `bg-[rgba(255,255,255,0.08)]` glass fill, and sit close together
@@ -396,7 +425,7 @@ export default function MobileUpNextSheet({
         // Both apply identically across Happy/Melancholic/Chill — neither
         // reads any `accent` prop, so there is no mood-specific branching
         // to keep in sync.
-        className="flex w-full max-w-[382px] flex-col overflow-hidden rounded-t-[24px] border-t-[1px] border-t-[rgba(255,255,255,0.14)] bg-[rgba(255,255,255,0.08)] shadow-[0px_-16px_32px_0px_rgba(0,0,0,0.35)] backdrop-blur-[20px]"
+        className="flex w-full max-w-[382px] flex-col overflow-hidden rounded-t-[24px] border-t-[1px] border-t-[rgba(255,255,255,0.14)] shadow-[0px_-16px_32px_0px_rgba(0,0,0,0.35)] backdrop-blur-[20px]"
       >
         {/* A measured audit found this handle's real hit area was only
             36px tall (the button's own box hugs the 5px visible bar plus
@@ -405,7 +434,7 @@ export default function MobileUpNextSheet({
             pseudo-element technique the former language switcher/
             `MoodPlayerLogo.tsx` already use, not a real height/padding
             increase: the button's own real box (and therefore
-            `PEEK_HEIGHT_PX`'s own 111px collapsed-peek content, which
+            `PEEK_HEIGHT_PX`'s own collapsed-peek content, which
             starts counting from this button's real top) must stay exactly
             36px, or a genuinely taller handle would push the heading/row
             content it reveals downward, cropping more of the peeked
@@ -420,7 +449,7 @@ export default function MobileUpNextSheet({
             lands inside the card, over the top of the (non-interactive,
             no `onClick`) "Up next" heading text below — 10px is well
             short of where the real `SelectableTrackRow` buttons begin
-            (the heading block's own height is ~57px), so this can never
+            (the one-line header row is 28px tall, plus 8px), so this can never
             intercept a track-row tap. Left/right stay flush
             (`before:inset-x-0`) — the button is already `w-full`, so
             width was never the problem. Net effective hit height: 36 + 10
@@ -440,14 +469,40 @@ export default function MobileUpNextSheet({
           <span aria-hidden="true" className="h-[5px] w-[64px] rounded-full bg-white/40" />
         </button>
 
-        <div className="flex flex-col gap-[2px] px-[20px] pb-[12px] tracking-[-0.2px]">
-          <p className="text-[20px] font-medium text-white">{t.player.upNextHeading}</p>
-          <p className="text-[16px] font-light text-[#cfcfcf]">{t.player.upNextSubtitle(mood)}</p>
+        {/* One-line header (mobile reference): heading + playlist subtitle
+            on one baseline, chevron on the right. 28px tall — part of
+            `PEEK_HEIGHT_PX`. The chevron is a pointer-only shortcut to the
+            same toggle (out of the tab order; the handle above is the
+            keyboard control and carries the state for assistive tech). */}
+        <div className="flex h-[28px] items-center justify-between gap-[8px] px-[12px] mb-[8px] tracking-[-0.2px]">
+          <p className="flex min-w-0 items-baseline gap-[8px]">
+            <span className="shrink-0 text-[20px] font-medium text-white">{t.player.upNextHeading}</span>
+            <span className="truncate text-[14px] font-light text-[#cfcfcf]">{t.player.upNextSubtitle(mood)}</span>
+          </p>
+          <button
+            type="button"
+            tabIndex={-1}
+            aria-hidden="true"
+            onClick={handleToggleClick}
+            // 28px visual; the `before:` extension makes the tap target
+            // 44×44 (it stays clear of the track row 8px below).
+            className="relative flex size-[28px] shrink-0 items-center justify-center text-white before:absolute before:-inset-[8px] before:content-['']"
+          >
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 16 16"
+              fill="none"
+              className={`transition-transform duration-200 motion-reduce:transition-none ${isExpanded ? "rotate-180" : ""}`}
+            >
+              <path d="M3.5 10 8 5.5l4.5 4.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </button>
         </div>
 
         <div
           id="mobile-up-next-list"
-          className="up-next-scroll flex min-h-0 flex-1 flex-col gap-[8px] overflow-y-auto overscroll-contain px-[20px] pb-[20px]"
+          className="up-next-scroll flex min-h-0 flex-1 flex-col gap-[8px] overflow-y-auto overscroll-contain px-[12px] pb-[20px]"
         >
           {tracks.map((track) => (
             <SelectableTrackRow
@@ -455,6 +510,7 @@ export default function MobileUpNextSheet({
               track={track}
               isCurrent={track.id === currentTrackId}
               accent={accent}
+              spectrum={spectrum}
               onSelect={onSelectTrack}
             />
           ))}

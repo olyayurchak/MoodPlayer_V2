@@ -5,7 +5,7 @@ import handOpenPalm from "../../imports/Player/hand-open-palm.png"
 import handClosedFist from "../../imports/Player/hand-closed-fist.png"
 import handThumb from "../../imports/Player/hand-thumb-up.png"
 
-type GestureEntry = {
+export type GestureEntry = {
   id: "open-palm" | "closed-fist" | "thumb-up" | "thumb-down"
   icon: string
   /** `true` flips the shared thumb-up image vertically for "thumb down" —
@@ -15,7 +15,7 @@ type GestureEntry = {
   flipVertical?: boolean
 }
 
-const GESTURE_ENTRIES: GestureEntry[] = [
+export const GESTURE_ENTRIES: GestureEntry[] = [
   { id: "open-palm", icon: handOpenPalm },
   { id: "closed-fist", icon: handClosedFist },
   { id: "thumb-up", icon: handThumb },

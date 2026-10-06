@@ -1,5 +1,5 @@
 import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from "react"
-import { CIRCLE_FILL_STYLE } from "./CameraPermissionVisual"
+import { CIRCLE_FILL_STYLE, MOBILE_ORB_PX, MOBILE_ORB_STYLE } from "./CameraPermissionVisual"
 import { drawFaceMesh, type MeshLayer } from "../camera/faceMeshDraw"
 import { useFaceLandmarker, type ExpressionSnapshot, type FaceLandmarkerStatus } from "../camera/useFaceLandmarker"
 import { FADE_ANCHOR_A, FADE_ANCHOR_B, useHeadPose } from "../camera/useHeadPose"
@@ -337,14 +337,15 @@ export default forwardRef<ScanningVisualHandle, ScanningVisualProps>(function Sc
 
   return (
     <>
-      {/* Mobile (below `lg`) — Figma node `289:6890`. */}
+      {/* Mobile (below `lg`) — Figma node `289:6890` (224px), enlarged to
+          248px to match `CameraPermissionVisual`'s mobile orb. */}
       <div
-        className="relative size-[224px] shrink-0 overflow-hidden rounded-full lg:hidden"
-        style={CIRCLE_FILL_STYLE}
+        className="relative shrink-0 overflow-hidden rounded-full lg:hidden"
+        style={MOBILE_ORB_STYLE}
       >
         <div className="absolute inset-0 overflow-hidden rounded-full [transform:scaleX(-1)]">
           <video ref={setDetectionVideoEl} muted playsInline autoPlay className="absolute inset-0 size-full object-cover" />
-          <canvas ref={canvasMobileRef} width={224} height={224} className="absolute inset-0 size-full" />
+          <canvas ref={canvasMobileRef} width={MOBILE_ORB_PX} height={MOBILE_ORB_PX} className="absolute inset-0 size-full" />
         </div>
         {/* Glass orb, shared with `CameraPermissionVisual` (`.scanner-orb-glass`) — above the live feed, below the caption. */}
         <div aria-hidden="true" className="scanner-orb-glass">

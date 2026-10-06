@@ -184,7 +184,10 @@ export default function PlayerControls({
     // this component's raw measured geometry). This value (35px = 22 +
     // 13, the middle of that requested range) is that second, smallest
     // adjustment on top of the first — not a re-measurement from scratch.
-    <div className={`flex w-full flex-col items-center ${isWide ? "gap-[28px]" : "gap-[35px]"}`}>
+    // Mobile (`default`) is 12px since the compact mobile Player layout: the
+    // volume slider sits close under the transport row, per the mobile
+    // reference (was 35px).
+    <div className={`flex w-full flex-col items-center ${isWide ? "gap-[28px]" : "gap-[12px]"}`}>
       <div className={`flex items-center justify-between ${isWide ? "w-[328px]" : "w-full"}`}>
         <button
           type="button"
@@ -266,10 +269,17 @@ export default function PlayerControls({
               layer (`.liquid-soft--volume`) under the input, so its colours
               can drift while staying clipped to `volume`%; the input then
               paints only the unfilled track. */}
+          {/* Mobile (`default` layout): the input itself is a transparent,
+              full 44px-tall touch target (an 8px input only took taps right
+              on the bar); the visible 8px track — unfilled grey under the
+              drifting fill — is this clip layer instead. Desktop is
+              unchanged. */}
           {liquid && (
             <span
               aria-hidden="true"
-              className="pointer-events-none absolute inset-x-0 top-1/2 h-[8px] -translate-y-1/2 overflow-hidden rounded-full"
+              className={`pointer-events-none absolute inset-x-0 top-1/2 h-[8px] -translate-y-1/2 overflow-hidden rounded-full ${
+                isWide ? "" : "bg-[rgba(255,255,255,0.18)]"
+              }`}
             >
               <span
                 className="liquid-soft liquid-soft--volume block h-full"
@@ -284,9 +294,13 @@ export default function PlayerControls({
             value={volume}
             onChange={(event) => onVolumeChange(Number(event.target.value))}
             aria-label={t.player.controls.volume}
-            className="relative h-[8px] w-full appearance-none rounded-full outline-none [&::-webkit-slider-thumb]:size-[16px] [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:shadow-[0_0_0_1.5px_rgba(255,255,255,0.4)] [&::-moz-range-thumb]:size-[16px] [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:border-0 [&::-moz-range-thumb]:bg-white"
+            className={`relative ${
+              liquid && !isWide ? "h-[44px] [&::-moz-range-track]:bg-transparent" : "h-[8px]"
+            } w-full appearance-none rounded-full outline-none [&::-webkit-slider-thumb]:size-[16px] [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:shadow-[0_0_0_1.5px_rgba(255,255,255,0.4)] [&::-moz-range-thumb]:size-[16px] [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:border-0 [&::-moz-range-thumb]:bg-white`}
             style={{
-              background: spectrum
+              background: liquid && !isWide
+                ? "transparent"
+                : spectrum
                 ? `linear-gradient(90deg, ${liquid ? "transparent" : spectrum.mid} ${volume}%, rgba(255,255,255,0.18) ${volume}%)`
                 : accent
                 ? `linear-gradient(90deg, ${accent.gradientFrom}, ${accent.gradientTo} ${volume}%, rgba(255,255,255,0.18) ${volume}%)`

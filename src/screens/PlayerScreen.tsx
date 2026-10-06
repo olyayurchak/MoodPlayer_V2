@@ -1,56 +1,19 @@
 import { useEffect, useRef, useState } from "react"
 import AppBackground from "../components/AppBackground"
 import MoodPlayerLogo from "../components/MoodPlayerLogo"
-import { gradientBorderStyle } from "../components/CameraPermissionVisual"
-import PlayerMoodSelector from "../components/player/PlayerMoodSelector"
 import PlayerWaveform, { BAR_COUNT } from "../components/player/PlayerWaveform"
 import PlayerControls from "../components/player/PlayerControls"
 import GestureControlsPanel from "../components/player/GestureControlsPanel"
 import ChooseVibeCard from "../components/player/ChooseVibeCard"
 import UpNextPanel from "../components/player/UpNextPanel"
-import MobileUpNextSheet from "../components/player/MobileUpNextSheet"
+import MobileUpNextSheet, { PEEK_HEIGHT_PX } from "../components/player/MobileUpNextSheet"
+import MobilePlayerTriggers from "../components/player/MobilePlayerTriggers"
 import { copy as t } from "../content/copy"
 import type { MoodId } from "../data/moods"
 import { testTracks } from "../data/playerTrack"
 import { PLAYER_MOOD_ACCENTS, PLAYER_SPECTRUM, PLAY_LIQUID, liquidVars } from "../data/playerMoodAccent"
 import { formatPlaybackTime, usePlayerAudio } from "../hooks/usePlayerAudio"
 import { useWaveformAnalyser } from "../hooks/useWaveformAnalyser"
-
-/** Shared "how strong should the artwork glow feel" recipe — the same
- *  blur/spread/offset for every mood's artwork glow, whatever rgba color
- *  that mood itself uses (`ARTWORK_GLOW_STYLE`'s own color below for any
- *  mood without its own approved accent — currently Chill — or
- *  `accent.artworkGlowMobile`/`Desktop` for Happy/Melancholic). A first
- *  pass hardcoded `0 0 40px 0` separately at each of those call sites;
- *  centralizing it here is what lets later intensity-only requests touch
- *  one blur value instead of several duplicated shadow strings. 28px blur
- *  / 0 spread / no vertical offset — reads as a soft ambient glow, not a
- *  dominant halo, alongside each color's own alpha (normalized to 0.4
- *  across all three moods — see `ARTWORK_GLOW_STYLE` below and each
- *  mood's own `artworkGlowMobile`/`Desktop` in `data/playerMoodAccent.ts`
- *  for that normalization's own history) so the glow stays visually
- *  secondary to the artwork's own gradient ring, the track title, and the
- *  Play button/transport controls. */
-function artworkGlowShadow(color: string) {
-  return `0 0 28px 0 ${color}`
-}
-
-/** A soft ambient glow behind the album artwork panel, reusing the exact
- *  RGB triple already backing the approved `--color-glow-purple` token
- *  (`index.css`) at low opacity — not a new color, and not Figma's own
- *  one-off indigo `box-shadow` value, which this replaces. `AppBackground`
- *  supplies this screen's main ambient glow field — the shared universal
- *  set for any mood without its own approved override (below, `accent`
- *  passes Happy's own `backgroundGlows` through instead) — this is a
- *  small additional accent specifically on the artwork panel itself, the
- *  one element Figma gives its own glow. Alpha (0.4) matches the
- *  cross-mood glow-intensity normalization applied to Happy's and
- *  Melancholic's own `artworkGlowMobile`/`Desktop` in
- *  `data/playerMoodAccent.ts` — this is Chill's (and any other
- *  mood-without-its-own-accent's) equivalent, so all three read as
- *  equally strong even though only this one has no `PLAYER_MOOD_ACCENTS`
- *  entry yet. */
-const ARTWORK_GLOW_STYLE = { boxShadow: artworkGlowShadow("rgba(87, 32, 111, 0.4)") }
 
 /** Previous's own "restart vs. actually go back" threshold, per this
  *  milestone's explicit spec: past this many seconds into the current
@@ -173,6 +136,12 @@ type PlayerScreenProps = {
  */
 export default function PlayerScreen({ mood, onLogoClick }: PlayerScreenProps) {
   const [activeMood, setActiveMood] = useState<MoodId>(mood)
+  // Mobile closed-state triggers (`MobilePlayerTriggers`): the mood trigger
+  // opens the Choose Vibe popover (which calls `setActiveMood`); the gesture
+  // trigger opens the Gesture Controls popover, whose switch sets this
+  // Mobile-only On/Off state (the replaced mobile gesture panel also kept
+  // its own, independent of the desktop rail's).
+  const [mobileGesturesOn, setMobileGesturesOn] = useState(false)
 
   useEffect(() => {
     setActiveMood(mood)
@@ -506,69 +475,60 @@ export default function PlayerScreen({ mood, onLogoClick }: PlayerScreenProps) {
   }
 
   return (
-    <main className="relative flex min-h-[max(100dvh,var(--spacing-frame-h))] items-center justify-center overflow-hidden bg-bg-base p-[24px] lg:min-h-[max(100dvh,var(--spacing-frame-h-lg))]">
+    // Mobile: top-aligned, one screen tall (`100svh`, the stable small
+    // viewport, so the layout doesn't jump with the browser toolbar) — the
+    // compact mobile Player is sized to fit above the fixed Up Next peek.
+    // The top padding adds the top safe-area inset (notch / status area;
+    // 0 where there is none). Desktop keeps its centered 1024px-minimum
+    // frame and plain 24px padding.
+    <main className="relative flex min-h-[100svh] items-start justify-center overflow-hidden bg-bg-base p-[24px] pt-[calc(24px_+_env(safe-area-inset-top))] lg:min-h-[max(100dvh,var(--spacing-frame-h-lg))] lg:items-center lg:pt-[24px]">
       <AppBackground mobileGlows={accent?.backgroundGlows.mobile} desktopGlows={accent?.backgroundGlows.desktop} />
       <div className="relative flex w-full max-w-[382px] flex-col gap-[24px] rounded-[24px] backdrop-blur-[20px] lg:max-w-[1242px] lg:gap-[64px] lg:border-[1.5px] lg:border-[rgba(255,255,255,0.12)] lg:bg-[rgba(118,118,118,0.08)] lg:p-[64px]">
         {/* ---------- Mobile (below `lg`) ---------- */}
-        {/* `pb-[56px]` — a measured audit found the last real content here
-            (`GestureControlsPanel`, since `MobileUpNextSheet` right below
-            it is portaled to `document.body` and takes up no space in
-            this flow) overlapped the fixed, always-present collapsed Up
-            Next sheet — its On/Off toggle's own *effective*, invisible-
-            hit-area-inclusive bottom (`GestureControlsPanel.tsx`'s own
-            `before:-bottom-[5px]`) sat ~19.8px past the sheet's top edge —
-            at every Mobile viewport tested (375×667 through 430×932),
-            including 430×932, the approved reference frame, where
-            there's no scrolling at all: this isn't a "can't scroll far
-            enough" bug, the collapsed sheet's 111px peek
-            (`MobileUpNextSheet.tsx`'s own `PEEK_HEIGHT_PX`, unchanged by
-            this fix) was never accounted for anywhere in this column's
-            own layout.
-            This whole column sits centered inside `<main>`'s own
-            `min-h-[max(100dvh,932px)]` box (`justify-center` above,
-            `items-center` on this row) — a fixed 932px document height on
-            every Mobile viewport under test (confirmed via
-            `document.documentElement.scrollHeight`), so adding bottom
-            padding here doesn't push the page taller, it only reduces the
-            equal empty space centering already leaves above and below
-            this column: half of any added padding is "spent" pushing the
-            column's *top* down less (i.e. the whole column shifts up by
-            exactly half of whatever's added here — confirmed live as a
-            uniform shift on every element checked: artwork,
-            `PlayerControls`, `GestureControlsPanel` itself). That's why
-            this is 56px, not the 111px full peek height the task
-            explicitly warns against reserving outright: the minimum
-            needed to turn the ~19.8px *effective* overlap into the
-            requested ~8px of clearance is `(19.8 + 8) × 2 ≈ 55.7px`; 56px
-            (a clean multiple of this codebase's own 8px spacing scale)
-            rounds that up just enough, landing at ~8.2px measured
-            clearance on the toggle's real invisible hit area rather than
-            a sub-8px margin. Scoped to this `lg:hidden` Mobile-only
-            column — Desktop never mounts this div, so `UpNextPanel`'s own
-            layout (no fixed overlay, no overlap to begin with) is
-            untouched. */}
-        {/* `gap-[16px]` (was `gap-[24px]`) — the tighter mobile gap keeps
-            the final `GestureControlsPanel` from overlapping the fixed
-            Mobile Up Next sheet below it. */}
-        <div className="flex w-full flex-col items-center gap-[16px] pb-[56px] lg:hidden">
+        {/* Compact closed-state Player (mobile reference, first screen): logo,
+            artwork, track info, waveform, transport + volume, then the vibe /
+            gesture triggers, 16px apart. The Up Next sheet is `fixed` and
+            portaled (no space in this flow), so the bottom padding reserves
+            its collapsed peek plus a 16px gap (minus `<main>`'s own 24px).
+            Logo, artwork edge/glow, Play and volume use the same mood palette
+            and liquid treatments as Desktop.
+            The artwork is landscape, at the desktop artwork's own 479:342
+            (~1.4:1) ratio. Its *height* is the one flexible item, so the
+            whole stack fits one screen: 100svh minus everything else —
+            608px = 24 top + 22 logo + 59 track info + 71 waveform + 132
+            controls + 48 triggers + 5 × 16 gaps + 8 extra logo → artwork
+            space (`mt-[8px]`, 24px total) + 164 bottom — and minus
+            both safe-area insets. Width follows from that height × 1.4,
+            never wider than the column; 220px minimum. The result is then
+            scaled to 92% so the artwork is less dominant; part of the
+            height that frees goes to a larger logo → artwork gap
+            (`mt-[15px]`, 31px total — 7px beyond the 8 budgeted above), the
+            rest lets the stack end a little higher.
+            The bottom padding also adds the bottom safe-area inset, matching
+            the sheet's own inset-aware peek. */}
+        <div
+          className="flex w-full flex-col items-center gap-[16px] lg:hidden"
+          style={{ paddingBottom: `calc(${PEEK_HEIGHT_PX + 16 - 24}px + env(safe-area-inset-bottom))` }}
+        >
           <div className="flex w-full items-center justify-between">
-            <MoodPlayerLogo onClick={onLogoClick} accent={accent} />
+            <MoodPlayerLogo onClick={onLogoClick} accent={accent} liquid={liquid} />
           </div>
 
-          <PlayerMoodSelector activeMood={activeMood} onSelect={setActiveMood} accent={accent} />
-
           <div
-            className="relative size-[196px] shrink-0 overflow-hidden rounded-[16px]"
-            style={accent ? { boxShadow: artworkGlowShadow(accent.artworkGlowMobile) } : { ...gradientBorderStyle("2px"), ...ARTWORK_GLOW_STYLE }}
+            className="relative mt-[15px] shrink-0 overflow-hidden rounded-[16px]"
+            style={{
+              width:
+                "calc(clamp(220px, calc((100svh - 608px - env(safe-area-inset-top) - env(safe-area-inset-bottom)) * 479 / 342), 100%) * 0.92)",
+              aspectRatio: "479 / 342",
+              boxShadow: `0 0 20px 0 color-mix(in oklab, ${liquid.mid} 22%, transparent)`,
+            }}
           >
             <img src={currentTrack.artwork} alt="" className="absolute inset-0 size-full object-cover" />
-            {accent && (
-              <span
-                aria-hidden="true"
-                style={artworkRingStyle(accent.gradient)}
-                className="pointer-events-none absolute inset-0 rounded-[16px]"
-              />
-            )}
+            <span
+              aria-hidden="true"
+              style={{ ...artworkRingStyle(undefined, "1px"), ...liquidVars(liquid) }}
+              className="liquid-soft liquid-soft--ring pointer-events-none absolute inset-0 rounded-[16px]"
+            />
           </div>
 
           <div className="flex w-full flex-col items-center gap-[8px] text-center tracking-[-0.2px]">
@@ -589,6 +549,8 @@ export default function PlayerScreen({ mood, onLogoClick }: PlayerScreenProps) {
 
           <PlayerControls
             accent={accent}
+            spectrum={spectrum}
+            liquid={liquid}
             isPlaying={isPlaying}
             onTogglePlay={handleTogglePlay}
             playDisabled={playDisabled}
@@ -604,13 +566,20 @@ export default function PlayerScreen({ mood, onLogoClick }: PlayerScreenProps) {
             onToggleRepeat={handleToggleRepeat}
           />
 
-          <GestureControlsPanel />
+          <MobilePlayerTriggers
+            activeMood={activeMood}
+            onMoodSelect={setActiveMood}
+            gesturesOn={mobileGesturesOn}
+            onGesturesChange={setMobileGesturesOn}
+            palette={liquid}
+          />
 
           <MobileUpNextSheet
             mood={moodName}
             tracks={upNextTracks}
             currentTrackId={currentTrack.id}
             accent={accent}
+            spectrum={spectrum}
             onSelectTrack={selectTrack}
           />
         </div>

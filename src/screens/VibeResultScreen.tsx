@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react"
 import AppBackground from "../components/AppBackground"
 import MoodPlayerLogo from "../components/MoodPlayerLogo"
-import { CIRCLE_FILL_STYLE } from "../components/CameraPermissionVisual"
+import { CIRCLE_FILL_STYLE, MOBILE_ORB_STYLE } from "../components/CameraPermissionVisual"
 import { copy as t } from "../content/copy"
 import { MOOD_IDS, type MoodId } from "../data/moods"
 import portraitDesktop from "../imports/VibeResult/portrait-desktop.png"
@@ -182,7 +182,8 @@ export default function VibeResultScreen({
           <MoodPlayerLogo onClick={onLogoClick} />
         </div>
 
-        <div className="flex w-full flex-col items-center gap-[24px] lg:flex-row lg:items-start lg:gap-[54px]">
+        {/* Mobile spacing hierarchy: orb + Scan again (8px) → 28px → label + mood (12px) → 24px → description → 40px → CTA. */}
+        <div className="flex w-full flex-col items-center gap-[28px] lg:flex-row lg:items-start lg:gap-[54px]">
           {/* Photo panel — the captured still frame when one exists,
               otherwise the same static Figma decorative asset this panel
               always used (see doc comment above); either way the *frame*
@@ -239,24 +240,25 @@ export default function VibeResultScreen({
               and adding them would mean importing three more Figma assets
               this screen doesn't otherwise use, beyond a border/frame-
               only styling fix. */}
-          <div
-            className="relative size-[224px] shrink-0 overflow-clip rounded-full lg:hidden"
-            style={CIRCLE_FILL_STYLE}
-          >
-            <img
-              src={capturedFrame ?? portraitMobile}
-              alt=""
-              className="absolute inset-0 size-full object-cover pointer-events-none"
-            />
-            {/* Static glass orb, shared with the Camera/Scanning orb (`.scanner-orb-glass`), settled softer here (`--settled`) — no motion. */}
-            <div aria-hidden="true" className="scanner-orb-glass scanner-orb-glass--settled" />
-            {/* Floating glass pill (`.orb-glass-pill`). Sized/placed so its ends — and the flush focus ring — stay inside the 224px circle even for the longer Ukrainian label. */}
+          {/* Mobile: orb, then "Scan again" as a compact secondary text
+              button *below* it (8px), so nothing covers the face. */}
+          <div className="flex flex-col items-center gap-[8px] lg:hidden">
+            <div className="relative shrink-0 overflow-clip rounded-full" style={MOBILE_ORB_STYLE}>
+              <img
+                src={capturedFrame ?? portraitMobile}
+                alt=""
+                className="absolute inset-0 size-full object-cover pointer-events-none"
+              />
+              {/* Static glass orb, shared with the Camera/Scanning orb (`.scanner-orb-glass`), settled softer here (`--settled`) — no motion. */}
+              <div aria-hidden="true" className="scanner-orb-glass scanner-orb-glass--settled" />
+            </div>
+            {/* 34px visual height; the `before:` extension grows the tap target to 44px without taking layout space. */}
             <button
               type="button"
               onClick={onScanAgain}
-              className="orb-glass-pill absolute bottom-[32px] left-1/2 flex h-[44px] -translate-x-1/2 items-center justify-center gap-[8px] whitespace-nowrap rounded-full px-[12px] text-[14px] font-medium text-white focus-visible:outline-2 focus-visible:outline-offset-0 focus-visible:outline-white"
+              className="relative flex h-[34px] items-center justify-center gap-[6px] whitespace-nowrap rounded-full px-[12px] text-[14px] font-medium text-[rgba(255,255,255,0.8)] transition-colors duration-200 before:absolute before:inset-x-0 before:-inset-y-[5px] before:content-[''] hover:bg-[rgba(255,255,255,0.06)] hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
             >
-              <img src={reloadMobile} alt="" className="size-[20px] shrink-0 object-cover" />
+              <img src={reloadMobile} alt="" className="size-[18px] shrink-0 object-cover opacity-80" />
               <span>{t.vibeResult.scanAgainLabel}</span>
             </button>
           </div>
@@ -283,9 +285,9 @@ export default function VibeResultScreen({
           </div>
 
           <div className="flex w-full flex-col items-center gap-[24px] lg:w-[568px] lg:items-start">
-            <div className="flex w-full flex-col items-center gap-[54px] lg:items-start">
+            <div className="flex w-full flex-col items-center gap-[40px] lg:items-start lg:gap-[54px]">
               <div className="flex w-full flex-col items-center gap-[24px] lg:items-start">
-                <div className="flex flex-col items-center gap-[20px] lg:items-start">
+                <div className="flex flex-col items-center gap-[12px] lg:items-start lg:gap-[20px]">
                   <p className="text-center text-[24px] font-medium leading-[1.4] text-[#f1f1f1] lg:text-left lg:text-[28px]">
                     {t.vibeResult.heading}
                   </p>
@@ -415,14 +417,17 @@ export default function VibeResultScreen({
                 and already fit `380px` on one row; `400px` still fits them
                 on one row too, so this is a safe increase for English as
                 well as Ukrainian. Mobile is unaffected — this `lg:`-only
-                width doesn't apply below that breakpoint, and Mobile's row
-                already wraps by design regardless of width (see the pill
-                container's own `flex-wrap` below, unchanged). */}
+                width doesn't apply below that breakpoint; Mobile keeps all
+                three pills on one row (see the pill container below). */}
             <div className="flex w-full flex-col items-center gap-[16px] border-t border-[rgba(241,241,241,0.2)] pt-[16px] lg:w-[400px] lg:items-start">
               <p className="w-full text-center text-[16px] font-light leading-[1.4] text-[#f1f1f1] lg:text-left">
                 {t.vibeResult.manualChooseLabel}
               </p>
-              <div className="flex w-full flex-wrap items-center justify-center gap-[12px] lg:justify-start">
+              {/* Mobile: one row (16px side padding fits all three even at
+                  360px); desktop keeps its wrapping row. The pills' white
+                  drop shadow is desktop-only — on mobile it read as a pale
+                  haze under the row. */}
+              <div className="flex w-full flex-nowrap items-center justify-center gap-[12px] lg:flex-wrap lg:justify-start">
                 {MOOD_IDS.map((moodId) => {
                   const isSelected = moodId === selectedMood
                   const label = t.vibeResult.moods[moodId].name
@@ -434,7 +439,7 @@ export default function VibeResultScreen({
                         type="button"
                         onClick={() => setSelectedMood(moodId)}
                         aria-pressed="true"
-                        className="relative shrink-0 rounded-pill border-[1.5px] border-transparent bg-[rgba(255,255,255,0.08)] px-[24px] py-[12px] text-[16px] font-medium text-white backdrop-blur-[20px] shadow-[0px_12px_24px_0px_rgba(255,255,255,0.08)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+                        className="relative shrink-0 rounded-pill border-[1.5px] border-transparent bg-[rgba(255,255,255,0.08)] px-[16px] py-[12px] text-[16px] font-medium text-white backdrop-blur-[20px] lg:px-[24px] lg:shadow-[0px_12px_24px_0px_rgba(255,255,255,0.08)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
                       >
                         {label}
                         <span
@@ -452,7 +457,7 @@ export default function VibeResultScreen({
                       type="button"
                       onClick={() => setSelectedMood(moodId)}
                       aria-pressed="false"
-                      className="shrink-0 rounded-pill border-[1.5px] border-[rgba(255,255,255,0.12)] bg-[rgba(255,255,255,0.08)] px-[24px] py-[12px] text-[16px] font-medium text-white backdrop-blur-[20px] shadow-[0px_12px_24px_0px_rgba(255,255,255,0.08)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+                      className="shrink-0 rounded-pill border-[1.5px] border-[rgba(255,255,255,0.12)] bg-[rgba(255,255,255,0.08)] px-[16px] py-[12px] text-[16px] font-medium text-white backdrop-blur-[20px] lg:px-[24px] lg:shadow-[0px_12px_24px_0px_rgba(255,255,255,0.08)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
                     >
                       {label}
                     </button>

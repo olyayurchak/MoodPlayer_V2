@@ -126,6 +126,12 @@ const PLAYBACK_RATE = 1.8
  *  Also used by `ScanningVisual`, so the live scan sits in the same orb. */
 export const CIRCLE_FILL_STYLE = { backgroundImage: PANEL_FILL_GRADIENT }
 
+/** The one mobile (below `lg`) orb diameter shared by Camera Permission,
+ *  Scanning and Vibe Result, so the orb never changes size between those
+ *  stages. Desktop keeps its own `size-[491px]`. */
+export const MOBILE_ORB_PX = 248
+export const MOBILE_ORB_STYLE = { ...CIRCLE_FILL_STYLE, width: MOBILE_ORB_PX, height: MOBILE_ORB_PX }
+
 export default function CameraPermissionVisual() {
   const mobileVideoRef = useRef<HTMLVideoElement | null>(null)
   const desktopVideoRef = useRef<HTMLVideoElement | null>(null)
@@ -180,10 +186,12 @@ export default function CameraPermissionVisual() {
 
   return (
     <>
-      {/* Mobile (below `lg`) — Figma node `347:372`. */}
+      {/* Mobile (below `lg`) — Figma node `347:372` (224px), enlarged to
+          248px for more hero presence; the three glows below are scaled by
+          the same 248/224 so the composition is unchanged. */}
       <div
-        className="relative size-[224px] shrink-0 overflow-hidden rounded-full lg:hidden"
-        style={CIRCLE_FILL_STYLE}
+        className="relative shrink-0 overflow-hidden rounded-full lg:hidden"
+        style={MOBILE_ORB_STYLE}
       >
         <video
           ref={mobileVideoRef}
@@ -198,17 +206,17 @@ export default function CameraPermissionVisual() {
           }}
           className="scanner-orb-media pointer-events-none absolute inset-0 size-full rounded-full object-cover"
         />
-        <div className="absolute left-[-49.7px] top-[36.87px] size-[97.569px]">
+        <div className="absolute left-[-55.03px] top-[40.82px] size-[108.02px]">
           <div className="absolute inset-[-65.73%]">
             <img alt="" className="block size-full max-w-none" src={ellipse23Mobile} />
           </div>
         </div>
-        <div className="absolute left-[166.97px] top-[100.09px] size-[97.569px]">
+        <div className="absolute left-[184.86px] top-[110.81px] size-[108.02px]">
           <div className="absolute inset-[-75.12%]">
             <img alt="" className="block size-full max-w-none" src={ellipse24Mobile} />
           </div>
         </div>
-        <div className="absolute left-[101px] top-[-61.15px] size-[123.221px]">
+        <div className="absolute left-[111.82px] top-[-67.7px] size-[136.42px]">
           <div className="absolute inset-[-59.48%]">
             <img alt="" className="block size-full max-w-none" src={ellipse25Mobile} />
           </div>

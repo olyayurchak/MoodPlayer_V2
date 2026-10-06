@@ -142,6 +142,11 @@ export type Copy = {
      *  existing gradient ring, per this feature's own explicit
      *  "don't rely only on color" requirement. */
     nowPlayingLabel: string
+    /** Mobile Player closed-state triggers (`MobilePlayerTriggers.tsx`):
+     *  the mood trigger's accessible name, and the gesture trigger's
+     *  visible prefix ("Gestures · On"). */
+    moodTriggerLabel: (moodName: string) => string
+    gesturesTrigger: string
     controls: {
       shuffle: string
       previous: string
@@ -258,6 +263,8 @@ export const copy: Copy = {
     upNextSheetCollapseLabel: "Collapse Up Next",
     selectTrack: (title, artist) => `Play ${title} by ${artist}`,
     nowPlayingLabel: "Now playing",
+    moodTriggerLabel: (moodName) => `Vibe: ${moodName}. Switch vibe`,
+    gesturesTrigger: "Gestures",
     controls: {
       shuffle: "Shuffle",
       previous: "Previous track",
