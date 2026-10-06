@@ -116,7 +116,7 @@ export default function UpNextPanel({
   const { t } = useLanguage()
 
   return (
-    <div className="flex w-full flex-col gap-[20px] rounded-[24px] bg-[rgba(255,255,255,0.08)] p-[20px] backdrop-blur-[20px] lg:h-[492px] lg:w-[385px] lg:shrink-0">
+    <div className="flex w-full flex-col gap-[20px] rounded-[24px] bg-[rgba(255,255,255,0.08)] p-[20px] backdrop-blur-[20px] lg:pt-[24px] lg:h-[715px] lg:w-[479px] lg:shrink-0">
       <div className="flex flex-col gap-[2px] tracking-[-0.2px]">
         <p className="text-[20px] font-medium text-white lg:text-[24px]">{t.player.upNextHeading}</p>
         <p className="text-[16px] font-light text-[#cfcfcf]">{t.player.upNextSubtitle(mood)}</p>

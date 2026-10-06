@@ -91,6 +91,7 @@ export default function PlayerControls({
   onToggleShuffle,
   isRepeatOn,
   onToggleRepeat,
+  layout = "default",
 }: {
   accent?: PlayerMoodAccent
   isPlaying: boolean
@@ -136,8 +137,17 @@ export default function PlayerControls({
    *  behavior lives in `PlayerScreen`. */
   isRepeatOn: boolean
   onToggleRepeat: () => void
+  /** `"wide"` is the Desktop Player's Now Playing column (Figma node
+   *  `549:1194`/`549:1225`, 479px wide): the transport row keeps Figma's
+   *  centred 328px group (16px inner gaps) instead of spreading to the
+   *  column edges, rows sit 28px apart, and the volume row's 44px hit
+   *  area is pulled back (`-my-[12px]`) to Figma's 20px layout height.
+   *  `"default"` is the original layout (Mobile). Markup and behavior are
+   *  otherwise identical. */
+  layout?: "default" | "wide"
 }) {
   const { t } = useLanguage()
+  const isWide = layout === "wide"
 
   return (
     // The gap here is the only spacing between this component's two rows
@@ -163,8 +173,8 @@ export default function PlayerControls({
     // this component's raw measured geometry). This value (35px = 22 +
     // 13, the middle of that requested range) is that second, smallest
     // adjustment on top of the first — not a re-measurement from scratch.
-    <div className="flex w-full flex-col items-center gap-[35px]">
-      <div className="flex w-full items-center justify-between">
+    <div className={`flex w-full flex-col items-center ${isWide ? "gap-[28px]" : "gap-[35px]"}`}>
+      <div className={`flex items-center justify-between ${isWide ? "w-[328px]" : "w-full"}`}>
         <button
           type="button"
           onClick={onToggleShuffle}
@@ -175,7 +185,7 @@ export default function PlayerControls({
           <ShuffleIcon size={20} />
         </button>
 
-        <div className="flex items-center gap-[12px]">
+        <div className={`flex items-center ${isWide ? "gap-[16px]" : "gap-[12px]"}`}>
           <button
             type="button"
             onClick={onPrevious}
@@ -222,7 +232,7 @@ export default function PlayerControls({
         </button>
       </div>
 
-      <div className="flex w-full items-center gap-[10px]">
+      <div className={`flex w-full items-center gap-[10px] ${isWide ? "-my-[12px]" : ""}`}>
         <VolumeIcon size={20} className="shrink-0 text-white" muted={volume === 0} />
         {/* Wrapped in a `min-h-[44px] flex items-center` container so the
             real drag/tap target meets Guidelines §12's 44px mobile

@@ -55,15 +55,25 @@ export default function PlayerMoodSelector({
   activeMood,
   onSelect,
   accent,
+  orientation = "row",
 }: {
   activeMood: MoodId
   onSelect: (mood: MoodId) => void
   accent?: PlayerMoodAccent
+  /** `"column"` stacks the same pills vertically (the Desktop Choose Vibe
+   *  menu, `ChooseVibeCard.tsx`); `"row"` is the original layout. */
+  orientation?: "row" | "column"
 }) {
   const { t } = useLanguage()
 
   return (
-    <div className="flex flex-wrap items-center justify-center gap-[12px]">
+    <div
+      className={
+        orientation === "column"
+          ? "flex flex-col items-stretch gap-[8px]"
+          : "flex flex-wrap items-center justify-center gap-[12px]"
+      }
+    >
       {MOOD_IDS.map((moodId) => {
         const isSelected = moodId === activeMood
         const label = t.vibeResult.moods[moodId].name

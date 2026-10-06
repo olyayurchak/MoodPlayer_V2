@@ -7,6 +7,7 @@ import PlayerMoodSelector from "../components/player/PlayerMoodSelector"
 import PlayerWaveform, { BAR_COUNT } from "../components/player/PlayerWaveform"
 import PlayerControls from "../components/player/PlayerControls"
 import GestureControlsPanel from "../components/player/GestureControlsPanel"
+import ChooseVibeCard from "../components/player/ChooseVibeCard"
 import UpNextPanel from "../components/player/UpNextPanel"
 import MobileUpNextSheet from "../components/player/MobileUpNextSheet"
 import { useLanguage } from "../localization/LanguageContext"
@@ -615,62 +616,46 @@ export default function PlayerScreen({ mood, onLogoClick }: PlayerScreenProps) {
         </div>
 
         {/* ---------- Desktop (`lg` and up) ---------- */}
+        {/* Figma node `549:1147`: header, then one 715px row of three zones —
+            Now Playing (479px) · Up Next (479px) · utility rail (108px),
+            24px apart (479 + 24 + 479 + 24 + 108 = this card's 1114px
+            content width). Every piece is the same component/handler the
+            previous Desktop layout used; only placement changed. The mood
+            selector moved from the header into the rail's Choose Vibe card,
+            and the gesture panel moved into the rail. */}
         <div className="hidden w-full flex-col gap-[64px] lg:flex">
           <div className="flex w-full items-center justify-between">
             <MoodPlayerLogo onClick={onLogoClick} accent={accent} />
-            <PlayerMoodSelector activeMood={activeMood} onSelect={setActiveMood} accent={accent} />
             <LanguageSwitcher />
           </div>
 
-          <div className="flex w-full items-center gap-[32px]">
-            {/* `h-[492px]` (matching `UpNextPanel`'s own already-fixed
-                `lg:h-[492px]`) + `justify-between` (replacing a fixed
-                `gap-[42px]`) — added to fix a confirmed ~11.4px bottom-edge
-                misalignment between this column's own Gesture Controls
-                panel and the Up Next panel beside it: with no explicit
-                height here, this column's real content height (measured
-                ~514.8px — the artwork row's 342px, the old 42px gap, and
-                the Gesture Controls panel's own real ~118px, which has
-                grown since that panel's last independent sizing pass) no
-                longer matched Up Next's own fixed 492px, so the outer
-                row's `items-center` (unchanged) split that ~22.8px
-                difference evenly above and below, leaving both panels'
-                bottoms (and tops) each off by ~11.4px instead of flush.
-                Pinning this column to that same 492px and swapping the
-                fixed gap for `justify-between` closes exactly that gap
-                (now computed automatically as whatever space is actually
-                left over between the two children, not a re-guessed fixed
-                number) — the artwork row still starts flush at this
-                column's own top (nothing about its own position changed),
-                and the Gesture Controls panel's own internal padding/
-                sizing is completely untouched, only its Y position shifts
-                up to reach this column's new bottom edge exactly, which is
-                Up Next's own bottom edge too. Both panels are Desktop-only
-                (this whole subtree is `hidden lg:flex`, `w-[698px]` right
-                beside this is itself an unprefixed literal for the same
-                reason), so no Mobile-facing class changed. */}
-            <div className="flex h-[492px] w-[698px] shrink-0 flex-col justify-between">
-              <div className="flex w-full items-start gap-[31px]">
-                <div
-                  className="relative size-[342px] shrink-0 overflow-hidden rounded-[24px]"
-                  style={accent ? { boxShadow: artworkGlowShadow(accent.artworkGlowDesktop) } : { ...gradientBorderStyle("2px"), ...ARTWORK_GLOW_STYLE }}
-                >
-                  <img src={currentTrack.artwork} alt="" className="absolute inset-0 size-full object-cover" />
-                  {accent && (
-                    <span
-                      aria-hidden="true"
-                      style={artworkRingStyle(accent.gradient)}
-                      className="pointer-events-none absolute inset-0 rounded-[24px]"
-                    />
-                  )}
+          <div className="flex w-full items-start gap-[24px]">
+            {/* A. Now Playing — Figma `549:1164`: artwork 479×342, then
+                title/artist, waveform (+36px), transport (+29px) and
+                volume (+28px, inside `PlayerControls`) — 715px in total,
+                level with the Up Next panel and the rail. */}
+            <div className="flex w-[479px] shrink-0 flex-col gap-[31px]">
+              <div
+                className="relative h-[342px] w-full shrink-0 overflow-hidden rounded-[24px]"
+                style={accent ? { boxShadow: artworkGlowShadow(accent.artworkGlowDesktop) } : { ...gradientBorderStyle("2px"), ...ARTWORK_GLOW_STYLE }}
+              >
+                <img src={currentTrack.artwork} alt="" className="absolute inset-0 size-full object-cover" />
+                {accent && (
+                  <span
+                    aria-hidden="true"
+                    style={artworkRingStyle(accent.gradient)}
+                    className="pointer-events-none absolute inset-0 rounded-[24px]"
+                  />
+                )}
+              </div>
+
+              <div className="flex w-full flex-col items-center">
+                <div className="flex w-full flex-col items-center gap-[12px] text-center tracking-[-0.2px]">
+                  <p className="w-full text-[36px] font-medium leading-[1.2] text-white">{currentTrack.title}</p>
+                  <p className="w-full text-[20px] font-light leading-[1.4] text-[#cfcfcf]">{currentTrack.artist}</p>
                 </div>
 
-                <div className="flex w-[324px] flex-col items-center gap-[29px]">
-                  <div className="flex w-full flex-col items-center gap-[12px] text-center tracking-[-0.2px]">
-                    <p className="w-full text-[28px] font-medium leading-[1.2] text-white">{currentTrack.title}</p>
-                    <p className="w-full text-[18px] font-light leading-[1.4] text-[#cfcfcf]">{currentTrack.artist}</p>
-                  </div>
-
+                <div className="mt-[36px] w-full">
                   <PlayerWaveform
                     progress={waveformProgress}
                     elapsedLabel={elapsedLabel}
@@ -681,8 +666,11 @@ export default function PlayerScreen({ mood, onLogoClick }: PlayerScreenProps) {
                     duration={audio.duration}
                     onSeek={audio.seekTo}
                   />
+                </div>
 
+                <div className="mt-[29px] w-full">
                   <PlayerControls
+                    layout="wide"
                     accent={accent}
                     isPlaying={isPlaying}
                     onTogglePlay={handleTogglePlay}
@@ -700,11 +688,19 @@ export default function PlayerScreen({ mood, onLogoClick }: PlayerScreenProps) {
                   />
                 </div>
               </div>
-
-              <GestureControlsPanel />
             </div>
 
+            {/* B. Up Next — Figma `549:1243`, 479×715 (sized in `UpNextPanel`). */}
             <UpNextPanel mood={moodName} tracks={upNextTracks} currentTrackId={currentTrack.id} accent={accent} />
+
+            {/* C. Utility rail — Figma `549:1330`: Choose Vibe (108×172) and
+                Gesture Control (fills the rest), 12px apart. */}
+            <div className="flex h-[715px] w-[108px] shrink-0 flex-col gap-[12px]">
+              <ChooseVibeCard activeMood={activeMood} onSelect={setActiveMood} accent={accent} />
+              <div className="min-h-0 w-full flex-1">
+                <GestureControlsPanel variant="rail" />
+              </div>
+            </div>
           </div>
         </div>
       </div>

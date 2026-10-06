@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef, useState } from "react"
+import { useId, useLayoutEffect, useRef, useState } from "react"
 import { useLanguage } from "../../localization/LanguageContext"
 import handOpenPalm from "../../imports/Player/hand-open-palm.png"
 import handClosedFist from "../../imports/Player/hand-closed-fist.png"
@@ -93,9 +93,19 @@ const TOGGLE_BORDER_WIDTH = 1.5
 // itself, its sliding indicator, the hand icons, and the caption text
 // are unaffected either way and stay exactly as they are today for
 // every mood.
-export default function GestureControlsPanel() {
+export default function GestureControlsPanel({
+  variant = "row",
+}: {
+  /** `"rail"` is the Desktop Player's narrow right-hand utility rail
+   *  (Figma node `549:1331`, 108px wide): the same On/Off state and the
+   *  same four gesture → action hints, stacked vertically, with the On/Off
+   *  pair shown as a single knob switch (`role="switch"`) per that frame.
+   *  `"row"` is the original horizontal panel (Mobile). */
+  variant?: "row" | "rail"
+} = {}) {
   const { t } = useLanguage()
   const [isEnabled, setIsEnabled] = useState(false)
+  const railHeadingId = useId()
 
   // The sliding active-indicator's own measured geometry (relative to
   // `toggleGroupRef`, its positioning parent) — see the doc comment on
@@ -179,6 +189,65 @@ export default function GestureControlsPanel() {
     "closed-fist": { caption: t.player.gestures.closedFist, action: t.player.gestures.actionPause },
     "thumb-up": { caption: t.player.gestures.thumbUp, action: t.player.gestures.actionNext },
     "thumb-down": { caption: t.player.gestures.thumbDown, action: t.player.gestures.actionPrevious },
+  }
+
+  if (variant === "rail") {
+    return (
+      <div
+        role="group"
+        aria-labelledby={railHeadingId}
+        className="flex size-full flex-col items-center gap-[20px] rounded-[24px] bg-[rgba(255,255,255,0.08)] px-[8px] py-[20px] backdrop-blur-[20px]"
+      >
+        <p id={railHeadingId} className="text-center text-[18px] font-medium leading-[1.25] text-white">
+          {t.player.gestures.heading}
+        </p>
+
+        <div className="flex flex-col items-center gap-[6px]">
+          {/* Same `isEnabled` state as the row variant's On/Off pair. The
+              track uses the existing brand CTA gradient tokens when on (not
+              a mood colour — this panel stays neutral across moods). */}
+          <button
+            type="button"
+            role="switch"
+            aria-checked={isEnabled}
+            aria-labelledby={railHeadingId}
+            onClick={() => setIsEnabled((on) => !on)}
+            className={`relative h-[40px] w-[80px] shrink-0 rounded-pill border-[1.5px] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white ${
+              isEnabled
+                ? "border-transparent bg-linear-to-r from-cta-button-from via-cta-button-via to-cta-button-to shadow-[0px_12px_24px_0px_rgba(255,255,255,0.08)]"
+                : "border-[rgba(255,255,255,0.25)] bg-[rgba(255,255,255,0.08)]"
+            }`}
+          >
+            <span
+              aria-hidden="true"
+              className={`absolute top-1/2 left-[3.5px] size-[30px] -translate-y-1/2 rounded-full bg-white shadow-[0_2px_6px_rgba(0,0,0,0.25)] transition-transform duration-200 ease-out motion-reduce:transition-none ${
+                isEnabled ? "translate-x-[40px]" : "translate-x-0"
+              }`}
+            />
+          </button>
+          <span aria-hidden="true" className="text-[16px] font-medium text-white">
+            {isEnabled ? t.player.gestures.on : t.player.gestures.off}
+          </span>
+        </div>
+
+        <ul className="flex min-h-0 flex-1 flex-col items-center justify-center gap-[22px]">
+          {GESTURE_ENTRIES.map((entry) => {
+            const labels = gestureLabels[entry.id]
+            return (
+              <li key={entry.id} className="flex w-full flex-col items-center gap-[4px] text-center">
+                <img
+                  src={entry.icon}
+                  alt=""
+                  className={`size-[32px] shrink-0 object-cover opacity-60 ${entry.flipVertical ? "-scale-y-100" : ""}`}
+                />
+                <p className="text-[10px] font-light leading-[1.2] text-[#cfcfcf]">{labels.caption}</p>
+                <p className="text-[12px] font-medium leading-[1.2] text-white">{labels.action}</p>
+              </li>
+            )
+          })}
+        </ul>
+      </div>
+    )
   }
 
   return (

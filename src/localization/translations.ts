@@ -141,6 +141,11 @@ export type Translations = {
    *  library added for a single call site. */
   player: {
     upNextHeading: string
+    /** Desktop Player utility rail's mood card heading (Figma node
+     *  `549:1378`, "Choose Vibe"). The Ukrainian string is composed from
+     *  this file's existing terms ("обери", "вайб") and still needs
+     *  approval — no Ukrainian copy was supplied for it. */
+    chooseVibeHeading: string
     upNextSubtitle: (moodName: string) => string
     /** Accessible name for the Mobile Up Next bottom sheet's drag-handle
      *  toggle (`MobileUpNextSheet.tsx`) — state-dependent (mirrors
@@ -279,6 +284,7 @@ export const translations: Record<Language, Translations> = {
     },
     player: {
       upNextHeading: "Up next",
+      chooseVibeHeading: "Choose Vibe",
       upNextSubtitle: (moodName) => `from the “${moodName}” playlist`,
       upNextSheetExpandLabel: "Expand Up Next",
       upNextSheetCollapseLabel: "Collapse Up Next",
@@ -385,6 +391,7 @@ export const translations: Record<Language, Translations> = {
     },
     player: {
       upNextHeading: "Далі в черзі",
+      chooseVibeHeading: "Обери вайб",
       upNextSubtitle: (moodName) => `з плейліста «${moodName}»`,
       upNextSheetExpandLabel: "Розгорнути «Далі в черзі»",
       upNextSheetCollapseLabel: "Згорнути «Далі в черзі»",
