@@ -1,11 +1,7 @@
-import { useLanguage } from "../localization/LanguageContext"
+import { copy as t } from "../content/copy"
 
-/** Wordmark and tagline pair. Reads the global language preference — Intro
- *  has no switcher of its own, it just renders in whichever language is
- *  currently active. */
+/** Wordmark and tagline pair (English copy from `content/copy.ts`). */
 export default function TextStack() {
-  const { t } = useLanguage()
-
   return (
     <div className="flex w-full flex-col items-center gap-stack-gap text-center wrap-break-word">
       <h1 className="font-display text-wordmark font-bold text-text-primary lg:text-wordmark-lg">

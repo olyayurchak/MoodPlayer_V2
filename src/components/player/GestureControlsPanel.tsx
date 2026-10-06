@@ -1,5 +1,6 @@
 import { useId, useLayoutEffect, useRef, useState } from "react"
-import { useLanguage } from "../../localization/LanguageContext"
+import { copy as t } from "../../content/copy"
+import { spectrumGradient, type MoodSpectrum } from "../../data/playerMoodAccent"
 import handOpenPalm from "../../imports/Player/hand-open-palm.png"
 import handClosedFist from "../../imports/Player/hand-closed-fist.png"
 import handThumb from "../../imports/Player/hand-thumb-up.png"
@@ -95,6 +96,7 @@ const TOGGLE_BORDER_WIDTH = 1.5
 // every mood.
 export default function GestureControlsPanel({
   variant = "row",
+  palette,
 }: {
   /** `"rail"` is the Desktop Player's narrow right-hand utility rail
    *  (Figma node `549:1331`, 108px wide): the same On/Off state and the
@@ -102,8 +104,11 @@ export default function GestureControlsPanel({
    *  pair shown as a single knob switch (`role="switch"`) per that frame.
    *  `"row"` is the original horizontal panel (Mobile). */
   variant?: "row" | "rail"
+  /** Rail only: the active mood's `PLAY_LIQUID` colours. When set, the
+   *  switch's ON track is a static gradient of them (`spectrumGradient`)
+   *  instead of the generic brand CTA gradient. OFF stays neutral. */
+  palette?: MoodSpectrum
 } = {}) {
-  const { t } = useLanguage()
   const [isEnabled, setIsEnabled] = useState(false)
   const railHeadingId = useId()
 
@@ -180,10 +185,8 @@ export default function GestureControlsPanel({
   // Reads `t.player.gestures.action*`, not `t.player.controls.play/
   // pause/next/previous` — those `controls.*` strings are also the real
   // Play/Pause/Next/Previous buttons' own `aria-label`s (`PlayerControls.
-  // tsx`), and a shortened-Ukrainian-only change to this legend must not
-  // also shorten those buttons' Ukrainian `aria-label`s. See the
-  // `actionPlay`/etc. doc comment in `translations.ts` for the full
-  // reasoning.
+  // tsx`), so the legend can change without changing those buttons'
+  // names. See the `actionPlay`/etc. doc comment in `content/copy.ts`.
   const gestureLabels: Record<GestureEntry["id"], { caption: string; action: string }> = {
     "open-palm": { caption: t.player.gestures.openPalm, action: t.player.gestures.actionPlay },
     "closed-fist": { caption: t.player.gestures.closedFist, action: t.player.gestures.actionPause },
@@ -203,18 +206,21 @@ export default function GestureControlsPanel({
         </p>
 
         <div className="flex flex-col items-center gap-[6px]">
-          {/* Same `isEnabled` state as the row variant's On/Off pair. The
-              track uses the existing brand CTA gradient tokens when on (not
-              a mood colour — this panel stays neutral across moods). */}
+          {/* Same `isEnabled` state as the row variant's On/Off pair. When
+              on, the track is the mood's static `palette` gradient (or the
+              brand CTA gradient tokens without one); off stays neutral. */}
           <button
             type="button"
             role="switch"
             aria-checked={isEnabled}
             aria-labelledby={railHeadingId}
             onClick={() => setIsEnabled((on) => !on)}
+            style={isEnabled && palette ? { backgroundImage: spectrumGradient(palette, 1, 90) } : undefined}
             className={`relative h-[40px] w-[80px] shrink-0 rounded-pill border-[1.5px] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white ${
               isEnabled
-                ? "border-transparent bg-linear-to-r from-cta-button-from via-cta-button-via to-cta-button-to shadow-[0px_12px_24px_0px_rgba(255,255,255,0.08)]"
+                ? `border-transparent shadow-[0px_12px_24px_0px_rgba(255,255,255,0.08)] ${
+                    palette ? "" : "bg-linear-to-r from-cta-button-from via-cta-button-via to-cta-button-to"
+                  }`
                 : "border-[rgba(255,255,255,0.25)] bg-[rgba(255,255,255,0.08)]"
             }`}
           >
@@ -335,7 +341,7 @@ export default function GestureControlsPanel({
             only ~35.5px tall on Mobile (`py-[8px]` plus the `text-[13px]`
             line) — under the ~44px iOS ergonomic baseline. Fixed with the
             same invisible `before:` pseudo-element technique
-            `LanguageSwitcher.tsx`/`MoodPlayerLogo.tsx`/
+            the former language switcher/`MoodPlayerLogo.tsx`/
             `MobileUpNextSheet.tsx` already use, not a real padding
             increase: a real `py` increase would grow this pill's own
             layout box, which (being a flex sibling of the four gesture

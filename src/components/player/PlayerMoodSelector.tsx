@@ -1,6 +1,7 @@
 import { MOOD_IDS, type MoodId } from "../../data/moods"
-import type { PlayerMoodAccent } from "../../data/playerMoodAccent"
-import { useLanguage } from "../../localization/LanguageContext"
+import { PLAYER_SPECTRUM, spectrumGradient, type PlayerMoodAccent } from "../../data/playerMoodAccent"
+import { copy as t } from "../../content/copy"
+import { MoodIcon } from "./moodIcons"
 
 /** The selected mood pill's gradient ring — byte-for-byte the same
  *  technique `VibeResultScreen.tsx` already established as the approved
@@ -60,20 +61,45 @@ export default function PlayerMoodSelector({
   activeMood: MoodId
   onSelect: (mood: MoodId) => void
   accent?: PlayerMoodAccent
-  /** `"column"` stacks the same pills vertically (the Desktop Choose Vibe
-   *  menu, `ChooseVibeCard.tsx`); `"row"` is the original layout. */
+  /** `"column"` is the Desktop Choose Vibe menu (`ChooseVibeCard.tsx`):
+   *  Figma `582:964` rows — mood icon + label, 136×42, 8px radius — with
+   *  the same `aria-pressed` buttons and selected accent ring as the pills.
+   *  `"row"` is the original pill layout (Mobile). */
   orientation?: "row" | "column"
 }) {
-  const { t } = useLanguage()
+  if (orientation === "column") {
+    return (
+      <div className="flex flex-col items-stretch gap-[12px]">
+        {MOOD_IDS.map((moodId) => {
+          const isSelected = moodId === activeMood
+          return (
+            <button
+              key={moodId}
+              type="button"
+              onClick={() => onSelect(moodId)}
+              aria-pressed={isSelected}
+              className={`relative flex h-[42px] w-[136px] shrink-0 items-center gap-[4px] rounded-[8px] border bg-[rgba(255,255,255,0.08)] px-[12px] py-[4px] text-left text-[12px] font-medium leading-[1.2] text-[#cfcfcf] backdrop-blur-[20px] transition-colors duration-200 hover:bg-[rgba(255,255,255,0.14)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white ${
+                isSelected ? "border-transparent" : "border-[rgba(255,255,255,0.06)]"
+              }`}
+            >
+              <MoodIcon mood={moodId} size={32} className="shrink-0" />
+              <span className="whitespace-nowrap">{t.vibeResult.moods[moodId].name}</span>
+              {isSelected && (
+                <span
+                  aria-hidden="true"
+                  style={{ ...SELECTED_MOOD_PILL_RING_STYLE, padding: "1px", background: spectrumGradient(PLAYER_SPECTRUM[activeMood], 0.55) }}
+                  className="pointer-events-none absolute inset-0 rounded-[8px]"
+                />
+              )}
+            </button>
+          )
+        })}
+      </div>
+    )
+  }
 
   return (
-    <div
-      className={
-        orientation === "column"
-          ? "flex flex-col items-stretch gap-[8px]"
-          : "flex flex-wrap items-center justify-center gap-[12px]"
-      }
-    >
+    <div className="flex flex-wrap items-center justify-center gap-[12px]">
       {MOOD_IDS.map((moodId) => {
         const isSelected = moodId === activeMood
         const label = t.vibeResult.moods[moodId].name

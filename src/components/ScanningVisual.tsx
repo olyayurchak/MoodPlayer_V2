@@ -3,7 +3,7 @@ import { CIRCLE_FILL_STYLE } from "./CameraPermissionVisual"
 import { drawFaceMesh, type MeshLayer } from "../camera/faceMeshDraw"
 import { useFaceLandmarker, type ExpressionSnapshot, type FaceLandmarkerStatus } from "../camera/useFaceLandmarker"
 import { FADE_ANCHOR_A, FADE_ANCHOR_B, useHeadPose } from "../camera/useHeadPose"
-import { useLanguage } from "../localization/LanguageContext"
+import { copy as t } from "../content/copy"
 
 type ScanningVisualProps = {
   stream: MediaStream | null
@@ -119,7 +119,6 @@ export default forwardRef<ScanningVisualHandle, ScanningVisualProps>(function Sc
   { stream, onValidScanChange, onFaceStatusChange, onBlendshapesChange },
   ref,
 ) {
-  const { t } = useLanguage()
 
   // The Mobile tree's `<video>` doubles as the detection source (see doc
   // comment above) — a callback ref (state, not a plain `useRef`) so the

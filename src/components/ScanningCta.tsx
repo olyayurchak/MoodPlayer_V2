@@ -1,4 +1,4 @@
-import { useLanguage } from "../localization/LanguageContext"
+import { copy as t } from "../content/copy"
 
 // Matches `--radius-pill` (`index.css`) — the fill's left corners always
 // use this, so they read as the CTA's own rounded end rather than a
@@ -105,8 +105,6 @@ type ScanningCtaProps = {
  * regardless of how that height is set, so it needs no change.
  */
 export default function ScanningCta({ progress, completed }: ScanningCtaProps) {
-  const { t } = useLanguage()
-
   const rightRadiusProgress = Math.min(
     1,
     Math.max(0, (progress - RIGHT_RADIUS_START_PROGRESS) / (1 - RIGHT_RADIUS_START_PROGRESS)),

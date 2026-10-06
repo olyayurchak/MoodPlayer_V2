@@ -1,13 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from "react"
 import AppBackground from "../components/AppBackground"
 import MoodPlayerLogo from "../components/MoodPlayerLogo"
-import LanguageSwitcher from "../components/LanguageSwitcher"
 import CameraPermissionVisual from "../components/CameraPermissionVisual"
 import CameraPermissionCta from "../components/CameraPermissionCta"
 import ScanningVisual, { type ScanningVisualHandle } from "../components/ScanningVisual"
 import ScanningCta from "../components/ScanningCta"
 import { cameraPermissionFeatures } from "../data/cameraPermissionFeatures"
-import { useLanguage } from "../localization/LanguageContext"
+import { copy as t } from "../content/copy"
 import type { CameraStreamStatus } from "../camera/useCameraStream"
 import { useScanProgress } from "../camera/useScanProgress"
 import type { FaceLandmarkerStatus } from "../camera/useFaceLandmarker"
@@ -181,17 +180,9 @@ const REQUESTING_LABEL_DELAY_MS = 700
  * own doc comment on why it's a total function that always returns a
  * real `MoodId`, never a missing/undefined result.
  *
- * `LanguageSwitcher` sits back inside the header row alongside
- * `MoodPlayerLogo` (`justify-between` puts the logo left / switcher
- * right), matching Figma node `284:2526`'s own header row exactly — a
- * later, explicit task restored this after a brief detour where it lived
- * absolutely positioned on this `<main>` instead (pinned to the true
- * viewport corner, independent of this panel's own vertical centering, to
- * match `IntroScreen`'s switcher position at the time). `IntroScreen`'s
- * own switcher has since moved to its own distinct position and is
- * explicitly out of scope for this reversion — only this screen's (and
- * `VibeResultScreen`'s matching) header row is restored to the
- * Figma-matching in-container layout.
+ * The header row holds only `MoodPlayerLogo` (left-aligned); the EN/UA
+ * language switcher that used to sit on its right was removed when
+ * MoodPlayer became English-only, and that space is intentionally empty.
  */
 export default function CameraPermissionScreen({
   stream,
@@ -217,7 +208,6 @@ export default function CameraPermissionScreen({
    *  behavior; this screen has no navigation logic of its own. */
   onLogoClick?: () => void
 }) {
-  const { t } = useLanguage()
   const scanningVisualRef = useRef<ScanningVisualHandle>(null)
 
   // See the doc comment above — a local fade, not a top-level screen
@@ -428,7 +418,6 @@ export default function CameraPermissionScreen({
       <div className="relative flex w-full max-w-[382px] flex-col items-start gap-[64px] rounded-[24px] backdrop-blur-[20px] [@media(max-width:1023px)_and_(max-height:700px)]:gap-[40px] lg:max-w-[1242px] lg:border-[1.5px] lg:border-[rgba(255,255,255,0.12)] lg:bg-[rgba(118,118,118,0.08)] lg:p-[64px]">
         <div className="flex w-full items-center justify-between">
           <MoodPlayerLogo onClick={onLogoClick} />
-          <LanguageSwitcher />
         </div>
 
         <div className="flex w-full flex-col items-center gap-[24px] [@media(max-width:1023px)_and_(max-height:700px)]:gap-[14px] lg:flex-row lg:items-start lg:gap-[54px]">

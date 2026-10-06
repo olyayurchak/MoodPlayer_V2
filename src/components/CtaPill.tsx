@@ -1,5 +1,5 @@
 import PlayIconGlow from "./PlayIconGlow"
-import { useLanguage } from "../localization/LanguageContext"
+import { copy as t } from "../content/copy"
 
 /**
  * The primary Intro call to action.
@@ -62,8 +62,6 @@ import { useLanguage } from "../localization/LanguageContext"
  * `border-cta-border`/`drop-shadow-cta` are untouched either way.
  */
 export default function CtaPill({ onClick }: { onClick?: () => void }) {
-  const { t } = useLanguage()
-
   return (
     <button
       type="button"

@@ -1,7 +1,7 @@
 import { useId } from "react"
 import logoMark from "../imports/CameraPermission/logo-mark.svg"
-import type { PlayerMoodAccent } from "../data/playerMoodAccent"
-import { useLanguage } from "../localization/LanguageContext"
+import type { MoodSpectrum, PlayerMoodAccent } from "../data/playerMoodAccent"
+import { copy as t } from "../content/copy"
 
 /** The five bar paths from `logo-mark.svg` itself — copied verbatim (same
  *  `d` values, same 31×22 viewBox) so the Happy-accent render below is
@@ -50,7 +50,7 @@ export const LOGO_BAR_PATHS = [
  * the original non-interactive markup (no default button border/
  * background/padding), with a `focus-visible` ring matching this app's
  * existing interactive-element convention (`CtaPill`,
- * `LanguageSwitcher`). The icon stays `alt=""` either way — decorative,
+ * the former language switcher). The icon stays `alt=""` either way — decorative,
  * exactly as before — but the button itself gets an explicit
  * `aria-label` (`common.logoHomeAriaLabel`) rather than relying on the
  * visible wordmark text alone, since that text alone would announce the
@@ -62,15 +62,15 @@ export const LOGO_BAR_PATHS = [
  * padding at all (`p-0`), well under the ~44px iOS ergonomic baseline on
  * the height axis (width was already fine, so it's untouched here). Fixed
  * with the same invisible `before:` pseudo-element technique
- * `LanguageSwitcher.tsx` already uses: `-top-[12px] -bottom-[12px]` grows
+ * the former language switcher used: `-top-[12px] -bottom-[12px]` grows
  * the *clickable* area by 12px on each side (22px + 24px = 46px, clearing
  * 44px) without adding any real padding to the button itself — an
  * absolutely-positioned pseudo-element never affects its own parent's
  * flex sizing, so the header row it sits in (`justify-between` against
- * `LanguageSwitcher` on every current caller) keeps its exact height/
+ * the former language switcher on every current caller) keeps its exact height/
  * alignment, and the visible icon+wordmark don't shift at all. Left/right
  * stay at `before:left-0`/`before:right-0` (no horizontal growth) — a
- * live measurement found ~101px of clearance to `LanguageSwitcher` at the
+ * live measurement found ~101px of clearance to the former language switcher at the
  * narrowest supported Mobile width, so horizontal growth was never needed
  * to hit the ergonomic target and would only add unnecessary risk.
  *
@@ -103,18 +103,57 @@ export const LOGO_BAR_PATHS = [
  * simultaneously-mounted instances (this screen's own Mobile/Desktop
  * trees) never collide on the same `id`. The wordmark text itself is
  * untouched either way — Figma shows no Happy-specific change to it.
+ *
+ * `liquid` (Desktop Player only, `PLAY_LIQUID`) takes priority over
+ * `accent`: the same five paths become a `clipPath` over a `mid` fill with
+ * two soft radial discs (`start`, `end`) whose CSS `transform`s drift
+ * (`.logo-liquid-a/c` in `index.css`) — the mark itself never moves or
+ * resizes, the wordmark stays static, and reduced motion keeps the still
+ * composition.
  */
 export default function MoodPlayerLogo({
   onClick,
   accent,
+  liquid,
 }: {
   onClick?: () => void
   accent?: PlayerMoodAccent
+  liquid?: MoodSpectrum
 }) {
-  const { t } = useLanguage()
   const gradientId = useId()
 
-  const icon = accent ? (
+  const icon = liquid ? (
+    <svg
+      aria-hidden="true"
+      width="31"
+      height="22"
+      viewBox="0 0 31 22"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      className="h-[22px] w-[31px] shrink-0"
+    >
+      <defs>
+        <clipPath id={`${gradientId}-clip`}>
+          {LOGO_BAR_PATHS.map((d) => (
+            <path key={d} d={d} />
+          ))}
+        </clipPath>
+        <radialGradient id={`${gradientId}-a`}>
+          <stop stopColor={liquid.start} stopOpacity="0.55" />
+          <stop offset="1" stopColor={liquid.start} stopOpacity="0" />
+        </radialGradient>
+        <radialGradient id={`${gradientId}-c`}>
+          <stop stopColor={liquid.end} stopOpacity="0.55" />
+          <stop offset="1" stopColor={liquid.end} stopOpacity="0" />
+        </radialGradient>
+      </defs>
+      <g clipPath={`url(#${gradientId}-clip)`}>
+        <rect width="31" height="22" fill={liquid.mid} />
+        <circle className="logo-liquid-a" cx="0" cy="0" r="20" fill={`url(#${gradientId}-a)`} />
+        <circle className="logo-liquid-c" cx="31" cy="22" r="20" fill={`url(#${gradientId}-c)`} />
+      </g>
+    </svg>
+  ) : accent ? (
     <svg
       aria-hidden="true"
       width="31"

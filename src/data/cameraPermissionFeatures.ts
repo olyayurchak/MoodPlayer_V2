@@ -1,7 +1,7 @@
 import faceRecognitionIcon from "../imports/CameraPermission/face-recognition.png"
 import shieldIcon from "../imports/CameraPermission/shield.png"
 import padlockIcon from "../imports/CameraPermission/padlock.png"
-import type { CameraPermissionFeatureId } from "../localization/translations"
+import type { CameraPermissionFeatureId } from "../content/copy"
 
 /**
  * The three privacy/feature statements on the Camera Permission screen,

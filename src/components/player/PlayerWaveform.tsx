@@ -1,7 +1,7 @@
 import { useEffect, useRef, type KeyboardEvent } from "react"
 import type { PlayerMoodAccent } from "../../data/playerMoodAccent"
 import type { WaveformAnalyserHandle } from "../../hooks/useWaveformAnalyser"
-import { useLanguage } from "../../localization/LanguageContext"
+import { copy as t } from "../../content/copy"
 
 /**
  * The track-progress waveform visualization + elapsed/total time row.
@@ -91,7 +91,7 @@ import { useLanguage } from "../../localization/LanguageContext"
  * touch-specific handling exists here), computed directly from the same
  * row's own `getBoundingClientRect()` at the moment of the event — never
  * a duplicated/cached measurement that could go stale if the row's real
- * width ever changes (a language switch, a resize). No drag-to-scrub
+ * width ever changes (e.g. a resize). No drag-to-scrub
  * exists (a `pointerdown` deliberately doesn't attach a `pointermove`
  * listener) — the brief asks for click/tap-to-seek, not a draggable
  * scrubber, and adding one would be new interaction surface beyond scope.
@@ -227,7 +227,6 @@ export default function PlayerWaveform({
    *  never how. */
   onSeek: (time: number) => void
 }) {
-  const { t } = useLanguage()
   const playedBarCount = Math.round(BAR_COUNT * progress)
   const barRefs = useRef<(HTMLSpanElement | null)[]>([])
   const rowRef = useRef<HTMLDivElement | null>(null)

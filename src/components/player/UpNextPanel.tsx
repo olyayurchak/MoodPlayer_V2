@@ -1,6 +1,6 @@
 import type { PlayerTrack } from "../../data/playerTrack"
-import type { PlayerMoodAccent } from "../../data/playerMoodAccent"
-import { useLanguage } from "../../localization/LanguageContext"
+import { spectrumGradient, type MoodSpectrum, type PlayerMoodAccent } from "../../data/playerMoodAccent"
+import { copy as t } from "../../content/copy"
 
 /** Same gradient-ring-on-a-glass-surface technique as
  *  `PlayerMoodSelector`'s active pill (itself the same technique
@@ -21,9 +21,14 @@ function TrackRow({
   track,
   isCurrent,
   accent,
+  spectrum,
 }: {
   track: PlayerTrack
   isCurrent: boolean
+  /** Desktop gradient hierarchy: when set, the current row's ring is a
+   *  faint 1px edge of the mood spectrum (45%) instead of the full
+   *  gradient — a selected state, not a competitor to Play. */
+  spectrum?: MoodSpectrum
   /** From `data/playerMoodAccent.ts`, `undefined` for any mood without
    *  its own approved override yet. When present, the current-track
    *  row's translucent fill becomes that mood's own `accentSecondaryTint`
@@ -47,7 +52,13 @@ function TrackRow({
       {isCurrent && (
         <span
           aria-hidden="true"
-          style={accent ? { ...CURRENT_TRACK_RING_STYLE, background: accent.gradient } : CURRENT_TRACK_RING_STYLE}
+          style={
+            spectrum
+              ? { ...CURRENT_TRACK_RING_STYLE, padding: "1px", background: spectrumGradient(spectrum, 0.45) }
+              : accent
+                ? { ...CURRENT_TRACK_RING_STYLE, background: accent.gradient }
+                : CURRENT_TRACK_RING_STYLE
+          }
           className="pointer-events-none absolute inset-0 rounded-[12px]"
         />
       )}
@@ -100,6 +111,7 @@ export default function UpNextPanel({
   tracks,
   currentTrackId,
   accent,
+  spectrum,
 }: {
   mood: string
   /** Already sliced by the caller to "current track and every track after
@@ -112,9 +124,8 @@ export default function UpNextPanel({
    *  so this stays correct however `tracks` itself is produced. */
   currentTrackId: string
   accent?: PlayerMoodAccent
+  spectrum?: MoodSpectrum
 }) {
-  const { t } = useLanguage()
-
   return (
     <div className="flex w-full flex-col gap-[20px] rounded-[24px] bg-[rgba(255,255,255,0.08)] p-[20px] backdrop-blur-[20px] lg:pt-[24px] lg:h-[715px] lg:w-[479px] lg:shrink-0">
       <div className="flex flex-col gap-[2px] tracking-[-0.2px]">
@@ -123,7 +134,7 @@ export default function UpNextPanel({
       </div>
       <div className="up-next-scroll flex flex-col gap-[8px] lg:min-h-0 lg:flex-1 lg:overflow-y-auto lg:pr-[10px]">
         {tracks.map((track) => (
-          <TrackRow key={track.id} track={track} isCurrent={track.id === currentTrackId} accent={accent} />
+          <TrackRow key={track.id} track={track} isCurrent={track.id === currentTrackId} accent={accent} spectrum={spectrum} />
         ))}
       </div>
     </div>

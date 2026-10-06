@@ -1,4 +1,4 @@
-import { useLanguage } from "../localization/LanguageContext"
+import { copy as t } from "../content/copy"
 
 /**
  * The Camera Permission screen's primary CTA.
@@ -78,8 +78,6 @@ export default function CameraPermissionCta({
   disabled?: boolean
   label?: string
 }) {
-  const { t } = useLanguage()
-
   return (
     <button
       type="button"

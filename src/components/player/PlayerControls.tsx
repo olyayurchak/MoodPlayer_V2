@@ -1,5 +1,6 @@
-import type { PlayerMoodAccent } from "../../data/playerMoodAccent"
-import { useLanguage } from "../../localization/LanguageContext"
+import type { CSSProperties } from "react"
+import { liquidVars, type MoodSpectrum, type PlayerMoodAccent } from "../../data/playerMoodAccent"
+import { copy as t } from "../../content/copy"
 import { NextIcon, PauseGlyph, PlayGlyph, PreviousIcon, RepeatIcon, ShuffleIcon, VolumeIcon } from "./icons"
 
 /** Existing approved accent used elsewhere for an active/highlighted
@@ -92,6 +93,8 @@ export default function PlayerControls({
   isRepeatOn,
   onToggleRepeat,
   layout = "default",
+  spectrum,
+  liquid,
 }: {
   accent?: PlayerMoodAccent
   isPlaying: boolean
@@ -145,8 +148,16 @@ export default function PlayerControls({
    *  `"default"` is the original layout (Mobile). Markup and behavior are
    *  otherwise identical. */
   layout?: "default" | "wide"
+  /** Desktop gradient hierarchy (`PLAYER_SPECTRUM`): when set, Play gets
+   *  the volume fill becomes a flat `mid` accent. Unset (Mobile) keeps
+   *  the original treatment. */
+  spectrum?: MoodSpectrum
+  /** Desktop Play's liquid-gradient colours (`PLAY_LIQUID`) — separate
+   *  from `spectrum` so Happy's Play keeps its original orange → coral →
+   *  red. The filled volume progress uses the same palette as a softer
+   *  drifting layer (`.liquid-soft--volume`). */
+  liquid?: MoodSpectrum
 }) {
-  const { t } = useLanguage()
   const isWide = layout === "wide"
 
   return (
@@ -202,12 +213,22 @@ export default function PlayerControls({
             disabled={playDisabled}
             aria-pressed={isPlaying}
             aria-label={isPlaying ? t.player.controls.pause : t.player.controls.play}
-            style={accent ? { backgroundImage: accent.gradient } : undefined}
+            style={
+              liquid
+                ? ({
+                    "--liquid-a": liquid.start,
+                    "--liquid-b": liquid.mid,
+                    "--liquid-c": liquid.end,
+                  } as CSSProperties)
+                : accent
+                  ? { backgroundImage: accent.gradient }
+                  : undefined
+            }
             className={`flex size-[76px] items-center justify-center rounded-full text-white shadow-[0px_12px_24px_0px_rgba(255,255,255,0.08)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white ${
-              accent ? "" : "bg-linear-to-r from-cta-button-from via-cta-button-via to-cta-button-to"
+              liquid ? "play-liquid" : accent ? "" : "bg-linear-to-r from-cta-button-from via-cta-button-via to-cta-button-to"
             }`}
           >
-            {isPlaying ? <PauseGlyph size={28} /> : <PlayGlyph size={28} className="translate-x-[1px]" />}
+            {isPlaying ? <PauseGlyph size={28} /> : <PlayGlyph size={28} className="-translate-x-[1px]" />}
           </button>
 
           <button
@@ -240,7 +261,22 @@ export default function PlayerControls({
             the approved Figma proportions), the extra height is purely
             invisible padding, same "small visual, larger hit area"
             technique already used for Shuffle/Repeat above. */}
-        <div className="flex min-h-[44px] w-full flex-1 items-center">
+        <div className="relative flex min-h-[44px] w-full flex-1 items-center">
+          {/* Desktop: the filled progress is a separate, track-shaped clip
+              layer (`.liquid-soft--volume`) under the input, so its colours
+              can drift while staying clipped to `volume`%; the input then
+              paints only the unfilled track. */}
+          {liquid && (
+            <span
+              aria-hidden="true"
+              className="pointer-events-none absolute inset-x-0 top-1/2 h-[8px] -translate-y-1/2 overflow-hidden rounded-full"
+            >
+              <span
+                className="liquid-soft liquid-soft--volume block h-full"
+                style={{ ...liquidVars(liquid), width: `${volume}%` }}
+              />
+            </span>
+          )}
           <input
             type="range"
             min={0}
@@ -248,9 +284,11 @@ export default function PlayerControls({
             value={volume}
             onChange={(event) => onVolumeChange(Number(event.target.value))}
             aria-label={t.player.controls.volume}
-            className="h-[8px] w-full appearance-none rounded-full outline-none [&::-webkit-slider-thumb]:size-[16px] [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:shadow-[0_0_0_1.5px_rgba(255,255,255,0.4)] [&::-moz-range-thumb]:size-[16px] [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:border-0 [&::-moz-range-thumb]:bg-white"
+            className="relative h-[8px] w-full appearance-none rounded-full outline-none [&::-webkit-slider-thumb]:size-[16px] [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:shadow-[0_0_0_1.5px_rgba(255,255,255,0.4)] [&::-moz-range-thumb]:size-[16px] [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:border-0 [&::-moz-range-thumb]:bg-white"
             style={{
-              background: accent
+              background: spectrum
+                ? `linear-gradient(90deg, ${liquid ? "transparent" : spectrum.mid} ${volume}%, rgba(255,255,255,0.18) ${volume}%)`
+                : accent
                 ? `linear-gradient(90deg, ${accent.gradientFrom}, ${accent.gradientTo} ${volume}%, rgba(255,255,255,0.18) ${volume}%)`
                 : `linear-gradient(90deg, var(--color-cta-button-from), var(--color-cta-button-to) ${volume}%, rgba(255,255,255,0.18) ${volume}%)`,
             }}

@@ -294,3 +294,61 @@ export const PLAYER_MOOD_ACCENTS: Partial<Record<MoodId, PlayerMoodAccent>> = {
     },
   },
 }
+
+/**
+ * Desktop Player gradient hierarchy — one 3-stop spectrum per mood, used
+ * at decreasing strength: Play (full), artwork edge (soft), selected states
+ * (faint edge), volume (flat `mid`). Stops reuse existing tokens where they
+ * exist; the two marked "derived" are new in-between hues the requested
+ * direction needed. Interpolated `in oklab` for smooth, banding-free blends.
+ *
+ * - Happy (coral → magenta → warm violet): `#eb6e51` (Happy's own coral),
+ *   `#c43a86` (MoodPlayer's original Figma CTA magenta), `#7458b8`
+ *   (`--color-cta-button-via`).
+ * - Melancholic (slate blue → violet → muted cyan): `#4a4f9f` and `#6b6dc8`
+ *   (Melancholic's own stops), `#6f9cbf` (derived muted cyan).
+ * - Chill (magenta → violet → blue): the original Chill colours — the
+ *   universal Mood Gradient Chill always used on the Player
+ *   (`--color-cta-button-from/via/to`: `#a64ca6`, `#7458b8`, `#5576d8`),
+ *   with violet as the `mid` so blue never dominates.
+ */
+export type MoodSpectrum = { start: string; mid: string; end: string }
+
+export const PLAYER_SPECTRUM: Record<MoodId, MoodSpectrum> = {
+  happy: { start: "#eb6e51", mid: "#c43a86", end: "#7458b8" },
+  melancholic: { start: "#4a4f9f", mid: "#6b6dc8", end: "#6f9cbf" },
+  chill: { start: "#a64ca6", mid: "#7458b8", end: "#5576d8" },
+}
+
+/** `strength` < 1 fades every stop toward transparent (for the softer
+ *  artwork / selected-state edges) without changing the hues. */
+export function spectrumGradient(spectrum: MoodSpectrum, strength = 1, angle = 105) {
+  const stop = (color: string) =>
+    strength >= 1 ? color : `color-mix(in oklab, ${color} ${Math.round(strength * 100)}%, transparent)`
+  return `linear-gradient(${angle}deg in oklab, ${stop(spectrum.start)} 0%, ${stop(spectrum.mid)} 50%, ${stop(spectrum.end)} 100%)`
+}
+
+/**
+ * Desktop Play button's liquid gradient (`.play-liquid` in `index.css`) —
+ * Play only; every other desktop gradient keeps `PLAYER_SPECTRUM`.
+ * Happy uses its original approved Play gradient stops verbatim
+ * (`PLAYER_MOOD_ACCENTS.happy.gradient`, Figma Desktop `284:5276`:
+ * orange → coral → red), so the moving Play still reads as the original
+ * Happy theme. Melancholic and Chill keep their `PLAYER_SPECTRUM` stops.
+ */
+export const PLAY_LIQUID: Record<MoodId, MoodSpectrum> = {
+  happy: { start: "#f1a04e", mid: "#eb6e51", end: "#e54d56" },
+  melancholic: PLAYER_SPECTRUM.melancholic,
+  chill: PLAYER_SPECTRUM.chill,
+}
+
+/** `PLAY_LIQUID` colours as the `--liquid-a/b/c` CSS variables read by
+ *  `.liquid-soft` (`index.css`) — the desktop artwork border and volume
+ *  fill. */
+export function liquidVars(liquid: MoodSpectrum) {
+  return {
+    "--liquid-a": liquid.start,
+    "--liquid-b": liquid.mid,
+    "--liquid-c": liquid.end,
+  } as Record<string, string>
+}

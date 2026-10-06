@@ -1,9 +1,8 @@
 import { useEffect, useState } from "react"
 import AppBackground from "../components/AppBackground"
 import MoodPlayerLogo from "../components/MoodPlayerLogo"
-import LanguageSwitcher from "../components/LanguageSwitcher"
 import { CIRCLE_FILL_STYLE } from "../components/CameraPermissionVisual"
-import { useLanguage } from "../localization/LanguageContext"
+import { copy as t } from "../content/copy"
 import { MOOD_IDS, type MoodId } from "../data/moods"
 import portraitDesktop from "../imports/VibeResult/portrait-desktop.png"
 import portraitMobile from "../imports/VibeResult/portrait-mobile.png"
@@ -167,7 +166,6 @@ export default function VibeResultScreen({
   onStartPlaylist,
   onLogoClick,
 }: VibeResultScreenProps) {
-  const { t } = useLanguage()
   const [selectedMood, setSelectedMood] = useState<MoodId>(suggestedMood)
 
   useEffect(() => {
@@ -182,7 +180,6 @@ export default function VibeResultScreen({
       <div className="relative flex w-full max-w-[382px] flex-col items-start gap-[64px] rounded-[24px] backdrop-blur-[20px] lg:max-w-[1242px] lg:border-[1.5px] lg:border-[rgba(255,255,255,0.12)] lg:bg-[rgba(118,118,118,0.08)] lg:p-[64px]">
         <div className="flex w-full items-center justify-between">
           <MoodPlayerLogo onClick={onLogoClick} />
-          <LanguageSwitcher />
         </div>
 
         <div className="flex w-full flex-col items-center gap-[24px] lg:flex-row lg:items-start lg:gap-[54px]">

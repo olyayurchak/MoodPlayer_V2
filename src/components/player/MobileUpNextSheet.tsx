@@ -4,7 +4,7 @@ import logoMark from "../../imports/CameraPermission/logo-mark.svg"
 import { LOGO_BAR_PATHS } from "../MoodPlayerLogo"
 import type { PlayerTrack } from "../../data/playerTrack"
 import type { PlayerMoodAccent } from "../../data/playerMoodAccent"
-import { useLanguage } from "../../localization/LanguageContext"
+import { copy as t } from "../../content/copy"
 
 /** Same gradient-ring-on-a-glass-surface technique `UpNextPanel.tsx` (and,
  *  before it, `PlayerMoodSelector`'s active pill) already uses for its own
@@ -156,7 +156,6 @@ function SelectableTrackRow({
   accent?: PlayerMoodAccent
   onSelect: (trackId: string) => void
 }) {
-  const { t } = useLanguage()
   const label = isCurrent
     ? `${t.player.selectTrack(track.title, track.artist)} — ${t.player.nowPlayingLabel}`
     : t.player.selectTrack(track.title, track.artist)
@@ -268,7 +267,6 @@ export default function MobileUpNextSheet({
   accent?: PlayerMoodAccent
   onSelectTrack: (trackId: string) => void
 }) {
-  const { t } = useLanguage()
   const [isExpanded, setIsExpanded] = useState(false)
   const [isDragging, setIsDragging] = useState(false)
   /** `null` while at rest (the resting `transform` below is driven purely
@@ -404,7 +402,7 @@ export default function MobileUpNextSheet({
             36px tall (the button's own box hugs the 5px visible bar plus
             its own vertical centering padding) — under the ~44px iOS
             ergonomic baseline. Fixed with the same invisible `before:`
-            pseudo-element technique `LanguageSwitcher.tsx`/
+            pseudo-element technique the former language switcher/
             `MoodPlayerLogo.tsx` already use, not a real height/padding
             increase: the button's own real box (and therefore
             `PEEK_HEIGHT_PX`'s own 111px collapsed-peek content, which

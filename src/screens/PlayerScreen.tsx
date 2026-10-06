@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from "react"
 import AppBackground from "../components/AppBackground"
 import MoodPlayerLogo from "../components/MoodPlayerLogo"
-import LanguageSwitcher from "../components/LanguageSwitcher"
 import { gradientBorderStyle } from "../components/CameraPermissionVisual"
 import PlayerMoodSelector from "../components/player/PlayerMoodSelector"
 import PlayerWaveform, { BAR_COUNT } from "../components/player/PlayerWaveform"
@@ -10,10 +9,10 @@ import GestureControlsPanel from "../components/player/GestureControlsPanel"
 import ChooseVibeCard from "../components/player/ChooseVibeCard"
 import UpNextPanel from "../components/player/UpNextPanel"
 import MobileUpNextSheet from "../components/player/MobileUpNextSheet"
-import { useLanguage } from "../localization/LanguageContext"
+import { copy as t } from "../content/copy"
 import type { MoodId } from "../data/moods"
 import { testTracks } from "../data/playerTrack"
-import { PLAYER_MOOD_ACCENTS } from "../data/playerMoodAccent"
+import { PLAYER_MOOD_ACCENTS, PLAYER_SPECTRUM, PLAY_LIQUID, liquidVars } from "../data/playerMoodAccent"
 import { formatPlaybackTime, usePlayerAudio } from "../hooks/usePlayerAudio"
 import { useWaveformAnalyser } from "../hooks/useWaveformAnalyser"
 
@@ -99,10 +98,10 @@ function buildShuffleQueue(excludeIndex: number): number[] {
  *  orange→coral→red gradient sweep Figma shows; this reuses the existing
  *  ring technique instead of that one-off solid border, matching every
  *  other Happy-only ring in this screen. */
-function artworkRingStyle(gradient: string) {
+function artworkRingStyle(gradient: string | undefined, thickness = "1.5px") {
   return {
-    padding: "1.5px",
-    background: gradient,
+    padding: thickness,
+    ...(gradient ? { background: gradient } : {}),
     WebkitMask: "linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0)",
     WebkitMaskComposite: "xor",
     maskComposite: "exclude" as const,
@@ -173,7 +172,6 @@ type PlayerScreenProps = {
  * exists yet) never reloads a different playlist either.
  */
 export default function PlayerScreen({ mood, onLogoClick }: PlayerScreenProps) {
-  const { t } = useLanguage()
   const [activeMood, setActiveMood] = useState<MoodId>(mood)
 
   useEffect(() => {
@@ -187,6 +185,9 @@ export default function PlayerScreen({ mood, onLogoClick }: PlayerScreenProps) {
   // treats that as "keep the existing universal Mood Gradient treatment
   // unchanged," so nothing here needs its own mood-by-mood branching.
   const accent = PLAYER_MOOD_ACCENTS[activeMood]
+  // Desktop gradient hierarchy (Play → artwork → selected states → flat volume).
+  const spectrum = PLAYER_SPECTRUM[activeMood]
+  const liquid = PLAY_LIQUID[activeMood]
 
   // Real Previous/Next state — an index into `testTracks` (see that
   // file's own doc comment for why it replaced the old single static
@@ -552,7 +553,6 @@ export default function PlayerScreen({ mood, onLogoClick }: PlayerScreenProps) {
         <div className="flex w-full flex-col items-center gap-[16px] pb-[56px] lg:hidden">
           <div className="flex w-full items-center justify-between">
             <MoodPlayerLogo onClick={onLogoClick} accent={accent} />
-            <LanguageSwitcher />
           </div>
 
           <PlayerMoodSelector activeMood={activeMood} onSelect={setActiveMood} accent={accent} />
@@ -625,8 +625,7 @@ export default function PlayerScreen({ mood, onLogoClick }: PlayerScreenProps) {
             and the gesture panel moved into the rail. */}
         <div className="hidden w-full flex-col gap-[64px] lg:flex">
           <div className="flex w-full items-center justify-between">
-            <MoodPlayerLogo onClick={onLogoClick} accent={accent} />
-            <LanguageSwitcher />
+            <MoodPlayerLogo onClick={onLogoClick} accent={accent} liquid={liquid} />
           </div>
 
           <div className="flex w-full items-start gap-[24px]">
@@ -637,16 +636,19 @@ export default function PlayerScreen({ mood, onLogoClick }: PlayerScreenProps) {
             <div className="flex w-[479px] shrink-0 flex-col gap-[31px]">
               <div
                 className="relative h-[342px] w-full shrink-0 overflow-hidden rounded-[24px]"
-                style={accent ? { boxShadow: artworkGlowShadow(accent.artworkGlowDesktop) } : { ...gradientBorderStyle("2px"), ...ARTWORK_GLOW_STYLE }}
+                style={{ boxShadow: `0 0 20px 0 color-mix(in oklab, ${liquid.mid} 22%, transparent)` }}
               >
                 <img src={currentTrack.artwork} alt="" className="absolute inset-0 size-full object-cover" />
-                {accent && (
-                  <span
-                    aria-hidden="true"
-                    style={artworkRingStyle(accent.gradient)}
-                    className="pointer-events-none absolute inset-0 rounded-[24px]"
-                  />
-                )}
+                {/* Secondary tier of the desktop gradient hierarchy: a thin
+                    1px edge in Play's palette (`.liquid-soft--ring`: 50%
+                    opacity, slower 16s drift) plus a static, soft 20px halo
+                    in the same palette's `mid` at 22% — refracted light,
+                    well below Play. */}
+                <span
+                  aria-hidden="true"
+                  style={{ ...artworkRingStyle(undefined, "1px"), ...liquidVars(liquid) }}
+                  className="liquid-soft liquid-soft--ring pointer-events-none absolute inset-0 rounded-[24px]"
+                />
               </div>
 
               <div className="flex w-full flex-col items-center">
@@ -671,6 +673,8 @@ export default function PlayerScreen({ mood, onLogoClick }: PlayerScreenProps) {
                 <div className="mt-[29px] w-full">
                   <PlayerControls
                     layout="wide"
+                    spectrum={spectrum}
+                    liquid={liquid}
                     accent={accent}
                     isPlaying={isPlaying}
                     onTogglePlay={handleTogglePlay}
@@ -691,14 +695,14 @@ export default function PlayerScreen({ mood, onLogoClick }: PlayerScreenProps) {
             </div>
 
             {/* B. Up Next — Figma `549:1243`, 479×715 (sized in `UpNextPanel`). */}
-            <UpNextPanel mood={moodName} tracks={upNextTracks} currentTrackId={currentTrack.id} accent={accent} />
+            <UpNextPanel mood={moodName} tracks={upNextTracks} currentTrackId={currentTrack.id} accent={accent} spectrum={spectrum} />
 
             {/* C. Utility rail — Figma `549:1330`: Choose Vibe (108×172) and
                 Gesture Control (fills the rest), 12px apart. */}
             <div className="flex h-[715px] w-[108px] shrink-0 flex-col gap-[12px]">
               <ChooseVibeCard activeMood={activeMood} onSelect={setActiveMood} accent={accent} />
               <div className="min-h-0 w-full flex-1">
-                <GestureControlsPanel variant="rail" />
+                <GestureControlsPanel variant="rail" palette={liquid} />
               </div>
             </div>
           </div>

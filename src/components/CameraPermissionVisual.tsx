@@ -1,5 +1,4 @@
 import { useEffect, useRef } from "react"
-import faceScanVisual from "../imports/CameraPermission/face-scan-visual-v2.png"
 import ellipse23Mobile from "../imports/CameraPermission/ellipse-23-mobile.svg"
 import ellipse24Mobile from "../imports/CameraPermission/ellipse-24-mobile.svg"
 import ellipse25Mobile from "../imports/CameraPermission/ellipse-25-mobile.svg"
@@ -47,39 +46,19 @@ import ellipse25Desktop from "../imports/CameraPermission/ellipse-25-desktop.svg
  *   canvas at the right position — the exact technique Figma's own
  *   generated code uses, reproduced verbatim rather than approximated;
  * - the person + simulated face-mesh visual, filling the panel edge-to-edge
- *   (`object-cover`) — now the `/vibe-result.mp4` decorative video
+ *   (`object-cover`) — the `/vibe-result.mp4` decorative video
  *   (autoplaying, muted, inline, no controls, plays through once and holds
  *   on its final frame rather than looping; see the effect below for why
- *   it also respects `prefers-reduced-motion`), replacing the earlier
- *   static `face-scan-visual-v2.png` image fill entirely. That still image
- *   (exported from Figma node `450:302`, 491×491, the same square size as
- *   the Desktop panel) is kept on as the video's own `poster` — shown
- *   instantly on first paint so the panel never flashes blank while the
- *   video itself loads, exactly the role it played as the sole visual
- *   before. It, in turn, had replaced the original `face-scan-visual.png`
- *   (sourced from node `398:11261`, still present in
- *   `imports/CameraPermission/` but no longer referenced here — not
- *   deleted, matching this file's own established precedent below for a
- *   superseded asset) — a different render of the same subject/style, not
- *   a re-crop or recolor of the old one. That still image's own `opacity-50`
- *   (carried over onto the video unchanged when the video first replaced
- *   it) was later removed again, per a follow-up, explicit request — a
- *   50%-opacity still image read as an intentionally moody, low-contrast
- *   graphic, but the same 50% opacity on a full-motion video read as
- *   visibly faded/washed-out instead (constant partial transparency is far
- *   more noticeable across genuine motion than across one static frame),
- *   so the video now renders at its native full opacity; nothing else
- *   about it changed. Replaces the earlier small
- *   centered "camera-off" glyph entirely (that SVG,
- *   `camera-off-icon.svg`, is still present in `imports/CameraPermission/`
- *   but no longer referenced here — not deleted, matching this file's own
- *   established precedent for a superseded asset, e.g. `camera-icon.png`
- *   from the redesign before this one) — and replaces the soft white
- *   overlay glow that used to sit in this same layer position (a plain
- *   translucent+blurred rounded square this component previously painted
- *   here): that overlay washed this new image out to a flat, low-contrast
- *   haze rather than reading as the intended darker/purple atmosphere, so
- *   it's removed rather than layered underneath;
+ *   it also respects `prefers-reduced-motion`), at its native full opacity.
+ *   It has no `poster`: a `<video>` shows its poster until playback
+ *   actually starts, so the earlier poster (the legacy static face-scan
+ *   image) stayed visible on a slow load, a blocked/failed `play()`, a
+ *   media error, or reduced motion. Now, while loading (or if the video
+ *   fails), the orb's own dark fill, glows and glass show — the approved
+ *   structure, empty — and whenever playback can't start (autoplay
+ *   blocked, reduced motion) the browser shows the video's own first
+ *   frame. The earlier static images, the "camera-off" glyph and the soft
+ *   white overlay glow that used to sit in this layer are gone;
  * - no corner marks: the four viewfinder-style L-marks that used to frame a
  *   rectangular capture area were removed once the panel became a circle.
  *   `ScanningVisual`'s own corner marks (the active scan state) are separate
@@ -209,7 +188,6 @@ export default function CameraPermissionVisual() {
         <video
           ref={mobileVideoRef}
           src="/vibe-result.mp4"
-          poster={faceScanVisual}
           autoPlay
           muted
           playsInline
@@ -247,7 +225,6 @@ export default function CameraPermissionVisual() {
         <video
           ref={desktopVideoRef}
           src="/vibe-result.mp4"
-          poster={faceScanVisual}
           autoPlay
           muted
           playsInline

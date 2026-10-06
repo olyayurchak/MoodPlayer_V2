@@ -1,11 +1,10 @@
 import { Suspense, lazy, useCallback, useEffect, useRef, useState } from "react"
 import CtaPill from "../components/CtaPill"
-import LanguageSwitcher from "../components/LanguageSwitcher"
 import TextStack from "../components/TextStack"
 import AmbientDrift from "../intro3/AmbientDrift"
 
 /** The WebGL glass-orb cluster (`three` / `@react-three/fiber`), lazy so the
- *  headline, CTA and language switcher render immediately while the WebGL
+ *  headline and CTA render immediately while the WebGL
  *  code downloads, and so the later screens' code never waits on it. */
 const GlassOrbCanvas = lazy(() => import("../intro3/GlassOrbCanvas"))
 
@@ -19,7 +18,7 @@ const GlassOrbCanvas = lazy(() => import("../intro3/GlassOrbCanvas"))
  * capability check, error-boundary static fallback, and reduced-motion
  * `frameloop="demand"`). Same layering as that prototype: background,
  * orb canvas, then the hero on top with pointer events passing through to
- * the canvas (orb hover) everywhere except the CTA and language switcher.
+ * the canvas (orb hover) everywhere except the CTA.
  * Full-viewport height (`h-dvh`, 480px minimum), as approved.
  *
  * The hero is this app's own `TextStack` + `CtaPill`; `onCtaClick` is
@@ -69,9 +68,6 @@ export default function IntroScreen({ onCtaClick }: { onCtaClick?: () => void })
           <TextStack />
           <CtaPill onClick={handleCtaClick} />
         </div>
-      </div>
-      <div className="absolute right-[24px] top-[24px] z-30">
-        <LanguageSwitcher />
       </div>
     </main>
   )

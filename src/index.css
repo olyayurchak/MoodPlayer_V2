@@ -85,7 +85,7 @@
   --spacing-frame-w-lg: 1440px;
   --spacing-frame-h: 932px;
   --spacing-frame-h-lg: 1024px;
-  /* Shared mobile width keeps EN/UA intro tagline on two lines. */
+  /* Shared mobile width keeps the intro tagline on two lines. */
   --spacing-tagline-w: 310px;
   --spacing-tagline-w-lg: 600px;
   --spacing-cta-w: 320px;
@@ -1229,4 +1229,176 @@
 
 .orb-glass-pill:active {
   background-color: rgb(44 40 80 / 0.58);
+}
+
+/*
+ * Desktop Player Play button — liquid gradient (`PlayerControls.tsx`,
+ * `.play-liquid`, fed `--liquid-a/b/c` = the mood's `PLAY_LIQUID`
+ * start / mid / end). The button itself never moves: a `mid` base colour
+ * with three oversized radial light fields (start, end, and a lighter
+ * pool of mid) whose `background-position`s drift independently, so
+ * colour regions slowly wander and mix inside the fixed circle. Each
+ * layer is 200%-sized, so a position change moves its light centre
+ * across the button rather than revealing an edge.
+ *
+ * 10s per leg, `alternate`, ease-in-out — the composition flows out and
+ * back with no hard reset. Reduced motion keeps the same composition
+ * (the 0% frame) with no movement.
+ */
+.play-liquid {
+  background-color: var(--liquid-b);
+  background-image:
+    radial-gradient(circle at center, var(--liquid-a) 0%, transparent 55%),
+    radial-gradient(circle at center, var(--liquid-c) 0%, transparent 55%),
+    radial-gradient(
+      circle at center,
+      color-mix(in oklab, var(--liquid-b), white 18%) 0%,
+      transparent 50%
+    );
+  background-size: 200% 200%;
+  background-repeat: no-repeat;
+  background-position:
+    0% 0%,
+    100% 100%,
+    50% 50%;
+}
+
+@keyframes play-liquid-flow {
+  0% {
+    background-position:
+      0% 0%,
+      100% 100%,
+      50% 50%;
+  }
+  35% {
+    background-position:
+      35% 80%,
+      70% 10%,
+      15% 40%;
+  }
+  70% {
+    background-position:
+      90% 55%,
+      10% 35%,
+      75% 85%;
+  }
+  100% {
+    background-position:
+      60% 0%,
+      25% 90%,
+      40% 15%;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .play-liquid {
+    animation: play-liquid-flow 10s ease-in-out infinite alternate;
+  }
+}
+
+/*
+ * Desktop Player secondary liquid accents — the Play button's motion
+ * language (`.play-liquid` above) at lower strength, for the artwork
+ * border (`--ring`) and the filled volume progress (`--volume`). Same
+ * `--liquid-a/b/c` inputs (`PLAY_LIQUID`), but only two drifting radial
+ * fields on the `mid` base, and `--liquid-mix` pulls both fields toward
+ * `mid` to lower the contrast. The ring is further softened by opacity
+ * (it sits over artwork); the volume fill stays opaque but low-contrast.
+ * Hierarchy: Play 10s full contrast > ring 16s at 50% opacity > volume
+ * 12s at 40% contrast (and the logo mark, `.logo-liquid-*` below).
+ * Reduced motion keeps the 0% composition, without movement.
+ */
+.liquid-soft {
+  --liquid-mix: 100%;
+  --liquid-a-soft: color-mix(in oklab, var(--liquid-a) var(--liquid-mix), var(--liquid-b));
+  --liquid-c-soft: color-mix(in oklab, var(--liquid-c) var(--liquid-mix), var(--liquid-b));
+  background-color: var(--liquid-b);
+  background-image:
+    radial-gradient(circle at center, var(--liquid-a-soft) 0%, transparent 55%),
+    radial-gradient(circle at center, var(--liquid-c-soft) 0%, transparent 55%);
+  background-size: 200% 200%;
+  background-repeat: no-repeat;
+  background-position:
+    0% 0%,
+    100% 100%;
+}
+
+.liquid-soft--ring {
+  opacity: 0.5;
+}
+
+.liquid-soft--volume {
+  --liquid-mix: 40%;
+}
+
+@keyframes liquid-soft-flow {
+  0% {
+    background-position:
+      0% 0%,
+      100% 100%;
+  }
+  35% {
+    background-position:
+      35% 80%,
+      70% 10%;
+  }
+  70% {
+    background-position:
+      90% 55%,
+      10% 35%;
+  }
+  100% {
+    background-position:
+      60% 0%,
+      25% 90%;
+  }
+}
+
+/* Logo mark (`MoodPlayerLogo` with `liquid`): two soft gradient discs
+ * drift inside the five bars (an SVG `clipPath`), so the mark's shape and
+ * size never change. Discs reach only ~55% opacity at their centre over
+ * the `mid` fill — the faintest of the four accents. */
+@keyframes logo-liquid-a {
+  0% {
+    transform: translate(0px, 0px);
+  }
+  35% {
+    transform: translate(11px, 16px);
+  }
+  70% {
+    transform: translate(28px, 12px);
+  }
+  100% {
+    transform: translate(19px, 0px);
+  }
+}
+
+@keyframes logo-liquid-c {
+  0% {
+    transform: translate(0px, 0px);
+  }
+  35% {
+    transform: translate(-9px, -20px);
+  }
+  70% {
+    transform: translate(-28px, -8px);
+  }
+  100% {
+    transform: translate(-23px, -2px);
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .liquid-soft--ring {
+    animation: liquid-soft-flow 16s ease-in-out infinite alternate;
+  }
+  .liquid-soft--volume {
+    animation: liquid-soft-flow 12s ease-in-out infinite alternate;
+  }
+  .logo-liquid-a {
+    animation: logo-liquid-a 14s ease-in-out infinite alternate;
+  }
+  .logo-liquid-c {
+    animation: logo-liquid-c 14s ease-in-out infinite alternate;
+  }
 }
