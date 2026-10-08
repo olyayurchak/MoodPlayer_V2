@@ -201,7 +201,11 @@ export function usePlayerAudio(src: string | undefined): UsePlayerAudioResult {
       // sets `.paused` `true` itself per the media spec, so a track that
       // finished naturally before Next/Previous was pressed correctly
       // reads as "was not playing" here, with no special-casing needed.
-      wasPlayingRef.current = !audio.paused
+      // A still-pending resume counts as playing too: switching again
+      // before this element reached `canplay` (e.g. pressing Next twice
+      // quickly) must carry the "keep playing" intent forward, not drop it
+      // because the not-yet-started element still reads as paused.
+      wasPlayingRef.current = !audio.paused || resumePending
       audio.pause()
       audio.removeEventListener("loadedmetadata", handleLoadedMetadata)
       audio.removeEventListener("canplay", handleCanPlay)

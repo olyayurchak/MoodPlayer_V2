@@ -1,10 +1,11 @@
-import { useId, useRef, useState } from "react"
+import { useId, useLayoutEffect, useRef, useState } from "react"
 import { createPortal } from "react-dom"
 import logoMark from "../../imports/CameraPermission/logo-mark.svg"
 import { LOGO_BAR_PATHS } from "../MoodPlayerLogo"
 import type { PlayerTrack } from "../../data/playerTrack"
 import { spectrumGradient, type MoodSpectrum, type PlayerMoodAccent } from "../../data/playerMoodAccent"
 import { copy as t } from "../../content/copy"
+import { scrollRowIntoList } from "./UpNextPanel"
 
 /** Same gradient-ring-on-a-glass-surface technique `UpNextPanel.tsx` (and,
  *  before it, `PlayerMoodSelector`'s active pill) already uses for its own
@@ -257,8 +258,8 @@ export default function MobileUpNextSheet({
   onSelectTrack,
 }: {
   mood: string
-  /** Already sliced by the caller to "current track and every track after
-   *  it", same contract as `UpNextPanel`'s own `tracks` prop. */
+  /** The full playlist in stored order, same contract as `UpNextPanel`'s
+   *  own `tracks` prop. */
   tracks: PlayerTrack[]
   currentTrackId: string
   accent?: PlayerMoodAccent
@@ -275,6 +276,23 @@ export default function MobileUpNextSheet({
   const sheetRef = useRef<HTMLDivElement>(null)
   const dragRef = useRef<DragState | null>(null)
   const justDraggedRef = useRef(false)
+  // Collapsed, the peek shows only the list's first visible row, so the
+  // list is scrolled to put the *current* track there (the end spacer
+  // below lets even the last track reach the top). Expanded, it behaves
+  // like Desktop's `UpNextPanel`: scroll only if the current row is out of
+  // view. A layout effect, so the collapsed peek never paints a frame
+  // showing the wrong row.
+  const listRef = useRef<HTMLDivElement>(null)
+  useLayoutEffect(() => {
+    const list = listRef.current
+    const row = list?.querySelector<HTMLElement>('[aria-current="true"]')
+    if (!list || !row) return
+    if (isExpanded) {
+      scrollRowIntoList(list, row)
+    } else {
+      list.scrollTop += row.getBoundingClientRect().top - list.getBoundingClientRect().top
+    }
+  }, [currentTrackId, isExpanded])
 
   // Collapsed, the peek also rises by the bottom safe-area inset (the card's
   // own `padding-bottom`, below), so the handle/header/row sit above the
@@ -501,6 +519,7 @@ export default function MobileUpNextSheet({
         </div>
 
         <div
+          ref={listRef}
           id="mobile-up-next-list"
           className="up-next-scroll flex min-h-0 flex-1 flex-col gap-[8px] overflow-y-auto overscroll-contain px-[12px] pb-[20px]"
         >
@@ -514,6 +533,10 @@ export default function MobileUpNextSheet({
               onSelect={onSelectTrack}
             />
           ))}
+          {/* Collapsed only: room below the last row so any row — even the
+              last — can scroll up into the peek (see the layout effect
+              above). Invisible, and removed once expanded. */}
+          {!isExpanded && <div aria-hidden="true" className="h-[calc(100%-64px)] shrink-0" />}
         </div>
       </div>
     </div>,

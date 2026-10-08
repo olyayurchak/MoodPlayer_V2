@@ -277,7 +277,7 @@ export default function VibeResultScreen({
             <button
               type="button"
               onClick={onScanAgain}
-              className="orb-glass-pill absolute bottom-[40px] left-1/2 flex h-[48px] -translate-x-1/2 items-center justify-center gap-[8px] whitespace-nowrap rounded-full px-[20px] text-[16px] font-medium text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+              className="orb-glass-pill absolute bottom-[28px] left-1/2 flex h-[48px] -translate-x-1/2 items-center justify-center gap-[8px] whitespace-nowrap rounded-full px-[20px] text-[16px] font-medium text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
             >
               <img src={reloadDesktop} alt="" className="size-[24px] shrink-0 object-cover" />
               <span>{t.vibeResult.scanAgainLabel}</span>

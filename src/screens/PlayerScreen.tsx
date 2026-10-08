@@ -10,7 +10,7 @@ import MobileUpNextSheet, { PEEK_HEIGHT_PX } from "../components/player/MobileUp
 import MobilePlayerTriggers from "../components/player/MobilePlayerTriggers"
 import { copy as t } from "../content/copy"
 import type { MoodId } from "../data/moods"
-import { testTracks } from "../data/playerTrack"
+import { ARTWORK_POSITION_DEFAULT, playlistForMood } from "../data/playerTrack"
 import { PLAYER_MOOD_ACCENTS, PLAYER_SPECTRUM, PLAY_LIQUID, liquidVars } from "../data/playerMoodAccent"
 import { formatPlaybackTime, usePlayerAudio } from "../hooks/usePlayerAudio"
 import { useWaveformAnalyser } from "../hooks/useWaveformAnalyser"
@@ -25,25 +25,26 @@ import { useWaveformAnalyser } from "../hooks/useWaveformAnalyser"
 const PREVIOUS_RESTART_THRESHOLD_SECONDS = 3
 
 /**
- * Returns a random permutation of every valid `testTracks` index (Fisher–
- * Yates), then — when there's an actual alternative (`length > 1`) —
- * guarantees the *first* entry never equals `excludeIndex` by swapping it
- * with the second one if it landed there. `excludeIndex` is always the
- * track already playing when a new shuffled run starts (either Shuffle
- * just turned on, or the previous shuffled cycle just finished), which is
- * exactly this feature's own "don't immediately repeat the current track
- * when alternatives exist" requirement — a single targeted swap, not a
- * rejection-sampling loop, since one swap is enough to fix the only
- * position that can ever violate it (every position deeper in the array is
- * already guaranteed different from `excludeIndex` because Fisher–Yates
- * produces a permutation with no duplicates). */
-function buildShuffleQueue(excludeIndex: number): number[] {
-  const indices = testTracks.map((_, index) => index)
+ * The upcoming shuffled order for a `trackCount`-long playlist (Fisher–
+ * Yates), as playlist indices; `currentIndex` is the track playing when
+ * it's built.
+ *
+ * - `"rest"` (Shuffle just turned on / the playlist just changed): every
+ *   track *except* the current one, so the current track (already
+ *   playing) doesn't come round again within this cycle.
+ * - `"newCycle"` (Repeat on and the previous cycle just ran out): every
+ *   track, with the current one swapped out of first place when there's
+ *   an alternative, so it isn't immediately replayed.
+ */
+function buildShuffleQueue(trackCount: number, currentIndex: number, mode: "rest" | "newCycle"): number[] {
+  const indices = Array.from({ length: trackCount }, (_, index) => index).filter(
+    (index) => mode === "newCycle" || index !== currentIndex,
+  )
   for (let i = indices.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1))
     ;[indices[i], indices[j]] = [indices[j], indices[i]]
   }
-  if (indices.length > 1 && indices[0] === excludeIndex) {
+  if (indices.length > 1 && indices[0] === currentIndex) {
     ;[indices[0], indices[1]] = [indices[1], indices[0]]
   }
   return indices
@@ -90,8 +91,8 @@ type PlayerScreenProps = {
  * (`App.tsx`). Real playback exists (`usePlayerAudio`, below), including
  * real Shuffle/Repeat playback modes (`isShuffleOn`/`isRepeatOn` and the
  * shuffle queue/history/`"ended"`-auto-advance logic further down this
- * file) — no gesture recognition or per-mood playlists yet, still
- * explicitly out of scope.
+ * file). Happy plays its real playlist (`playlistForMood`); Melancholic
+ * and Chill still share the test tracks. No gesture recognition yet.
  *
  * Approved Figma frames: Mobile `289:7420` (430×932 — a duplicated-and-
  * repurposed "iPhone 14 & 15 Pro Max - Intro" frame; its actual content is
@@ -131,8 +132,8 @@ type PlayerScreenProps = {
  * header mood-selector pills can visually switch which of the three moods
  * is highlighted, matching this task's "same component structure supports
  * all three moods" requirement, but this never re-triggers a scan, never
- * mutates `App.tsx`'s own confirmed-mood state, and (no playlist logic
- * exists yet) never reloads a different playlist either.
+ * mutates `App.tsx`'s own confirmed-mood state; it does switch to that
+ * mood's playlist (see the playlist-switch reset below).
  */
 export default function PlayerScreen({ mood, onLogoClick }: PlayerScreenProps) {
   const [activeMood, setActiveMood] = useState<MoodId>(mood)
@@ -158,16 +159,22 @@ export default function PlayerScreen({ mood, onLogoClick }: PlayerScreenProps) {
   const spectrum = PLAYER_SPECTRUM[activeMood]
   const liquid = PLAY_LIQUID[activeMood]
 
-  // Real Previous/Next state — an index into `testTracks` (see that
-  // file's own doc comment for why it replaced the old single static
+  // Real Previous/Next state — an index into `tracks` (see `playerTrack.ts`'s
+  // own doc comment for why it replaced the old single static
   // `currentTrack` + cloned `upNextTracks`). Owned here, not inside
   // `UpNextPanel`/`PlayerControls`, for the same "one shared source of
   // truth above both the Mobile and Desktop trees" reason `usePlayerAudio`
   // itself is owned here (see that hook's own doc comment).
   const [currentTrackIndex, setCurrentTrackIndex] = useState(0)
-  const currentTrack = testTracks[currentTrackIndex]
+  // The active mood's playlist (`playlistForMood`: Happy's real playlist,
+  // the shared test tracks otherwise). Switching to a mood with a
+  // *different* playlist restarts at its first track (reset below).
+  const tracks = playlistForMood(activeMood)
+  // Clamped only for the one discarded render where a longer playlist's
+  // index briefly meets a shorter one, before the reset below lands.
+  const currentTrack = tracks[Math.min(currentTrackIndex, tracks.length - 1)]
   const isFirstTrack = currentTrackIndex === 0
-  const isLastTrack = currentTrackIndex === testTracks.length - 1
+  const isLastTrack = currentTrackIndex === tracks.length - 1
 
   // Shuffle/Repeat playback modes — both off by default (no persisted
   // preference exists anywhere in this codebase to read instead), lifted
@@ -190,10 +197,23 @@ export default function PlayerScreen({ mood, onLogoClick }: PlayerScreenProps) {
   // cycle that's run out, with Repeat off, must visibly disable Next the
   // same way reaching the last track already does normally), which needs
   // to be reactive — a ref mutation alone wouldn't force that re-render.
-  // Both arrays stay tiny (never longer than `testTracks.length`), so
+  // Both arrays stay tiny (never longer than `tracks.length`), so
   // plain state here carries no meaningful cost.
   const [shuffleQueue, setShuffleQueue] = useState<number[]>([])
   const [shuffleHistory, setShuffleHistory] = useState<number[]>([])
+
+  // Playlist switch (mood change between different playlists): restart at
+  // the new playlist's first track and reseed Shuffle for it — the old
+  // queue/history hold indices into the previous playlist. Adjusted during
+  // render (React's "reset state when a prop changes" pattern) so no frame
+  // ever pairs the new playlist with the old index.
+  const [loadedTracks, setLoadedTracks] = useState(tracks)
+  if (loadedTracks !== tracks) {
+    setLoadedTracks(tracks)
+    setCurrentTrackIndex(0)
+    setShuffleQueue(isShuffleOn ? buildShuffleQueue(tracks.length, 0, "rest") : [])
+    setShuffleHistory([])
+  }
 
   // The one real `<audio>` element for `currentTrack`'s own `audioSrc` —
   // owned here, not inside either `PlayerControls` copy below, so both
@@ -280,7 +300,7 @@ export default function PlayerScreen({ mood, onLogoClick }: PlayerScreenProps) {
       // cycle (excluding an immediate repeat of the track that just
       // finished the previous one) rather than stopping.
       if (!isRepeatOn) return
-      queue = buildShuffleQueue(currentTrackIndex)
+      queue = buildShuffleQueue(tracks.length, currentTrackIndex, "newCycle")
     }
     const [nextIndex, ...rest] = queue
     setShuffleHistory((history) => [...history, currentTrackIndex])
@@ -290,9 +310,8 @@ export default function PlayerScreen({ mood, onLogoClick }: PlayerScreenProps) {
   }
 
   // Next: shuffled order while Shuffle is on (`advanceShuffled`, above);
-  // otherwise the original normal-order behavior, now also wrapping back
-  // to the first track when Repeat is on instead of always no-op'ing at
-  // the final track. Playback state itself needs no explicit handling in
+  // otherwise normal order, which stops at the last track — only Repeat
+  // wraps it to the first. Playback state itself needs no explicit handling in
   // either branch: `usePlayerAudio`'s own `wasPlayingRef` already resumes
   // automatically once the new track is ready if (and only if) the
   // *previous* track was actually playing, and stays paused otherwise —
@@ -310,11 +329,13 @@ export default function PlayerScreen({ mood, onLogoClick }: PlayerScreenProps) {
   }
 
   // Previous: a 3-second threshold still decides "restart the current
-  // track" vs. "switch to the previous track" — never both, and unchanged
-  // by Shuffle/Repeat. Below that threshold, Shuffle follows *actual
-  // playback history* (`shuffleHistory`, above) rather than "index − 1":
-  // a shuffled order has no well-defined previous-by-position, only
-  // wherever playback actually came from. `seekTo(0)` (not a `src`/index
+  // track" vs. "switch to the previous track" — never both. Below that
+  // threshold, normal order steps back one track and stops at the first
+  // (only Repeat wraps it to the last). Shuffle follows *actual playback
+  // history* (`shuffleHistory`, above) rather than "index − 1" — a
+  // shuffled order has no well-defined previous-by-position — and puts the
+  // track it leaves back at the front of the queue, so Next returns to it
+  // (Previous/Next stay inverses; nothing drops out of the cycle). `seekTo(0)` (not a `src`/index
   // change) is used for both the restart branch and the "no history yet"
   // fallback specifically because it must *not* recreate the `<audio>`
   // element: a real switch already correctly preserves playing/paused
@@ -334,10 +355,14 @@ export default function PlayerScreen({ mood, onLogoClick }: PlayerScreenProps) {
       }
       const previousIndex = shuffleHistory[shuffleHistory.length - 1]
       setShuffleHistory((history) => history.slice(0, -1))
+      setShuffleQueue((queue) => [currentTrackIndex, ...queue])
       setCurrentTrackIndex(previousIndex)
       return
     }
-    if (isFirstTrack) return
+    if (isFirstTrack) {
+      if (isRepeatOn) setCurrentTrackIndex(tracks.length - 1)
+      return
+    }
     setCurrentTrackIndex((index) => index - 1)
   }
 
@@ -345,12 +370,13 @@ export default function PlayerScreen({ mood, onLogoClick }: PlayerScreenProps) {
   // `PREVIOUS_RESTART_THRESHOLD_SECONDS` — past that threshold it always
   // has *something* to do (restart), even on the first track/with no
   // history yet. Below that threshold: normally only the very first track
-  // disables it; while Shuffle is on, "no history yet" (nothing to go
-  // back to) is the equivalent condition instead of `isFirstTrack`, which
-  // has no real meaning once order isn't sequential.
+  // disables it, and only with Repeat off (Repeat wraps it to the last);
+  // while Shuffle is on, "no history yet" (nothing to go back to) is the
+  // equivalent condition instead of `isFirstTrack`, which has no real
+  // meaning once order isn't sequential.
   const previousDisabled =
     audio.currentTime <= PREVIOUS_RESTART_THRESHOLD_SECONDS &&
-    (isShuffleOn ? shuffleHistory.length === 0 : isFirstTrack)
+    (isShuffleOn ? shuffleHistory.length === 0 : isFirstTrack && !isRepeatOn)
   // Next disables only when there is genuinely nothing left to advance
   // to: normal order at the final track with Repeat off, or a shuffled
   // cycle that's run out with Repeat off. Repeat being on always gives
@@ -371,7 +397,7 @@ export default function PlayerScreen({ mood, onLogoClick }: PlayerScreenProps) {
     const next = !isShuffleOn
     setIsShuffleOn(next)
     if (next) {
-      setShuffleQueue(buildShuffleQueue(currentTrackIndex))
+      setShuffleQueue(buildShuffleQueue(tracks.length, currentTrackIndex, "rest"))
       setShuffleHistory([])
     }
   }
@@ -422,30 +448,25 @@ export default function PlayerScreen({ mood, onLogoClick }: PlayerScreenProps) {
     setCurrentTrackIndex((index) => index + 1)
   }, [audio.status, audio.resumeOnNextTrack, isShuffleOn, isRepeatOn, isLastTrack, currentTrackIndex, shuffleQueue])
 
-  // "Current track and every track after it" — already-played tracks
-  // never remain above the current one (this milestone's own explicit
-  // Up Next requirement). `UpNextPanel` itself never reorders/filters
-  // `tracks` any further; see that component's own doc comment.
-  const upNextTracks = testTracks.slice(currentTrackIndex)
-
-  // The Mobile Up Next sheet's own track-selection handler
-  // (`MobileUpNextSheet`'s `onSelectTrack`) — the one small shared entry
-  // point this feature's own scope explicitly allows extracting here,
-  // rather than a second independent track-switching system living inside
-  // that component. Reuses the exact same `currentTrackIndex` state (and,
+  // The one track-selection handler for both Up Next lists (Desktop
+  // `UpNextPanel` and Mobile `MobileUpNextSheet`, via `onSelectTrack`) —
+  // neither component has a track-switching system of its own. Reuses the exact same `currentTrackIndex` state (and,
   // through it, `usePlayerAudio`'s own existing resume-on-switch logic)
   // Next/Previous already drive — selecting a track is nothing more than
   // moving that same index directly instead of by ±1.
   const selectTrack = (trackId: string) => {
-    // Already playing — do nothing, per this feature's own explicit
-    // "selecting the already-current track should not unnecessarily
-    // reload the audio source" requirement. Without this guard,
-    // `setCurrentTrackIndex` would still be called with the *same* value
-    // React already has, which wouldn't itself trigger a re-render — but
-    // relying on that implementation detail rather than checking it
-    // directly here would make the guarantee incidental, not guaranteed.
-    if (trackId === currentTrack.id) return
-    const index = testTracks.findIndex((track) => track.id === trackId)
+    // Picking a row is a deliberate "play this song" action, so it always
+    // plays (Next/Previous instead keep whatever play/pause state was
+    // already there). `ensureStarted` runs inside this same click, like
+    // Play's own handler, so the waveform analyser can start.
+    waveformAnalyser.ensureStarted()
+    if (trackId === currentTrack.id) {
+      // Already the current track: no reload, no history entry — just
+      // make sure it's playing.
+      if (!isPlaying) audio.play()
+      return
+    }
+    const index = tracks.findIndex((track) => track.id === trackId)
     if (index === -1) return
     // While Shuffle is on, record where playback actually came from
     // (matching every other navigation path — Next, Previous, and the
@@ -471,6 +492,7 @@ export default function PlayerScreen({ mood, onLogoClick }: PlayerScreenProps) {
       setShuffleHistory((history) => [...history, currentTrackIndex])
       setShuffleQueue((queue) => queue.filter((queuedIndex) => queuedIndex !== index))
     }
+    audio.resumeOnNextTrack()
     setCurrentTrackIndex(index)
   }
 
@@ -523,7 +545,12 @@ export default function PlayerScreen({ mood, onLogoClick }: PlayerScreenProps) {
               boxShadow: `0 0 20px 0 color-mix(in oklab, ${liquid.mid} 22%, transparent)`,
             }}
           >
-            <img src={currentTrack.artwork} alt="" className="absolute inset-0 size-full object-cover" />
+            <img
+              src={currentTrack.artwork}
+              alt=""
+              className="absolute inset-0 size-full object-cover"
+              style={{ objectPosition: currentTrack.artworkPositionMobile ?? ARTWORK_POSITION_DEFAULT }}
+            />
             <span
               aria-hidden="true"
               style={{ ...artworkRingStyle(undefined, "1px"), ...liquidVars(liquid) }}
@@ -532,7 +559,7 @@ export default function PlayerScreen({ mood, onLogoClick }: PlayerScreenProps) {
           </div>
 
           <div className="flex w-full flex-col items-center gap-[8px] text-center tracking-[-0.2px]">
-            <p className="w-full text-[24px] font-medium leading-[1.2] text-white">{currentTrack.title}</p>
+            <p className="w-full truncate text-[24px] font-medium leading-[1.2] text-white">{currentTrack.title}</p>
             <p className="w-full text-[16px] font-light leading-[1.4] text-[#cfcfcf]">{currentTrack.artist}</p>
           </div>
 
@@ -576,7 +603,7 @@ export default function PlayerScreen({ mood, onLogoClick }: PlayerScreenProps) {
 
           <MobileUpNextSheet
             mood={moodName}
-            tracks={upNextTracks}
+            tracks={tracks}
             currentTrackId={currentTrack.id}
             accent={accent}
             spectrum={spectrum}
@@ -607,7 +634,12 @@ export default function PlayerScreen({ mood, onLogoClick }: PlayerScreenProps) {
                 className="relative h-[342px] w-full shrink-0 overflow-hidden rounded-[24px]"
                 style={{ boxShadow: `0 0 20px 0 color-mix(in oklab, ${liquid.mid} 22%, transparent)` }}
               >
-                <img src={currentTrack.artwork} alt="" className="absolute inset-0 size-full object-cover" />
+                <img
+                  src={currentTrack.artwork}
+                  alt=""
+                  className="absolute inset-0 size-full object-cover"
+                  style={{ objectPosition: currentTrack.artworkPositionDesktop ?? ARTWORK_POSITION_DEFAULT }}
+                />
                 {/* Secondary tier of the desktop gradient hierarchy: a thin
                     1px edge in Play's palette (`.liquid-soft--ring`: 50%
                     opacity, slower 16s drift) plus a static, soft 20px halo
@@ -664,7 +696,14 @@ export default function PlayerScreen({ mood, onLogoClick }: PlayerScreenProps) {
             </div>
 
             {/* B. Up Next — Figma `549:1243`, 479×715 (sized in `UpNextPanel`). */}
-            <UpNextPanel mood={moodName} tracks={upNextTracks} currentTrackId={currentTrack.id} accent={accent} spectrum={spectrum} />
+            <UpNextPanel
+              mood={moodName}
+              tracks={tracks}
+              currentTrackId={currentTrack.id}
+              accent={accent}
+              spectrum={spectrum}
+              onSelectTrack={selectTrack}
+            />
 
             {/* C. Utility rail — Figma `549:1330`: Choose Vibe (108×172) and
                 Gesture Control (fills the rest), 12px apart. */}

@@ -1300,23 +1300,28 @@ html {
       100% 100%,
       50% 50%;
   }
+  /* Every frame after 0% sits 1.2× further from the 0% composition than
+     it originally did (~20% more visible travel at the same 10s pace and
+     easing); 0% stays the reduced-motion resting frame. Slightly-out-of-
+     range values only push a light centre just past the button's edge —
+     each field's 55% falloff still reaches well inside. */
   35% {
     background-position:
-      35% 80%,
-      70% 10%,
-      15% 40%;
+      42% 96%,
+      64% -8%,
+      8% 38%;
   }
   70% {
     background-position:
-      90% 55%,
-      10% 35%,
-      75% 85%;
+      108% 66%,
+      -8% 22%,
+      80% 92%;
   }
   100% {
     background-position:
-      60% 0%,
-      25% 90%,
-      40% 15%;
+      72% 0%,
+      10% 88%,
+      38% 8%;
   }
 }
 

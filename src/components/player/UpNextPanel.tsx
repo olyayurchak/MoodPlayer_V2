@@ -1,3 +1,4 @@
+import { useEffect, useRef } from "react"
 import type { PlayerTrack } from "../../data/playerTrack"
 import { spectrumGradient, type MoodSpectrum, type PlayerMoodAccent } from "../../data/playerMoodAccent"
 import { copy as t } from "../../content/copy"
@@ -17,14 +18,26 @@ const CURRENT_TRACK_RING_STYLE = {
   maskComposite: "exclude" as const,
 }
 
+/** Scrolls `list` (only — never the page) just enough to show `row`,
+ *  and not at all when it's already fully visible. Shared with
+ *  `MobileUpNextSheet`. */
+export function scrollRowIntoList(list: HTMLElement, row: Element) {
+  const listBox = list.getBoundingClientRect()
+  const rowBox = row.getBoundingClientRect()
+  if (rowBox.top < listBox.top) list.scrollTop += rowBox.top - listBox.top
+  else if (rowBox.bottom > listBox.bottom) list.scrollTop += rowBox.bottom - listBox.bottom
+}
+
 function TrackRow({
   track,
   isCurrent,
   accent,
   spectrum,
+  onSelect,
 }: {
   track: PlayerTrack
   isCurrent: boolean
+  onSelect: (trackId: string) => void
   /** Desktop gradient hierarchy: when set, the current row's ring is a
    *  faint 1px edge of the mood spectrum (45%) instead of the full
    *  gradient — a selected state, not a competitor to Play. */
@@ -42,11 +55,21 @@ function TrackRow({
    *  orange→coral→red sweep). */
   accent?: PlayerMoodAccent
 }) {
+  // Same accessible name / current-track semantics as Mobile's
+  // `SelectableTrackRow` (`MobileUpNextSheet.tsx`).
+  const label = isCurrent
+    ? `${t.player.selectTrack(track.title, track.artist)} — ${t.player.nowPlayingLabel}`
+    : t.player.selectTrack(track.title, track.artist)
+
   return (
-    <div
+    <button
+      type="button"
+      onClick={() => onSelect(track.id)}
+      aria-current={isCurrent ? "true" : undefined}
+      aria-label={label}
       style={accent && isCurrent ? { backgroundColor: accent.accentSecondaryTint } : undefined}
-      className={`relative flex w-full shrink-0 items-center justify-between gap-[12px] rounded-[12px] p-[8px] ${
-        isCurrent && !accent ? "bg-[rgba(255,255,255,0.06)]" : ""
+      className={`relative flex w-full shrink-0 cursor-pointer items-center justify-between gap-[12px] rounded-[12px] p-[8px] text-left transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white ${
+        isCurrent ? (accent ? "" : "bg-[rgba(255,255,255,0.06)]") : "hover:bg-[rgba(255,255,255,0.04)]"
       }`}
     >
       {isCurrent && (
@@ -72,7 +95,7 @@ function TrackRow({
       <p className="relative shrink-0 text-[14px] font-light tracking-[-0.2px] text-[#cfcfcf]">
         {track.durationLabel}
       </p>
-    </div>
+    </button>
   )
 }
 
@@ -86,13 +109,12 @@ function TrackRow({
  * behavior changes from that work; everything below is exactly as it was
  * before that feature, Desktop-only, unchanged.
  *
- * Rows are still not clickable (no queue-jump-by-click on Desktop) and
- * this component still owns no playback/switching logic of its own — it's
- * a read-only view of whatever `tracks`/`currentTrackId` `PlayerScreen`
- * hands it. `PlayerScreen` slices `data/playerTrack.ts`'s `testTracks`
- * down to "current track and everything after it" before passing `tracks`
- * here — this component's own job is just comparing each row's real
- * `track.id` against `currentTrackId`.
+ * Every row is a button that hands its track to `onSelectTrack`
+ * (`PlayerScreen`'s shared `selectTrack`) — this component owns no
+ * playback/switching logic of its own. `PlayerScreen` passes the full
+ * playlist in its stored order — every track stays listed whatever is
+ * playing, and Shuffle/Repeat never change it; only the current-row
+ * highlight moves (each row's `track.id` against `currentTrackId`).
  *
  * Desktop keeps its own internal scroll area (`lg:overflow-y-auto` with a
  * capped height, styled via the `.up-next-scroll` class in `index.css`
@@ -112,12 +134,10 @@ export default function UpNextPanel({
   currentTrackId,
   accent,
   spectrum,
+  onSelectTrack,
 }: {
   mood: string
-  /** Already sliced by the caller to "current track and every track after
-   *  it" (`PlayerScreen`'s own `testTracks.slice(currentTrackIndex)`) —
-   *  this component never sees already-played tracks and never reorders
-   *  or filters `tracks` itself. */
+  /** The full playlist in stored order — never reordered or filtered. */
   tracks: PlayerTrack[]
   /** Which of `tracks` is the one actually playing — compared against
    *  each row's own `track.id` rather than assumed to be at index `0`,
@@ -125,16 +145,34 @@ export default function UpNextPanel({
   currentTrackId: string
   accent?: PlayerMoodAccent
   spectrum?: MoodSpectrum
+  onSelectTrack: (trackId: string) => void
 }) {
+  // Keep the current row in view when the track changes — scrolling only
+  // if it's outside the visible part of the list, so the list never jumps
+  // while the current row is already on screen.
+  const listRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    const list = listRef.current
+    const row = list?.querySelector('[aria-current="true"]')
+    if (list && row) scrollRowIntoList(list, row)
+  }, [currentTrackId])
+
   return (
     <div className="flex w-full flex-col gap-[20px] rounded-[24px] bg-[rgba(255,255,255,0.08)] p-[20px] backdrop-blur-[20px] lg:pt-[24px] lg:h-[715px] lg:w-[479px] lg:shrink-0">
       <div className="flex flex-col gap-[2px] tracking-[-0.2px]">
         <p className="text-[20px] font-medium text-white lg:text-[24px]">{t.player.upNextHeading}</p>
         <p className="text-[16px] font-light text-[#cfcfcf]">{t.player.upNextSubtitle(mood)}</p>
       </div>
-      <div className="up-next-scroll flex flex-col gap-[8px] lg:min-h-0 lg:flex-1 lg:overflow-y-auto lg:pr-[10px]">
+      <div ref={listRef} className="up-next-scroll flex flex-col gap-[8px] lg:min-h-0 lg:flex-1 lg:overflow-y-auto lg:pr-[10px]">
         {tracks.map((track) => (
-          <TrackRow key={track.id} track={track} isCurrent={track.id === currentTrackId} accent={accent} spectrum={spectrum} />
+          <TrackRow
+            key={track.id}
+            track={track}
+            isCurrent={track.id === currentTrackId}
+            accent={accent}
+            spectrum={spectrum}
+            onSelect={onSelectTrack}
+          />
         ))}
       </div>
     </div>

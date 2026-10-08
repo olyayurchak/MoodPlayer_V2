@@ -302,9 +302,10 @@ export const PLAYER_MOOD_ACCENTS: Partial<Record<MoodId, PlayerMoodAccent>> = {
  * exist; the two marked "derived" are new in-between hues the requested
  * direction needed. Interpolated `in oklab` for smooth, banding-free blends.
  *
- * - Happy (coral → magenta → warm violet): `#eb6e51` (Happy's own coral),
- *   `#c43a86` (MoodPlayer's original Figma CTA magenta), `#7458b8`
- *   (`--color-cta-button-via`).
+ * - Happy (orange → coral → red): its own approved stops
+ *   (`PLAYER_MOOD_ACCENTS.happy.gradient`). An earlier coral → magenta
+ *   (`#c43a86`) → violet (`#7458b8`) sweep read as pink/purple on Happy's
+ *   selected states (current Up Next row, Choose Vibe), so it was replaced.
  * - Melancholic (slate blue → violet → muted cyan): `#4a4f9f` and `#6b6dc8`
  *   (Melancholic's own stops), `#6f9cbf` (derived muted cyan).
  * - Chill (magenta → violet → blue): the original Chill colours — the
@@ -315,7 +316,7 @@ export const PLAYER_MOOD_ACCENTS: Partial<Record<MoodId, PlayerMoodAccent>> = {
 export type MoodSpectrum = { start: string; mid: string; end: string }
 
 export const PLAYER_SPECTRUM: Record<MoodId, MoodSpectrum> = {
-  happy: { start: "#eb6e51", mid: "#c43a86", end: "#7458b8" },
+  happy: { start: "#f1a04e", mid: "#eb6e51", end: "#e54d56" },
   melancholic: { start: "#4a4f9f", mid: "#6b6dc8", end: "#6f9cbf" },
   chill: { start: "#a64ca6", mid: "#7458b8", end: "#5576d8" },
 }
@@ -337,7 +338,7 @@ export function spectrumGradient(spectrum: MoodSpectrum, strength = 1, angle = 1
  * Happy theme. Melancholic and Chill keep their `PLAYER_SPECTRUM` stops.
  */
 export const PLAY_LIQUID: Record<MoodId, MoodSpectrum> = {
-  happy: { start: "#f1a04e", mid: "#eb6e51", end: "#e54d56" },
+  happy: PLAYER_SPECTRUM.happy,
   melancholic: PLAYER_SPECTRUM.melancholic,
   chill: PLAYER_SPECTRUM.chill,
 }

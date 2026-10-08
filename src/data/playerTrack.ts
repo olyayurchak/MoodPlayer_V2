@@ -2,6 +2,10 @@ import trackArtwork from "../imports/Player/track-artwork.png"
 import testTrack1Sound from "../assets/audio/test-track-1.mp3"
 import testTrack2Sound from "../assets/audio/test-track-2.mp3"
 import testTrack3Sound from "../assets/audio/test-track-3.mp3"
+import type { MoodId } from "./moods"
+import { happyTracks } from "./happyPlaylist"
+import { melancholicTracks } from "./melancholicPlaylist"
+import { chillTracks } from "./chillPlaylist"
 
 /**
  * The Player screen's track data — one ordered queue (`testTracks`) real
@@ -45,6 +49,13 @@ export type PlayerTrack = {
    *  milestone's own actual scope. */
   elapsedLabel?: string
   artwork: string
+  /** Optional CSS `object-position` focal points for `artwork` inside the
+   *  Player's landscape (479:342) artwork frame, where `object-fit: cover`
+   *  crops a square cover top/bottom. Separate values because the Desktop
+   *  and Mobile artwork are separate elements and may need different
+   *  framing. Missing → `ARTWORK_POSITION_DEFAULT` (`center center`). */
+  artworkPositionDesktop?: string
+  artworkPositionMobile?: string
   /** Each track's own real, rights-cleared audio file
    *  (`assets/audio/test-track-{1,2,3}.mp3` — added specifically for
    *  Player playback verification, distinct from `bubble-scatter.mp3`,
@@ -54,7 +65,11 @@ export type PlayerTrack = {
    *  unresolved by this milestone. Optional so a future track added
    *  without one yet doesn't need a placeholder value here. */
   audioSrc?: string
+  /** The mood playlist this track belongs to (unset on the shared test tracks). */
+  mood?: MoodId
 }
+
+export const ARTWORK_POSITION_DEFAULT = "center center"
 
 export const testTracks: PlayerTrack[] = [
   {
@@ -63,6 +78,11 @@ export const testTracks: PlayerTrack[] = [
     artist: "Toby Rose & One Trick Pony",
     durationLabel: "3:56",
     artwork: trackArtwork,
+    // Example framing: keeps the standing figure and horizon slightly above
+    // center (the cover's tiny top-edge credits can't survive a 479:342
+    // crop without hitting the rounded corners, so they're let go).
+    artworkPositionDesktop: "center 40%",
+    artworkPositionMobile: "center 35%",
     audioSrc: testTrack1Sound,
   },
   {
@@ -82,3 +102,11 @@ export const testTracks: PlayerTrack[] = [
     audioSrc: testTrack3Sound,
   },
 ]
+
+/** The playlist the Player plays for each mood — every mood now has its
+ *  own real playlist (`testTracks` above is no longer played). */
+export function playlistForMood(mood: MoodId): PlayerTrack[] {
+  if (mood === "happy") return happyTracks
+  if (mood === "melancholic") return melancholicTracks
+  return chillTracks
+}
