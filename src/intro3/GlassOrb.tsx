@@ -80,6 +80,17 @@ const PULL_NEAR = {
 const MOBILE_FIT_TOP_PX = 445 + 24
 const MOBILE_FIT_BOTTOM_MARGIN_PX = 24
 
+/** Short-screen fit (Desktop). The cluster sits in Intro 1's fixed 1024px
+ *  frame, so on short laptop screens its lower half fell below the fold.
+ *  First it rises with the hero by `index.css`'s own `--intro-fit` —
+ *  `clamp(0, FULL_HEIGHT − height, MAX_LIFT)`, the same numbers, so the
+ *  headline/CTA and the orbs keep moving together — and only if its bottom
+ *  edge would still cross `BOTTOM_MARGIN` is it also scaled down as one,
+ *  anchored at its (lifted) top edge, so the gap under the CTA holds. 0 lift
+ *  and scale 1 from 910px tall up: the approved 1440×1024 layout is
+ *  unchanged. */
+const DESKTOP_FIT = { fullHeightPx: 910, maxLiftPx: 136, bottomMarginPx: 24 }
+
 /** Where the portrait's own circular cut-out sits inside the PNG, in UV units
  *  (measured from the 1254×1254 asset: centre (627, 639) px, radius 587 px,
  *  sampled just inside). Sampling stays inside it so its hard edge never
@@ -136,6 +147,7 @@ export default function GlassOrb({
   content = HERO_CONTENT,
   slot,
   mobileFit,
+  desktopFit,
   liftDir,
   drift,
 }: {
@@ -151,6 +163,9 @@ export default function GlassOrb({
    *  cross into the CTA band is it also scaled down as one (positions and
    *  sizes together, so every overlap keeps its proportions). */
   mobileFit?: OrbClusterBounds
+  /** Desktop only: the whole cluster's bounds, for the short-screen fit
+   *  (`DESKTOP_FIT`). */
+  desktopFit?: OrbClusterBounds
   /** Desktop: unit direction, y up, away from the neighbours covering this
    *  orb — where the hover lift-out moves it. */
   liftDir?: { x: number; y: number }
@@ -223,6 +238,12 @@ export default function GlassOrb({
       fitScale = THREE.MathUtils.clamp((bandBottom - MOBILE_FIT_TOP_PX) / height, 0, 1)
       const clusterTop = Math.min(frameCentreY + mobileFit.top, bandBottom - height * fitScale)
       screenY = clusterTop + (spot.dy - mobileFit.top) * fitScale
+    } else if (desktop && desktopFit) {
+      const height = desktopFit.bottom - desktopFit.top
+      const lift = THREE.MathUtils.clamp(DESKTOP_FIT.fullHeightPx - size.height, 0, DESKTOP_FIT.maxLiftPx)
+      const clusterTop = frameCentreY + desktopFit.top - lift
+      fitScale = THREE.MathUtils.clamp((size.height - DESKTOP_FIT.bottomMarginPx - clusterTop) / height, 0, 1)
+      screenY = clusterTop + (spot.dy - desktopFit.top) * fitScale
     }
     // This orb's own radius; motion below is in units of it.
     const R = ((spot.diameter * fitScale) / 2) * pxToWorld

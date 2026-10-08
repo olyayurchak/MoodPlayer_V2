@@ -848,7 +848,9 @@ html {
  * layer by the full amount. Bubbles keep their sizes and positions relative
  * to each other; no scale, so the wave and pointer-field distances are
  * unchanged. Linear in `100dvh`, so it tracks the viewport continuously.
- * Mobile (below `lg`) is unaffected.
+ * Mobile (below `lg`) is unaffected. The WebGL orb cluster (Intro C) applies
+ * the same lift in `GlassOrb` (`DESKTOP_FIT`), since `.mood-bubble-cluster`
+ * is no longer mounted.
  */
 @media (min-width: 1024px) {
   [data-intro-root] {

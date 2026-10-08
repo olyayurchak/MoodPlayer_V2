@@ -215,17 +215,25 @@ const SUPPORT_DRIFTS = new Map(
   SUPPORT_ORBS.map((orb) => [orb.id, floatForSlot(intro1DesktopSlot(orb.slot, orb.intro1Id))]),
 )
 
+const boundsOf = (spots: OrbFrameSpot[]): OrbClusterBounds => ({
+  top: Math.min(...spots.map((spot) => spot.dy - spot.diameter / 2)),
+  bottom: Math.max(...spots.map((spot) => spot.dy + spot.diameter / 2)),
+})
+
 /** The Intro 1 Mobile cluster's vertical bounds, for the short-screen fit in
  *  `GlassOrb` (`mobileFit`). */
-const MOBILE_BOUNDS: OrbClusterBounds = (() => {
-  const spots = [HERO_SLOT_INTRO1, ...SUPPORT_ORBS.map((orb) => orb.slot)]
+const MOBILE_BOUNDS: OrbClusterBounds = boundsOf(
+  [HERO_SLOT_INTRO1, ...SUPPORT_ORBS.map((orb) => orb.slot)]
     .map((slot) => slot.mobile)
-    .filter((spot): spot is OrbFrameSpot => spot !== null)
-  return {
-    top: Math.min(...spots.map((spot) => spot.dy - spot.diameter / 2)),
-    bottom: Math.max(...spots.map((spot) => spot.dy + spot.diameter / 2)),
-  }
-})()
+    .filter((spot): spot is OrbFrameSpot => spot !== null),
+)
+
+/** The Desktop cluster's vertical bounds (the Intro 1 Desktop slots actually
+ *  rendered), for the short-screen fit in `GlassOrb` (`desktopFit`). */
+const DESKTOP_BOUNDS: OrbClusterBounds = boundsOf([
+  HERO_SLOT_INTRO1.desktop,
+  ...SUPPORT_ORBS.map((orb) => intro1DesktopSlot(orb.slot, orb.intro1Id).desktop),
+])
 
 function canUseWebGL(): boolean {
   try {
@@ -323,6 +331,7 @@ export default function GlassOrbCanvas() {
                 reducedMotion={reducedMotion}
                 slot={HERO_SLOT_INTRO1}
                 mobileFit={MOBILE_BOUNDS}
+                desktopFit={DESKTOP_BOUNDS}
                 drift={HERO_DRIFT}
                 liftDir={LIFT_DIRS.hero}
               />
@@ -334,6 +343,7 @@ export default function GlassOrbCanvas() {
                   content={orb.content}
                   slot={intro1DesktopSlot(orb.slot, orb.intro1Id)}
                   mobileFit={MOBILE_BOUNDS}
+                  desktopFit={DESKTOP_BOUNDS}
                   drift={SUPPORT_DRIFTS.get(orb.id)!}
                   liftDir={LIFT_DIRS.support.get(orb.id)}
                 />
