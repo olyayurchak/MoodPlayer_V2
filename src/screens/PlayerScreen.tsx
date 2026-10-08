@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState } from "react"
+import { GESTURE_FAILURE_STATUSES, useGestureControls } from "../gestures/useGestureControls"
+import type { GestureAction } from "../gestures/gestureConfig"
 import AppBackground from "../components/AppBackground"
 import MoodPlayerLogo from "../components/MoodPlayerLogo"
 import PlayerWaveform, { BAR_COUNT } from "../components/player/PlayerWaveform"
@@ -92,7 +94,9 @@ type PlayerScreenProps = {
  * real Shuffle/Repeat playback modes (`isShuffleOn`/`isRepeatOn` and the
  * shuffle queue/history/`"ended"`-auto-advance logic further down this
  * file). Happy plays its real playlist (`playlistForMood`); Melancholic
- * and Chill still share the test tracks. No gesture recognition yet.
+ * and Chill still share the test tracks. Gesture Controls map recognised
+ * hand gestures onto the same Play/Pause/Next/Previous handlers
+ * (`useGestureControls`, `handleGestureAction` below).
  *
  * Approved Figma frames: Mobile `289:7420` (430×932 — a duplicated-and-
  * repurposed "iPhone 14 & 15 Pro Max - Intro" frame; its actual content is
@@ -137,12 +141,10 @@ type PlayerScreenProps = {
  */
 export default function PlayerScreen({ mood, onLogoClick }: PlayerScreenProps) {
   const [activeMood, setActiveMood] = useState<MoodId>(mood)
-  // Mobile closed-state triggers (`MobilePlayerTriggers`): the mood trigger
-  // opens the Choose Vibe popover (which calls `setActiveMood`); the gesture
-  // trigger opens the Gesture Controls popover, whose switch sets this
-  // Mobile-only On/Off state (the replaced mobile gesture panel also kept
-  // its own, independent of the desktop rail's).
-  const [mobileGesturesOn, setMobileGesturesOn] = useState(false)
+  // Gesture Controls On/Off — one shared state for the desktop rail's
+  // switch and the mobile Gesture Controls popover's switch, and the one
+  // input that starts/stops real recognition (`useGestureControls` below).
+  const [gesturesOn, setGesturesOn] = useState(false)
 
   useEffect(() => {
     setActiveMood(mood)
@@ -266,6 +268,35 @@ export default function PlayerScreen({ mood, onLogoClick }: PlayerScreenProps) {
     waveformAnalyser.ensureStarted()
     audio.toggle()
   }
+
+  // Gesture Controls — recognition lives in `useGestureControls`; this
+  // screen only maps each action onto its existing playback calls. Neither
+  // is a toggle: open palm only plays (no-op if already playing), closed
+  // fist only pauses (no-op if already paused). Thumb up / thumb down are
+  // exactly the Next / Previous buttons (`handleNext` / `handlePrevious`,
+  // below): same Repeat boundary, same shuffle queue and history, same
+  // restart threshold, same "keeps playing / stays paused" behavior.
+  const isPlayingRef = useRef(isPlaying)
+  isPlayingRef.current = isPlaying
+  const handleGestureAction = (action: GestureAction) => {
+    if (action === "play" && !isPlayingRef.current && audio.status !== "error") {
+      waveformAnalyser.ensureStarted()
+      audio.play()
+    } else if (action === "pause" && isPlayingRef.current) {
+      audio.pause()
+    } else if (action === "next") {
+      handleNext()
+    } else if (action === "previous") {
+      handlePrevious()
+    }
+  }
+  const gestureControls = useGestureControls({ enabled: gesturesOn, onAction: handleGestureAction })
+  // Camera denied/unavailable or the model failed: recognition has
+  // stopped, so the switch returns to Off rather than claiming it's on.
+  // Manual controls are unaffected either way.
+  useEffect(() => {
+    if (GESTURE_FAILURE_STATUSES.includes(gestureControls.status)) setGesturesOn(false)
+  }, [gestureControls.status])
   // `0–100` for `PlayerControls`' own existing slider range — converted
   // here, at the one boundary between this screen and the `0–1` range
   // `HTMLAudioElement.volume` (and this hook) actually use.
@@ -596,8 +627,8 @@ export default function PlayerScreen({ mood, onLogoClick }: PlayerScreenProps) {
           <MobilePlayerTriggers
             activeMood={activeMood}
             onMoodSelect={setActiveMood}
-            gesturesOn={mobileGesturesOn}
-            onGesturesChange={setMobileGesturesOn}
+            gesturesOn={gesturesOn}
+            onGesturesChange={setGesturesOn}
             palette={liquid}
           />
 
@@ -710,7 +741,7 @@ export default function PlayerScreen({ mood, onLogoClick }: PlayerScreenProps) {
             <div className="flex h-[715px] w-[108px] shrink-0 flex-col gap-[12px]">
               <ChooseVibeCard activeMood={activeMood} onSelect={setActiveMood} accent={accent} />
               <div className="min-h-0 w-full flex-1">
-                <GestureControlsPanel variant="rail" palette={liquid} />
+                <GestureControlsPanel variant="rail" palette={liquid} enabled={gesturesOn} onEnabledChange={setGesturesOn} />
               </div>
             </div>
           </div>

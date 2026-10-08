@@ -97,6 +97,8 @@ const TOGGLE_BORDER_WIDTH = 1.5
 export default function GestureControlsPanel({
   variant = "row",
   palette,
+  enabled,
+  onEnabledChange,
 }: {
   /** `"rail"` is the Desktop Player's narrow right-hand utility rail
    *  (Figma node `549:1331`, 108px wide): the same On/Off state and the
@@ -108,8 +110,19 @@ export default function GestureControlsPanel({
    *  switch's ON track is a static gradient of them (`spectrumGradient`)
    *  instead of the generic brand CTA gradient. OFF stays neutral. */
   palette?: MoodSpectrum
+  /** Optional controlled On/Off state (the Player passes its shared
+   *  Gesture Controls state so desktop and mobile stay in sync). When
+   *  omitted, the panel keeps its own local state as before. */
+  enabled?: boolean
+  onEnabledChange?: (on: boolean) => void
 } = {}) {
-  const [isEnabled, setIsEnabled] = useState(false)
+  const [localEnabled, setLocalEnabled] = useState(false)
+  const isEnabled = enabled ?? localEnabled
+  const setIsEnabled = (next: boolean | ((on: boolean) => boolean)) => {
+    const value = typeof next === "function" ? next(isEnabled) : next
+    if (onEnabledChange) onEnabledChange(value)
+    else setLocalEnabled(value)
+  }
   const railHeadingId = useId()
 
   // The sliding active-indicator's own measured geometry (relative to
