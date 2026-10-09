@@ -307,8 +307,10 @@ export default forwardRef<ScanningVisualHandle, ScanningVisualProps>(function Sc
     }
   }, [landmarks, videoSize, tessellationConnectors, keyLandmarkIndices, contourConnectors, lipsConnectors, farSide, fadeIntensity, poseState])
 
+  // No stream yet = still being (re-)acquired for this scan ("Scan again"):
+  // a failed request leaves the scanning visual for an error state instead.
   const caption = !stream
-    ? t.cameraPermission.scanningUnavailable
+    ? t.cameraPermission.scanningInitializing
     : faceStatus === "loading"
       ? t.cameraPermission.scanningInitializing
       : faceStatus === "no-face"

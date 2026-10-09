@@ -131,9 +131,9 @@ const REQUESTING_LABEL_DELAY_MS = 700
  * component does unmount, every time the user leaves for the Vibe Result
  * screen and later returns via "Scan again" (`App.tsx`'s top-level screen
  * swap mounts exactly one screen at a time). `App.tsx` never unmounts
- * during normal use, so the one `MediaStream` obtained there survives that
- * whole round trip untouched — reused on the repeat pass, never
- * re-requested, never stopped-and-recreated.
+ * during normal use, so the permission state survives that round trip;
+ * the stream itself is stopped when this screen is left and re-acquired
+ * (without a new prompt) when it's shown again.
  *
  * The Permission → Scanning content swap fades via its own
  * `useFadeTransition` instance (`cameraFade` below) — the exact same
@@ -146,7 +146,8 @@ const REQUESTING_LABEL_DELAY_MS = 700
  * hardcoded to `"permission"`: on the very first visit `cameraStatus` is
  * `"idle"`, so it starts on the permission visual as always; landing here
  * again via "Scan again" (after access was already granted earlier)
- * means `cameraStatus` is already `"granted"` on this fresh mount, so it
+ * means `cameraStatus` is already `"granted"` on this fresh mount (the
+ * stream follows a moment later, re-acquired by `App.tsx`), so it
  * starts directly on the scanning visual instead — no permission-
  * placeholder flash, no fade-through, because there's nothing to
  * transition away from in that case. The `useEffect` below still handles

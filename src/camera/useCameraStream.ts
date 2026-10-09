@@ -17,6 +17,10 @@ type UseCameraStreamResult = {
    *  already exists, so nothing here can ever produce a duplicate
    *  permission-request loop. */
   requestAccess: () => void
+  /** Stops every track and drops the stream (camera indicator off). Status
+   *  stays `"granted"` if access was granted, so the next `requestAccess`
+   *  re-acquires quietly — no `"requesting"` state, no permission UI. */
+  release: () => void
 }
 
 /**
@@ -25,18 +29,22 @@ type UseCameraStreamResult = {
  * requested after an explicit user action — never automatically, never
  * repeated after denial).
  *
- * `CameraPermissionScreen` never unmounts between its "prompt" and
- * "scanning" phases — it's the same mounted hook instance the whole
- * time — so the one `MediaStream` obtained here is naturally reused for
- * the scanning phase with no extra plumbing and no second permission
- * request. All tracks are stopped on unmount so the camera indicator
- * light turns off the moment this screen is left.
+ * Owned by `App.tsx`, which releases the stream whenever the Camera
+ * Permission screen is left (scan finished, or back to Intro) and
+ * re-acquires it when that screen is shown again after an earlier grant
+ * ("Scan again"). The camera is therefore only live during the scan
+ * itself. A release while a request is still in flight discards the
+ * stream it resolves with. All tracks are also stopped on unmount.
  */
 export function useCameraStream(): UseCameraStreamResult {
   const [stream, setStream] = useState<MediaStream | null>(null)
   const [status, setStatus] = useState<CameraStreamStatus>("idle")
   const requestInFlightRef = useRef(false)
   const streamRef = useRef<MediaStream | null>(null)
+  /** Access was granted earlier this session (cleared again by a failure). */
+  const grantedRef = useRef(false)
+  /** Bumped by `release`, so a request resolving after it is discarded. */
+  const generationRef = useRef(0)
 
   const requestAccess = useCallback(() => {
     if (requestInFlightRef.current || streamRef.current) return
@@ -47,18 +55,25 @@ export function useCameraStream(): UseCameraStreamResult {
     }
 
     requestInFlightRef.current = true
-    setStatus("requesting")
+    const generation = generationRef.current
+    if (!grantedRef.current) setStatus("requesting")
 
     navigator.mediaDevices
       .getUserMedia({ video: { facingMode: "user" }, audio: false })
       .then((mediaStream) => {
         requestInFlightRef.current = false
+        grantedRef.current = true
+        setStatus("granted")
+        if (generation !== generationRef.current) {
+          mediaStream.getTracks().forEach((track) => track.stop())
+          return
+        }
         streamRef.current = mediaStream
         setStream(mediaStream)
-        setStatus("granted")
       })
       .catch((error: unknown) => {
         requestInFlightRef.current = false
+        grantedRef.current = false
         const name = error instanceof DOMException ? error.name : undefined
         if (name === "NotAllowedError" || name === "SecurityError") {
           setStatus("denied")
@@ -70,7 +85,14 @@ export function useCameraStream(): UseCameraStreamResult {
       })
   }, [])
 
-  // Stop every track on unmount only — status/`requestAccess` intentionally
+  const release = useCallback(() => {
+    generationRef.current++
+    streamRef.current?.getTracks().forEach((track) => track.stop())
+    streamRef.current = null
+    setStream(null)
+  }, [])
+
+  // Also stop every track on unmount — status/`requestAccess` intentionally
   // aren't in this effect's concerns, so a status change never tears the
   // stream down early.
   useEffect(() => {
@@ -79,5 +101,5 @@ export function useCameraStream(): UseCameraStreamResult {
     }
   }, [])
 
-  return { stream, status, requestAccess }
+  return { stream, status, requestAccess, release }
 }

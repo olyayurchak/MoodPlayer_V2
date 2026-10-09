@@ -47,13 +47,13 @@ function initialScreen(): Screen {
  * - `VibeResultScreen`'s "Scan again" → back to "camera-permission". This
  *   remounts `CameraPermissionScreen` fresh (a new `useScanProgress`, so
  *   progress/completion reset automatically with no dedicated reset code
- *   needed), but *not* a fresh camera stream — `useCameraStream` is owned
- *   here, in `App.tsx`, specifically so it survives that remount. Camera
- *   access already granted on the first pass through this flow is simply
- *   reused on every later "Scan again", never re-requested, never
- *   stopped-and-recreated — see `CameraPermissionScreen`'s own doc
- *   comment for how it detects this at mount time and skips straight to
- *   its scanning visual with no permission-placeholder flash.
+ *   needed). `useCameraStream` is owned here, in `App.tsx`, so the
+ *   permission state survives that remount: the stream itself is
+ *   released whenever this screen is left and re-acquired on "Scan
+ *   again" without a new permission prompt — see the effect next to
+ *   `useCameraStream` below, and `CameraPermissionScreen`'s own doc
+ *   comment for how it skips straight to its scanning visual with no
+ *   permission-placeholder flash.
  *
  * A fourth transition — Camera Permission's own internal Permission ↔
  * Scanning content swap — deliberately does *not* go through this
@@ -70,13 +70,22 @@ function initialScreen(): Screen {
  */
 export default function App() {
   const { displayedValue: screen, fadeClassName, navigate } = useFadeTransition<Screen>(initialScreen())
-  // Owned here (not inside `CameraPermissionScreen`) so the one
-  // `MediaStream` obtained on first grant survives every later "Scan
-  // again" round trip through the Vibe Result screen — see the doc
-  // comment above and `CameraPermissionScreen`'s own for the full
-  // reasoning. Passed down as plain props; `CameraPermissionScreen` never
+  // Owned here (not inside `CameraPermissionScreen`) so the permission
+  // state survives every "Scan again" round trip through the Vibe Result
+  // screen. Passed down as plain props; `CameraPermissionScreen` never
   // calls `useCameraStream` itself.
-  const { stream, status: cameraStatus, requestAccess } = useCameraStream()
+  const { stream, status: cameraStatus, requestAccess, release: releaseCamera } = useCameraStream()
+  // The scan camera is only live on the Camera Permission screen: leaving
+  // it (scan finished → Vibe Result, or the logo → Intro) stops every
+  // track, so it's never running behind Vibe Result or the Player (whose
+  // Gesture Controls open their own stream only when switched On). Coming
+  // back after an earlier grant — "Scan again", or Intro's CTA again —
+  // re-acquires it without a new prompt (the browser remembers the grant)
+  // and the screen goes straight to scanning, as before.
+  useEffect(() => {
+    if (screen !== "camera-permission") releaseCamera()
+    else if (cameraStatus === "granted" && !stream) requestAccess()
+  }, [screen, cameraStatus, stream, releaseCamera, requestAccess])
   // The one still frame captured the instant scanning completes (see
   // `CameraPermissionScreen`'s `onScanComplete`) — a plain in-memory JPEG
   // data URL, never written to `localStorage`/`sessionStorage`/IndexedDB,

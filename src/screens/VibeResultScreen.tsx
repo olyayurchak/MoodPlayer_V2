@@ -139,9 +139,9 @@ type VibeResultScreenProps = {
  * written to `localStorage`/`sessionStorage`/IndexedDB, never uploaded,
  * held only in `App.tsx`'s React state for as long as this screen stays
  * mounted, and explicitly cleared there when "Scan again" is pressed (see
- * `App.tsx`'s own doc comment on `capturedFrame`). `App.tsx`'s existing
- * screen-swap already stops the camera when `CameraPermissionScreen`
- * unmounts to reach this screen — nothing here needs to do anything extra
+ * `App.tsx`'s own doc comment on `capturedFrame`). `App.tsx` stops the
+ * scan camera as soon as the Camera Permission screen is left to reach
+ * this screen (see its `releaseCamera` effect) — nothing here needs to do anything extra
  * for that, and this screen never keeps a live video feed running either
  * way, only the one already-frozen image.
  *
