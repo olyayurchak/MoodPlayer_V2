@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, type RefObject } from "react"
 import { useFrame, useLoader, useThree } from "@react-three/fiber"
 import * as THREE from "three"
-import portraitUrl from "../assets/intro3/orb-happy-man-blue-v2.png"
+import portraitUrl from "../assets/intro3/orb-happy-man-blue-v2.webp"
 import OrbFresnelEdge from "./OrbFresnelEdge"
 import OrbDischarge, { type DischargeState } from "./OrbDischarge"
 import { orbDiscs } from "./orbDiscs"
