@@ -1,5 +1,9 @@
 {
-  "description": "Streamline music discovery and playback with an intuitive interface designed for seamless desktop and mobile listening experiences.",
+  "title": "MoodPlayer",
+  "description": "AI-powered music player that suggests a vibe and lets you control playback with gestures.",
+  "icons": {
+    "icon": "/favicon.svg"
+  },
   "robots": {
     "index": false
   },
