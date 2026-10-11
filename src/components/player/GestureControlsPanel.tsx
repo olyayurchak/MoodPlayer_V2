@@ -221,7 +221,11 @@ export default function GestureControlsPanel({
         <div className="flex flex-col items-center gap-[6px]">
           {/* Same `isEnabled` state as the row variant's On/Off pair. When
               on, the track is the mood's static `palette` gradient (or the
-              brand CTA gradient tokens without one); off stays neutral. */}
+              brand CTA gradient tokens without one); off stays neutral.
+              `bg-origin-border` sizes that gradient to the border box: by
+              default it's sized to the padding box and tiles under the
+              transparent border, wrapping the opposite end's colour into a
+              thin strip at each edge. */}
           <button
             type="button"
             role="switch"
@@ -231,7 +235,7 @@ export default function GestureControlsPanel({
             style={isEnabled && palette ? { backgroundImage: spectrumGradient(palette, 1, 90) } : undefined}
             className={`relative h-[40px] w-[80px] shrink-0 rounded-pill border-[1.5px] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white ${
               isEnabled
-                ? `border-transparent shadow-[0px_12px_24px_0px_rgba(255,255,255,0.08)] ${
+                ? `border-transparent bg-origin-border shadow-[0px_12px_24px_0px_rgba(255,255,255,0.08)] ${
                     palette ? "" : "bg-linear-to-r from-cta-button-from via-cta-button-via to-cta-button-to"
                   }`
                 : "border-[rgba(255,255,255,0.25)] bg-[rgba(255,255,255,0.08)]"

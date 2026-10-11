@@ -70,7 +70,9 @@ export default function MobileGesturePopover({
           <span aria-hidden="true" className="text-[14px] font-medium text-[#cfcfcf]">
             {gesturesOn ? t.player.gestures.on : t.player.gestures.off}
           </span>
-          {/* 52×30 visual; the `before:` extension makes the tap target 44px tall. */}
+          {/* 52×30 visual; the `before:` extension makes the tap target 44px tall.
+              ON's `bg-origin-border` keeps the gradient from tiling into the
+              transparent border (see the desktop rail switch). */}
           <button
             type="button"
             role="switch"
@@ -79,7 +81,7 @@ export default function MobileGesturePopover({
             onClick={() => onGesturesChange(!gesturesOn)}
             style={gesturesOn ? { backgroundImage: spectrumGradient(palette, 1, 90) } : undefined}
             className={`relative h-[30px] w-[52px] shrink-0 rounded-pill border-[1.5px] before:absolute before:inset-x-0 before:-inset-y-[7px] before:content-[''] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white ${
-              gesturesOn ? "border-transparent" : "border-[rgba(255,255,255,0.25)] bg-[rgba(255,255,255,0.08)]"
+              gesturesOn ? "border-transparent bg-origin-border" : "border-[rgba(255,255,255,0.25)] bg-[rgba(255,255,255,0.08)]"
             }`}
           >
             <span
