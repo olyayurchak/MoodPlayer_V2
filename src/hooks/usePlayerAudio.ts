@@ -38,7 +38,9 @@ export type UsePlayerAudioResult = {
    *  policy, a since-removed source, etc.) — that rejection is caught and
    *  turned into `status: "error"` rather than an unhandled rejection,
    *  satisfying this milestone's "a missing/unplayable source does not
-   *  crash the Player" requirement. */
+   *  crash the Player" requirement. An `AbortError` (a `pause()` that
+   *  interrupted a still-loading `play()`) is ignored — see
+   *  `startPlayback`. */
   play: () => void
   pause: () => void
   /** Whichever of `play`/`pause` is currently the *inverse* of the real
@@ -82,6 +84,25 @@ export type UsePlayerAudioResult = {
    *  Next/Previous/manual track pick never calls this, so their own
    *  existing paused-state-preserving behavior is completely unaffected. */
   resumeOnNextTrack: () => void
+}
+
+/**
+ * Starts `audio`, reporting a rejected `play()` as `"error"` only for a
+ * real failure on the still-current element. An `AbortError` just means a
+ * `pause()` (or teardown) interrupted a `play()` that hadn't started yet —
+ * typical while a track is still loading — and the element itself is fine;
+ * treating it as fatal would disable Play (and the Open_Palm gesture) until
+ * the next track change.
+ */
+function startPlayback(
+  audio: HTMLAudioElement,
+  audioRef: { readonly current: HTMLAudioElement | null },
+  setStatus: (status: PlayerAudioStatus) => void,
+) {
+  audio.play().catch((error: unknown) => {
+    if (error instanceof DOMException && error.name === "AbortError") return
+    if (audioRef.current === audio) setStatus("error")
+  })
 }
 
 /**
@@ -189,14 +210,10 @@ export function usePlayerAudio(src: string | undefined): UsePlayerAudioResult {
     // enough data is available. It also flips `.paused` to `false`
     // synchronously, so switching again before playback actually starts
     // (pressing Next twice quickly) still reads as "was playing" in the
-    // teardown below. The identity check ignores the `AbortError` a
-    // torn-down element's pending `play()` rejects with, so it can't mark
-    // the *next* track as failed.
-    if (shouldResume) {
-      audio.play().catch(() => {
-        if (audioRef.current === audio) setStatus("error")
-      })
-    }
+    // teardown below. `startPlayback` ignores the `AbortError` a torn-down
+    // (or quickly paused) element's pending `play()` rejects with, so it
+    // can't mark this or the *next* track as failed.
+    if (shouldResume) startPlayback(audio, audioRef, setStatus)
 
     return () => {
       // Read *before* `audio.pause()` below (which would otherwise always
@@ -232,7 +249,7 @@ export function usePlayerAudio(src: string | undefined): UsePlayerAudioResult {
   const play = useCallback(() => {
     const audio = audioRef.current
     if (!audio) return
-    audio.play().catch(() => setStatus("error"))
+    startPlayback(audio, audioRef, setStatus)
   }, [])
 
   const pause = useCallback(() => {
@@ -243,7 +260,7 @@ export function usePlayerAudio(src: string | undefined): UsePlayerAudioResult {
     const audio = audioRef.current
     if (!audio) return
     if (audio.paused) {
-      audio.play().catch(() => setStatus("error"))
+      startPlayback(audio, audioRef, setStatus)
     } else {
       audio.pause()
     }
