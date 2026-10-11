@@ -161,25 +161,11 @@ export function usePlayerAudio(src: string | undefined): UsePlayerAudioResult {
     wasPlayingRef.current = false
     forceResumeRef.current = false
 
-    // Consumed (set `false`) the first time `handleCanPlay` below actually
-    // acts on `shouldResume` — `canplay` is not a one-shot event: a real
-    // seek (`seekTo`, used by `PlayerScreen`'s own Previous-restart and now
-    // the waveform's own click/tap-to-seek) legitimately refires `canplay`
-    // once the browser is ready to play from the new position again, and
-    // without this guard `handleCanPlay` would call `audio.play()` on
-    // *every* one of those later refires too — silently resuming a track
-    // the user had genuinely paused, just because it happened to once need
-    // to auto-resume right after this same element was first created.
-    let resumePending = shouldResume
     const handleLoadedMetadata = () => {
       if (Number.isFinite(audio.duration)) setDuration(audio.duration)
     }
     const handleCanPlay = () => {
       setStatus((current) => (current === "loading" ? "ready" : current))
-      if (resumePending) {
-        resumePending = false
-        audio.play().catch(() => setStatus("error"))
-      }
     }
     const handleTimeUpdate = () => setCurrentTime(audio.currentTime)
     const handlePlay = () => setStatus("playing")
@@ -195,17 +181,30 @@ export function usePlayerAudio(src: string | undefined): UsePlayerAudioResult {
     audio.addEventListener("ended", handleEnded)
     audio.addEventListener("error", handleError)
 
+    // Resume by calling `play()` right away rather than waiting for
+    // `canplay`: with `preload = "metadata"`, Safari/iOS (and often
+    // Firefox) stop loading after metadata, so `canplay` never fires until
+    // something requests playback — the new track would sit selected but
+    // paused. `play()` itself starts loading and begins playback once
+    // enough data is available. It also flips `.paused` to `false`
+    // synchronously, so switching again before playback actually starts
+    // (pressing Next twice quickly) still reads as "was playing" in the
+    // teardown below. The identity check ignores the `AbortError` a
+    // torn-down element's pending `play()` rejects with, so it can't mark
+    // the *next* track as failed.
+    if (shouldResume) {
+      audio.play().catch(() => {
+        if (audioRef.current === audio) setStatus("error")
+      })
+    }
+
     return () => {
       // Read *before* `audio.pause()` below (which would otherwise always
       // leave `.paused` `true` by the time this ran) — `ended` already
       // sets `.paused` `true` itself per the media spec, so a track that
       // finished naturally before Next/Previous was pressed correctly
       // reads as "was not playing" here, with no special-casing needed.
-      // A still-pending resume counts as playing too: switching again
-      // before this element reached `canplay` (e.g. pressing Next twice
-      // quickly) must carry the "keep playing" intent forward, not drop it
-      // because the not-yet-started element still reads as paused.
-      wasPlayingRef.current = !audio.paused || resumePending
+      wasPlayingRef.current = !audio.paused
       audio.pause()
       audio.removeEventListener("loadedmetadata", handleLoadedMetadata)
       audio.removeEventListener("canplay", handleCanPlay)
