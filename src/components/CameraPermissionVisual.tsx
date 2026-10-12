@@ -5,6 +5,7 @@ import ellipse25Mobile from "../imports/CameraPermission/ellipse-25-mobile.svg"
 import ellipse23Desktop from "../imports/CameraPermission/ellipse-23-desktop.svg"
 import ellipse24Desktop from "../imports/CameraPermission/ellipse-24-desktop.svg"
 import ellipse25Desktop from "../imports/CameraPermission/ellipse-25-desktop.svg"
+import vibeResultPoster from "../imports/CameraPermission/vibe-result-poster.webp"
 
 /**
  * The camera-preview placeholder on the Camera Permission screen — a
@@ -50,14 +51,15 @@ import ellipse25Desktop from "../imports/CameraPermission/ellipse-25-desktop.svg
  *   (autoplaying, muted, inline, no controls, plays through once and holds
  *   on its final frame rather than looping; see the effect below for why
  *   it also respects `prefers-reduced-motion`), at its native full opacity.
- *   It has no `poster`: a `<video>` shows its poster until playback
- *   actually starts, so the earlier poster (the legacy static face-scan
- *   image) stayed visible on a slow load, a blocked/failed `play()`, a
- *   media error, or reduced motion. Now, while loading (or if the video
- *   fails), the orb's own dark fill, glows and glass show — the approved
- *   structure, empty — and whenever playback can't start (autoplay
- *   blocked, reduced motion) the browser shows the video's own first
- *   frame. The earlier static images, the "camera-off" glyph and the soft
+ *   Its `poster` is the video's own first frame (extracted from
+ *   `vibe-result.mp4`, 1000px WebP), so the orb shows the face the instant
+ *   the screen appears instead of sitting empty while the video downloads,
+ *   and playback takes over from an identical frame. (An earlier poster —
+ *   the legacy static face-scan image — was removed because it *differed*
+ *   from the video and stayed visible on a slow load, a blocked/failed
+ *   `play()`, a media error, or reduced motion; showing the first frame in
+ *   those cases is what the browser does anyway.) The earlier static
+ *   images, the "camera-off" glyph and the soft
  *   white overlay glow that used to sit in this layer are gone;
  * - no corner marks: the four viewfinder-style L-marks that used to frame a
  *   rectangular capture area were removed once the panel became a circle.
@@ -196,6 +198,7 @@ export default function CameraPermissionVisual() {
         <video
           ref={mobileVideoRef}
           src="/vibe-result.mp4"
+          poster={vibeResultPoster}
           autoPlay
           muted
           playsInline
@@ -233,6 +236,7 @@ export default function CameraPermissionVisual() {
         <video
           ref={desktopVideoRef}
           src="/vibe-result.mp4"
+          poster={vibeResultPoster}
           autoPlay
           muted
           playsInline
