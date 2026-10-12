@@ -22,7 +22,7 @@ import dnceCakeByTheOceanCover from "../assets/covers/happy/techno-cake-by-the-o
 import johnLegendMadeToLoveCover from "../assets/covers/happy/john-legend-made-to-love.jpg"
 import elemerShutUpAndDanceCover from "../assets/covers/happy/elemer-feat-robert-cristian-dayana-alis-shut-up-and-dance.jpg"
 import chrisLorenzoInThisBihCover from "../assets/covers/happy/chris-lorenzo-in-this-bih.jpg"
-import kimoSoundsEveryFallCover from "../assets/covers/happy/kimo-sounds-every-fall.jpg"
+import kimoSoundsEveryFallCover from "../assets/covers/happy/kimo-sounds-every-fall.png"
 
 /**
  * The real Happy playlist, in stored play order. Positions 1–4 are fixed
