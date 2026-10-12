@@ -43,6 +43,8 @@ const fragmentShader = /* glsl */ `
   uniform float uSeek;
   uniform float uHover;
   uniform vec2 uCursor;
+  // Rendered device pixel ratio (the canvas's capped DPR).
+  uniform float uPxScale;
   // Screen circles (drawing-buffer px: centre xy, radius z) of the orbs that
   // paint in front of this one.
   uniform vec3 uFront[${DISCHARGE.maxFront}];
@@ -68,8 +70,9 @@ const fragmentShader = /* glsl */ `
 
   void main() {
     float r = length(vP);
-    // Radius units per screen pixel, so line widths are in screen px.
-    float px = max(fwidth(r), 1e-4);
+    // Radius units per CSS pixel (device px × DPR), so line widths look the
+    // same on every display density.
+    float px = max(fwidth(r), 1e-4) * uPxScale;
     if (r < 1.0 - 6.0 * px || r > ${DISCHARGE.extent.toFixed(3)}) discard;
     float theta = atan(vP.y, vP.x);
     // Own-orb masks. The bright core never runs on the glass: hard cut at
@@ -247,6 +250,7 @@ export default function OrbDischarge({
         uSeek: { value: 0 },
         uHover: { value: 0 },
         uCursor: { value: new THREE.Vector2() },
+        uPxScale: { value: 1 },
         uFront: { value: Array.from({ length: DISCHARGE.maxFront }, () => new THREE.Vector3()) },
         uFrontCount: { value: 0 },
       },
@@ -279,6 +283,7 @@ export default function OrbDischarge({
     material.uniforms.uHover.value = hover
     if (ds) (material.uniforms.uCursor.value as THREE.Vector2).set(ds.cx, ds.cy)
     material.uniforms.uTime.value = state.clock.elapsedTime
+    material.uniforms.uPxScale.value = state.viewport.dpr
     // Front orbs' screen circles (published by `GlassOrb` each frame).
     const own = mesh.current?.parent ? orbDiscs.get(mesh.current.parent) : undefined
     const front = material.uniforms.uFront.value as THREE.Vector3[]
