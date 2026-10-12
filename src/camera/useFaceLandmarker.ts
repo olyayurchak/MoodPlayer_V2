@@ -70,6 +70,69 @@ const WASM_BASE_URL = "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10
 const MODEL_ASSET_URL =
   "https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task"
 
+/** The created task plus its class (for the static connector sets). */
+type LoadedFaceLandmarker = {
+  landmarker: FaceLandmarkerType
+  FaceLandmarker: typeof FaceLandmarkerType
+}
+
+/**
+ * One shared `FaceLandmarker` per page session: at most one creation in
+ * flight, and the created instance is reused by every later scan ("Scan
+ * again" included) instead of being rebuilt on each `ScanningVisual`
+ * mount. A failed creation is dropped, never cached, so the next caller
+ * (Try Again, a later scan) starts a fresh attempt.
+ */
+let sharedLoad: Promise<LoadedFaceLandmarker> | null = null
+
+function loadFaceLandmarker(): Promise<LoadedFaceLandmarker> {
+  if (sharedLoad) return sharedLoad
+  const load = (async () => {
+    const { FaceLandmarker, FilesetResolver } = await import("@mediapipe/tasks-vision")
+    const vision = await FilesetResolver.forVisionTasks(WASM_BASE_URL)
+    const landmarker = await FaceLandmarker.createFromOptions(vision, {
+      baseOptions: {
+        modelAssetPath: MODEL_ASSET_URL,
+        delegate: "GPU",
+      },
+      runningMode: "VIDEO",
+      numFaces: 1,
+      // Enabled so this hook's own `blendshapes` output (below) is
+      // populated at all — an earlier task confirmed this installed
+      // model's real runtime category names via a temporary one-time
+      // dump log, since removed now that they're confirmed;
+      // `useExpressionSampler` (via `ScanningVisual`'s
+      // `onBlendshapesChange`) is the current consumer. Not yet used
+      // by any mood logic. `outputFacialTransformationMatrixes` is
+      // deliberately left unset (default off) — not needed here.
+      outputFaceBlendshapes: true,
+    })
+    return { landmarker, FaceLandmarker }
+  })()
+  sharedLoad = load
+  load.catch(() => {
+    if (sharedLoad === load) sharedLoad = null
+  })
+  return load
+}
+
+/** Starts loading the shared `FaceLandmarker` without waiting for it —
+ *  called on the Allow Camera click so the download and setup overlap the
+ *  permission prompt. Failures are left to the hook to report. */
+export function preloadFaceLandmarker(): void {
+  loadFaceLandmarker().catch(() => {})
+}
+
+/** Drops a shared instance that threw during detection, so a retry builds
+ *  a new one rather than reusing it. */
+function discardFaceLandmarker(landmarker: FaceLandmarkerType) {
+  void sharedLoad?.then((loaded) => {
+    if (loaded.landmarker !== landmarker) return
+    sharedLoad = null
+    landmarker.close()
+  })
+}
+
 /**
  * Verified left↔right MediaPipe landmark mirror pairs used to build the
  * base mesh below. Every pair sourced from `FACE_LANDMARKS_FACE_OVAL`
@@ -313,7 +376,6 @@ export function useFaceLandmarker(
 
   const landmarkerRef = useRef<FaceLandmarkerType | null>(null)
   const rafRef = useRef<number | null>(null)
-  const cancelledRef = useRef(false)
   // Always the latest `onBlendshapes` — updated every render (a plain
   // assignment during render is safe here since it never reads state,
   // only stores a reference for the detection loop below to call
@@ -325,37 +387,19 @@ export function useFaceLandmarker(
   useEffect(() => {
     if (!enabled || !videoEl) return
 
-    cancelledRef.current = false
+    // Per-run flag: a cleanup only ever cancels its own run, so a stale
+    // setup or loop can't touch state after unmount or a re-run.
+    let cancelled = false
     setStatus("loading")
     setLandmarks(null)
     onBlendshapesRef.current?.(null)
 
     async function setup() {
       try {
-        const { FaceLandmarker, FilesetResolver } = await import("@mediapipe/tasks-vision")
-        const vision = await FilesetResolver.forVisionTasks(WASM_BASE_URL)
-        const landmarker = await FaceLandmarker.createFromOptions(vision, {
-          baseOptions: {
-            modelAssetPath: MODEL_ASSET_URL,
-            delegate: "GPU",
-          },
-          runningMode: "VIDEO",
-          numFaces: 1,
-          // Enabled so this hook's own `blendshapes` output (below) is
-          // populated at all — an earlier task confirmed this installed
-          // model's real runtime category names via a temporary one-time
-          // dump log, since removed now that they're confirmed;
-          // `useExpressionSampler` (via `ScanningVisual`'s
-          // `onBlendshapesChange`) is the current consumer. Not yet used
-          // by any mood logic. `outputFacialTransformationMatrixes` is
-          // deliberately left unset (default off) — not needed here.
-          outputFaceBlendshapes: true,
-        })
-
-        if (cancelledRef.current) {
-          landmarker.close()
-          return
-        }
+        // Shared across scans (see `loadFaceLandmarker`) — usually already
+        // loading since the Allow Camera click, or ready from an earlier scan.
+        const { landmarker, FaceLandmarker } = await loadFaceLandmarker()
+        if (cancelled) return
         landmarkerRef.current = landmarker
         // The curated feature sets (face oval, both eyes, both eyebrows)
         // drawn crisper on top of the base mesh, and the lips kept
@@ -380,7 +424,7 @@ export function useFaceLandmarker(
         setTessellationConnectors(FaceLandmarker.FACE_LANDMARKS_TESSELATION)
 
         const loop = () => {
-          if (cancelledRef.current || !landmarkerRef.current || !videoEl) return
+          if (cancelled || !landmarkerRef.current || !videoEl) return
           try {
             if (videoEl.readyState >= 2 && videoEl.videoWidth > 0) {
               const result = landmarkerRef.current.detectForVideo(videoEl, performance.now())
@@ -412,23 +456,24 @@ export function useFaceLandmarker(
             setStatus("error")
             setLandmarks(null)
             onBlendshapesRef.current?.(null)
+            discardFaceLandmarker(landmarker)
             return // Stop the loop — a thrown detection error won't self-heal.
           }
           rafRef.current = requestAnimationFrame(loop)
         }
         loop()
       } catch {
-        if (!cancelledRef.current) setStatus("error")
+        if (!cancelled) setStatus("error")
       }
     }
 
     setup()
 
     return () => {
-      cancelledRef.current = true
+      cancelled = true
       if (rafRef.current !== null) cancelAnimationFrame(rafRef.current)
       rafRef.current = null
-      landmarkerRef.current?.close()
+      // Not closed: the shared instance stays ready for the next scan.
       landmarkerRef.current = null
     }
   }, [enabled, videoEl])

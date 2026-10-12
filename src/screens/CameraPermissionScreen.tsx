@@ -9,7 +9,7 @@ import { cameraPermissionFeatures } from "../data/cameraPermissionFeatures"
 import { copy as t } from "../content/copy"
 import type { CameraStreamStatus } from "../camera/useCameraStream"
 import { useScanProgress } from "../camera/useScanProgress"
-import type { FaceLandmarkerStatus } from "../camera/useFaceLandmarker"
+import { preloadFaceLandmarker, type FaceLandmarkerStatus } from "../camera/useFaceLandmarker"
 import { useExpressionSampler } from "../camera/useExpressionSampler"
 import type { MoodId } from "../data/moods"
 import { useFadeTransition } from "../hooks/useFadeTransition"
@@ -411,7 +411,13 @@ export default function CameraPermissionScreen({
       : errorKind !== null
         ? t.cameraPermission.tryAgainLabel
         : undefined
-  const ctaOnClick = errorKind !== null ? handleTryAgain : requestAccess
+  // Allow Camera: starts the face model loading alongside the permission
+  // request (never waiting on it), so it overlaps the browser prompt.
+  const handleAllowCamera = useCallback(() => {
+    preloadFaceLandmarker()
+    requestAccess()
+  }, [requestAccess])
+  const ctaOnClick = errorKind !== null ? handleTryAgain : handleAllowCamera
 
   return (
     <main className="relative flex min-h-[100dvh] items-center justify-center overflow-hidden bg-bg-base p-[24px] lg:min-h-[max(100dvh,var(--spacing-frame-h-lg))]">
