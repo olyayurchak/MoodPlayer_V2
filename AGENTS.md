@@ -1,4 +1,4 @@
-# figma-make-app
+# MoodPlayer
 
 React + Vite + Tailwind CSS project running inside Figma Make.
 
