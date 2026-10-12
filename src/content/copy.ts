@@ -183,6 +183,13 @@ export type Copy = {
       actionPrevious: string
     }
   }
+  /** `AppErrorBoundary`'s fallback, shown only after an unexpected render
+   *  error anywhere in the app. */
+  appError: {
+    heading: string
+    body: string
+    reloadLabel: string
+  }
 }
 
 export const copy: Copy = {
@@ -288,5 +295,10 @@ export const copy: Copy = {
       actionNext: "Next track",
       actionPrevious: "Previous track",
     },
+  },
+  appError: {
+    heading: "Something went wrong",
+    body: "MoodPlayer ran into an unexpected problem. Reload to start again.",
+    reloadLabel: "Reload",
   },
 }
