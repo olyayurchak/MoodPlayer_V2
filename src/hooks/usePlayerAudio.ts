@@ -154,6 +154,14 @@ export function usePlayerAudio(src: string | undefined): UsePlayerAudioResult {
   // `true` back to `false` before it was ever read. See this ref's own
   // field doc comment on `resumeOnNextTrack` above for why this exists.
   const forceResumeRef = useRef(false)
+  // Mirrors `volume` so the `[src]` effect below can apply the current
+  // volume to each newly-created element without listing `volume` as a
+  // dependency (which would recreate the element on every slider move).
+  // Without this, a track switch left the new element at the browser's
+  // default `1.0` while the slider still showed the user's value — the
+  // `[volume]` effect only re-runs when `volume` itself changes.
+  const volumeRef = useRef(volume)
+  volumeRef.current = volume
 
   // Creates (and fully tears down) the one `Audio` instance whenever `src`
   // itself changes — not whenever `volume` changes, which is its own
@@ -172,6 +180,7 @@ export function usePlayerAudio(src: string | undefined): UsePlayerAudioResult {
     setStatus("loading")
     const audio = new Audio(src)
     audio.preload = "metadata"
+    audio.volume = volumeRef.current
     audioRef.current = audio
 
     // Consumed immediately (reset to `false` right after reading) so a
