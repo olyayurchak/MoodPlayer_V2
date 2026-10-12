@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react"
 import type { FaceLandmarker as FaceLandmarkerType } from "@mediapipe/tasks-vision"
 import type { Connector } from "./faceMeshDraw"
+import warmupFaceUrl from "../assets/intro3/orb-happy-man-blue-v2.webp"
 
 export type FaceLandmarkerStatus = "loading" | "tracking" | "no-face" | "error"
 
@@ -107,6 +108,12 @@ function loadFaceLandmarker(): Promise<LoadedFaceLandmarker> {
       // deliberately left unset (default off) — not needed here.
       outputFaceBlendshapes: true,
     })
+    try {
+      await warmUp(landmarker)
+    } catch (error) {
+      landmarker.close()
+      throw error
+    }
     return { landmarker, FaceLandmarker }
   })()
   sharedLoad = load
@@ -114,6 +121,34 @@ function loadFaceLandmarker(): Promise<LoadedFaceLandmarker> {
     if (sharedLoad === load) sharedLoad = null
   })
   return load
+}
+
+/**
+ * One throwaway inference on a bundled face photo (the Intro's hero orb
+ * art, already downloaded on the Intro), so the GPU's one-time first-run
+ * cost (~2s) is paid here, during the permission prompt, instead of on the
+ * first real camera frame. A face is used rather than a blank frame so the
+ * landmark and blendshape stages run too. `detectForVideo` because the task
+ * is in VIDEO mode — switching to IMAGE mode for `detect()` and back
+ * rebuilds the graph and loses the warm-up. The result is discarded.
+ * Loaded via `onload`, not `decode()`, which can stall while the page
+ * isn't rendering.
+ */
+async function warmUp(landmarker: FaceLandmarkerType) {
+  const image = await new Promise<HTMLImageElement>((resolve, reject) => {
+    const img = new Image()
+    img.onload = () => resolve(img)
+    img.onerror = () => reject(new Error("FaceLandmarker warm-up image failed to load"))
+    img.src = warmupFaceUrl
+  })
+  // A typical webcam frame size, the face letterboxed in the middle.
+  const canvas = document.createElement("canvas")
+  canvas.width = 640
+  canvas.height = 480
+  const ctx = canvas.getContext("2d")
+  if (!ctx) throw new Error("FaceLandmarker warm-up canvas unavailable")
+  ctx.drawImage(image, 80, 0, 480, 480)
+  landmarker.detectForVideo(canvas, performance.now())
 }
 
 /** Starts loading the shared `FaceLandmarker` without waiting for it —
