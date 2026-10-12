@@ -1,0 +1,40 @@
+name: CI
+
+on:
+  push:
+    branches: [develop, main]
+  pull_request:
+    branches: [develop, main]
+
+permissions:
+  contents: read
+
+# A newer push to the same branch/PR supersedes the running check.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # Media (~300 MB) is stored in Git LFS. CI checks tests, types and
+          # the build, not media contents, so LFS pointer files are enough;
+          # Vercel's deployment build fetches the real objects.
+          lfs: false
+
+      # pnpm version comes from `packageManager` in package.json.
+      - uses: pnpm/action-setup@v6
+
+      # Node version comes from `engines.node` in package.json.
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: package.json
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      # Tests, type-check, and production build.
+      - run: pnpm run check
