@@ -12,7 +12,7 @@ import elemerShutUpAndDanceAudio from "../assets/audio/happy/elemer-feat-robert-
 import chrisLorenzoInThisBihAudio from "../assets/audio/happy/chris-lorenzo-in-this-bih.mp3"
 import kimoSoundsEveryFallAudio from "../assets/audio/happy/kimo-sounds-every-fall.mp3"
 import joyCrookesFeetDontFailMeNowCover from "../assets/covers/happy/joy-crookes-feet-dont-fail-me-now.jpg"
-import oneRepublicIAintWorriedCover from "../assets/covers/happy/onerepublic-i-aint-worried.jpg"
+import oneRepublicIAintWorriedCover from "../assets/covers/happy/onerepublic-i-aint-worried.png"
 import sebastianSchubSingLikeMadonnaCover from "../assets/covers/happy/sebastian-schub-sing-like-madonna.jpg"
 import tiestoBeautifulPlacesCover from "../assets/covers/happy/tiësto-beautiful-places.jpg"
 import coldplayAdventureOfALifetimeCover from "../assets/covers/happy/coldplay-adventure-of-a-lifetime.jpg"
