@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react"
+import { useEffect, useRef, useState } from "react"
 import ellipse23Mobile from "../imports/CameraPermission/ellipse-23-mobile.svg"
 import ellipse24Mobile from "../imports/CameraPermission/ellipse-24-mobile.svg"
 import ellipse25Mobile from "../imports/CameraPermission/ellipse-25-mobile.svg"
@@ -6,6 +6,7 @@ import ellipse23Desktop from "../imports/CameraPermission/ellipse-23-desktop.svg
 import ellipse24Desktop from "../imports/CameraPermission/ellipse-24-desktop.svg"
 import ellipse25Desktop from "../imports/CameraPermission/ellipse-25-desktop.svg"
 import vibeResultPoster from "../imports/CameraPermission/vibe-result-poster.webp"
+import { vibeResultVideoSrc } from "./vibeResultVideo"
 
 /**
  * The camera-preview placeholder on the Camera Permission screen — a
@@ -137,6 +138,9 @@ export const MOBILE_ORB_STYLE = { ...CIRCLE_FILL_STYLE, width: MOBILE_ORB_PX, he
 export default function CameraPermissionVisual() {
   const mobileVideoRef = useRef<HTMLVideoElement | null>(null)
   const desktopVideoRef = useRef<HTMLVideoElement | null>(null)
+  // Preloaded on the Intro when possible (in-memory blob URL), else the file
+  // URL — read once so a preload finishing mid-screen never swaps `src`.
+  const [videoSrc] = useState(vibeResultVideoSrc)
 
   // `autoPlay` alone doesn't respect `prefers-reduced-motion` — this pauses
   // both breakpoints' `<video>` elements (only one is ever visually shown,
@@ -197,7 +201,7 @@ export default function CameraPermissionVisual() {
       >
         <video
           ref={mobileVideoRef}
-          src="/vibe-result.mp4"
+          src={videoSrc}
           poster={vibeResultPoster}
           autoPlay
           muted
@@ -235,7 +239,7 @@ export default function CameraPermissionVisual() {
       >
         <video
           ref={desktopVideoRef}
-          src="/vibe-result.mp4"
+          src={videoSrc}
           poster={vibeResultPoster}
           autoPlay
           muted

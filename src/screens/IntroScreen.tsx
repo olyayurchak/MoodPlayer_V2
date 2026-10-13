@@ -2,6 +2,7 @@ import { Suspense, lazy, useCallback, useEffect, useRef, useState } from "react"
 import CtaPill from "../components/CtaPill"
 import TextStack from "../components/TextStack"
 import AmbientDrift from "../intro3/AmbientDrift"
+import { preloadVibeResultVideo } from "../components/vibeResultVideo"
 
 /** The WebGL glass-orb cluster (`three` / `@react-three/fiber`), lazy so the
  *  headline and CTA render immediately while the WebGL
@@ -41,6 +42,18 @@ export default function IntroScreen({ onCtaClick }: { onCtaClick?: () => void })
     onCtaClickRef.current = onCtaClick
   }, [onCtaClick])
   const [isActivating, setIsActivating] = useState(false)
+
+  // Fetch the Camera Permission orb's video once the Intro is idle, so it's
+  // in memory and starts moving as soon as that screen appears (see
+  // `vibeResultVideo.ts`). `requestIdleCallback` isn't in Safari.
+  useEffect(() => {
+    if (typeof window.requestIdleCallback === "function") {
+      const id = window.requestIdleCallback(preloadVibeResultVideo, { timeout: 2000 })
+      return () => window.cancelIdleCallback(id)
+    }
+    const id = window.setTimeout(preloadVibeResultVideo, 500)
+    return () => window.clearTimeout(id)
+  }, [])
 
   const handleCtaClick = useCallback(() => {
     if (!onCtaClickRef.current) return
