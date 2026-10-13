@@ -26,8 +26,8 @@ import kimoSoundsEveryFallCover from "../assets/covers/happy/kimo-sounds-every-f
 
 /**
  * The real Happy playlist, in stored play order. Positions 1–4 are fixed
- * by explicit instruction (Joy Crookes, OneRepublic, Sebastian Schub,
- * Tiësto); 5–12 were chosen once and stay as written — this order is never
+ * by explicit instruction (OneRepublic, Joy Crookes, Tiësto, Sebastian
+ * Schub); 5–12 were chosen once and stay as written — this order is never
  * shuffled at runtime (Shuffle only changes *playback* order, see
  * `PlayerScreen.tsx`).
  *
@@ -48,6 +48,18 @@ import kimoSoundsEveryFallCover from "../assets/covers/happy/kimo-sounds-every-f
  */
 export const happyTracks: PlayerTrack[] = [
   {
+    id: "happy-onerepublic-i-aint-worried",
+    title: "I Ain't Worried",
+    artist: "OneRepublic",
+    durationLabel: "2:28",
+    mood: "happy",
+    artwork: oneRepublicIAintWorriedCover,
+    // Centered crop cuts the "ONEREPUBLIC" line at the top.
+    artworkPositionDesktop: "center 15%",
+    artworkPositionMobile: "center 15%",
+    audioSrc: oneRepublicIAintWorriedAudio,
+  },
+  {
     id: "happy-joy-crookes-feet-dont-fail-me-now",
     title: "Feet Don't Fail Me Now",
     artist: "Joy Crookes",
@@ -61,16 +73,16 @@ export const happyTracks: PlayerTrack[] = [
     audioSrc: joyCrookesFeetDontFailMeNowAudio,
   },
   {
-    id: "happy-onerepublic-i-aint-worried",
-    title: "I Ain't Worried",
-    artist: "OneRepublic",
-    durationLabel: "2:28",
+    id: "happy-tiesto-beautiful-places",
+    title: "Beautiful Places",
+    artist: "Tiësto, Brieanna Grace",
+    durationLabel: "2:59",
     mood: "happy",
-    artwork: oneRepublicIAintWorriedCover,
-    // Centered crop cuts the "ONEREPUBLIC" line at the top.
-    artworkPositionDesktop: "center 15%",
-    artworkPositionMobile: "center 15%",
-    audioSrc: oneRepublicIAintWorriedAudio,
+    artwork: tiestoBeautifulPlacesCover,
+    // Keeps the full "TIËSTO / BEAUTIFUL PLACES" title block, umlaut included.
+    artworkPositionDesktop: "center 5%",
+    artworkPositionMobile: "center 5%",
+    audioSrc: tiestoBeautifulPlacesAudio,
   },
   {
     id: "happy-sebastian-schub-sing-like-madonna",
@@ -84,18 +96,6 @@ export const happyTracks: PlayerTrack[] = [
     artworkPositionDesktop: "center 30%",
     artworkPositionMobile: "center 30%",
     audioSrc: sebastianSchubSingLikeMadonnaAudio,
-  },
-  {
-    id: "happy-tiesto-beautiful-places",
-    title: "Beautiful Places",
-    artist: "Tiësto, Brieanna Grace",
-    durationLabel: "2:59",
-    mood: "happy",
-    artwork: tiestoBeautifulPlacesCover,
-    // Keeps the full "TIËSTO / BEAUTIFUL PLACES" title block, umlaut included.
-    artworkPositionDesktop: "center 5%",
-    artworkPositionMobile: "center 5%",
-    audioSrc: tiestoBeautifulPlacesAudio,
   },
   {
     id: "happy-coldplay-adventure-of-a-lifetime",
