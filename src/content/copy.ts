@@ -155,6 +155,10 @@ export type Copy = {
       next: string
       repeat: string
       volume: string
+      /** Left volume icon: sets volume to 0%. */
+      volumeMute: string
+      /** Right volume icon: sets volume to 100%. */
+      volumeMax: string
       /** The waveform's own `role="slider"` accessible name (seeking) —
        *  the dynamic "elapsed of total" position itself is announced via
        *  that same control's `aria-valuetext`, not repeated here; this is
@@ -280,6 +284,8 @@ export const copy: Copy = {
       next: "Next track",
       repeat: "Repeat",
       volume: "Volume",
+      volumeMute: "Mute",
+      volumeMax: "Maximum volume",
       seek: "Seek",
     },
     gestures: {

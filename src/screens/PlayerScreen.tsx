@@ -14,7 +14,7 @@ import { copy as t } from "../content/copy"
 import type { MoodId } from "../data/moods"
 import { ARTWORK_POSITION_DEFAULT, playlistForMood } from "../data/playerTrack"
 import { PLAYER_MOOD_ACCENTS, PLAYER_SPECTRUM, PLAY_LIQUID, liquidVars } from "../data/playerMoodAccent"
-import { formatPlaybackTime, usePlayerAudio } from "../hooks/usePlayerAudio"
+import { canSetMediaElementVolume, formatPlaybackTime, usePlayerAudio } from "../hooks/usePlayerAudio"
 import { useWaveformAnalyser } from "../hooks/useWaveformAnalyser"
 
 /** Previous's own "restart vs. actually go back" threshold, per this
@@ -228,6 +228,7 @@ export default function PlayerScreen({ mood, onLogoClick }: PlayerScreenProps) {
   // see that hook's own `wasPlayingRef` for how it resumes playback
   // across that recreation when the previous track was playing.
   const audio = usePlayerAudio(currentTrack.audioSrc)
+  const [elementVolumeWorks] = useState(canSetMediaElementVolume)
   const isPlaying = audio.status === "playing"
   const playDisabled = audio.status === "error"
 
@@ -255,6 +256,9 @@ export default function PlayerScreen({ mood, onLogoClick }: PlayerScreenProps) {
     isPlaying,
     barCount: BAR_COUNT,
     reducedMotion,
+    // iOS WebKit ignores `HTMLMediaElement.volume`; there the slider drives
+    // the Web Audio output gain instead (see `canSetMediaElementVolume`).
+    outputGain: elementVolumeWorks ? undefined : audio.volume,
   })
 
   // Both `PlayerControls` copies' own Play/Pause button call this instead

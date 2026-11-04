@@ -97,6 +97,7 @@ export function useWaveformAnalyser({
   isPlaying,
   barCount,
   reducedMotion,
+  outputGain,
 }: {
   /** `usePlayerAudio`'s own `getAudioElement` — read at call time, never
    *  stored, so this always sees whichever element is live *right now*. */
@@ -115,9 +116,23 @@ export function useWaveformAnalyser({
    *  leaving `PlayerWaveform`'s existing static bars (still fully useful —
    *  they still show real playback progress via color) untouched. */
   reducedMotion: boolean
+  /** `0–1` gain applied *after* the analyser (source → analyser → gain →
+   *  destination), so the waveform keeps analysing the unattenuated
+   *  signal. `undefined` means the `<audio>` element's own `volume` already
+   *  works (desktop, Android) — the gain stays at `1` and the graph is only
+   *  built for the visualization, exactly as before. A number is passed
+   *  only where `HTMLMediaElement.volume` is read-only (iOS WebKit — see
+   *  `canSetMediaElementVolume`): once audio is routed through Web Audio,
+   *  this gain is the only thing that can change its loudness there, so the
+   *  graph is then also built under reduced motion (the animation loop
+   *  itself stays off). */
+  outputGain?: number
 }): WaveformAnalyserHandle {
   const audioContextRef = useRef<AudioContext | null>(null)
   const analyserRef = useRef<AnalyserNode | null>(null)
+  const gainRef = useRef<GainNode | null>(null)
+  const outputGainRef = useRef(outputGain)
+  outputGainRef.current = outputGain
   const sourceNodeRef = useRef<MediaElementAudioSourceNode | null>(null)
   // Which element `sourceNodeRef` is already wired to — compared by
   // identity against `getAudioElement()` so a re-render/re-run that hands
@@ -288,8 +303,18 @@ export function useWaveformAnalyser({
 
   useEffect(() => stopLoop, [stopLoop])
 
+  // Keeps the output gain in step with the slider. A short time constant
+  // (rather than an instant `.value` jump) avoids zipper clicks while
+  // dragging.
+  useEffect(() => {
+    const ctx = audioContextRef.current
+    const gain = gainRef.current
+    if (!ctx || !gain) return
+    gain.gain.setTargetAtTime(outputGain ?? 1, ctx.currentTime, 0.015)
+  }, [outputGain])
+
   const ensureStarted = useCallback(() => {
-    if (reducedMotionRef.current) return
+    if (reducedMotionRef.current && outputGainRef.current === undefined) return
     if (!audioContextRef.current) {
       const AudioContextCtor =
         window.AudioContext || (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext
@@ -298,9 +323,13 @@ export function useWaveformAnalyser({
       const analyser = ctx.createAnalyser()
       analyser.fftSize = FFT_SIZE
       analyser.smoothingTimeConstant = 0.8
-      analyser.connect(ctx.destination)
+      const gain = ctx.createGain()
+      gain.gain.value = outputGainRef.current ?? 1
+      analyser.connect(gain)
+      gain.connect(ctx.destination)
       audioContextRef.current = ctx
       analyserRef.current = analyser
+      gainRef.current = gain
     }
     if (audioContextRef.current.state === "suspended") {
       audioContextRef.current.resume().catch(() => {

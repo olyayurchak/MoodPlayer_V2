@@ -86,6 +86,47 @@ export type UsePlayerAudioResult = {
   resumeOnNextTrack: () => void
 }
 
+let mediaElementVolumeSettable: boolean | undefined
+
+/**
+ * iOS / iPadOS WebKit — every browser on those devices (Safari, Chrome,
+ * Firefox…) uses it. iPadOS reports a desktop "Macintosh" user agent by
+ * default, so a touch-capable "Mac" also counts.
+ */
+function isIOSWebKit(): boolean {
+  if (typeof navigator === "undefined") return false
+  if (/iPad|iPhone|iPod/.test(navigator.userAgent)) return true
+  return /Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1
+}
+
+/**
+ * Whether writes to `HTMLMediaElement.volume` actually change loudness.
+ *
+ * iOS WebKit ignores them — volume is left to the hardware buttons — so on
+ * iOS this is always `false`, whatever a read-back says: on a real iPhone the
+ * probe below read `0.5` back (`settable=true`) while the playing element
+ * still reported `volume = 1` and loudness never changed. Elsewhere, the
+ * behavioural probe (write `0.5`, read it back) still decides. Cached for the
+ * session. When this is `false`, `PlayerScreen` drives loudness through the
+ * Web Audio graph's output gain instead (`useWaveformAnalyser`'s
+ * `outputGain`), and `usePlayerAudio` keeps the element itself at `1`.
+ */
+export function canSetMediaElementVolume(): boolean {
+  if (mediaElementVolumeSettable === undefined) {
+    const ios = isIOSWebKit()
+    let probeOk = true
+    try {
+      const probe = new Audio()
+      probe.volume = 0.5
+      probeOk = Math.abs(probe.volume - 0.5) < 0.01
+    } catch {
+      // No usable `Audio` constructor — fall back to element volume.
+    }
+    mediaElementVolumeSettable = !ios && probeOk
+  }
+  return mediaElementVolumeSettable
+}
+
 /**
  * Starts `audio`, reporting a rejected `play()` as `"error"` only for a
  * real failure on the still-current element. An `AbortError` just means a
@@ -180,7 +221,7 @@ export function usePlayerAudio(src: string | undefined): UsePlayerAudioResult {
     setStatus("loading")
     const audio = new Audio(src)
     audio.preload = "metadata"
-    audio.volume = volumeRef.current
+    audio.volume = canSetMediaElementVolume() ? volumeRef.current : 1
     audioRef.current = audio
 
     // Consumed immediately (reset to `false` right after reading) so a
@@ -252,7 +293,9 @@ export function usePlayerAudio(src: string | undefined): UsePlayerAudioResult {
   // runs after it within the same commit, so the element already exists
   // by the time this reads `audioRef.current` on mount too.
   useEffect(() => {
-    if (audioRef.current) audioRef.current.volume = volume
+    // In gain mode (iOS) the element stays at full volume so the output
+    // gain is the only attenuation — never both.
+    if (audioRef.current) audioRef.current.volume = canSetMediaElementVolume() ? volume : 1
   }, [volume])
 
   const play = useCallback(() => {

@@ -12,6 +12,16 @@ const ACTIVE_ACCENT_CLASS = "text-[#d8b9ff]"
 const ICON_BUTTON_BASE =
   "flex items-center justify-center rounded-full bg-[rgba(173,153,219,0.08)] text-white transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
 
+/** Volume row's side icons: left = Mute (0%), right = Maximum (100%). The
+ *  button box stays the icon's own 20×20 so the row's layout is unchanged;
+ *  the `before:` pseudo-element grows the hit area to 44×44 (Guidelines
+ *  §12) without taking up space. */
+const VOLUME_ICON_BUTTON =
+  "relative flex size-[20px] shrink-0 items-center justify-center rounded-full text-white before:absolute before:-inset-[12px] before:content-[''] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+
+/** Matches the `[&::-webkit-slider-thumb]:size-[16px]` thumb below. */
+const VOLUME_THUMB_PX = 16
+
 // Shuffle/Repeat's own approved Figma size is 36px on both breakpoints —
 // fine for Desktop's mouse-driven pointer, but under Guidelines §12's
 // "at least 44×44px" mobile touch-target minimum. Rather than shrink the
@@ -257,7 +267,14 @@ export default function PlayerControls({
       </div>
 
       <div className={`flex w-full items-center gap-[10px] ${isWide ? "-my-[12px]" : ""}`}>
-        <VolumeIcon size={20} className="shrink-0 text-white" muted={volume === 0} />
+        <button
+          type="button"
+          onClick={() => onVolumeChange(0)}
+          aria-label={t.player.controls.volumeMute}
+          className={VOLUME_ICON_BUTTON}
+        >
+          <VolumeIcon size={20} muted={volume === 0} />
+        </button>
         {/* Wrapped in a `min-h-[44px] flex items-center` container so the
             real drag/tap target meets Guidelines §12's 44px mobile
             minimum — the visible track itself stays a slim 8px (matching
@@ -293,6 +310,21 @@ export default function PlayerControls({
             max={100}
             value={volume}
             onChange={(event) => onVolumeChange(Number(event.target.value))}
+            onPointerDown={(event) => {
+              // iOS Safari's native range input only moves when its thumb is
+              // dragged — a tap on the track does nothing. For touch input,
+              // jump to the tapped point using the same mapping the browser
+              // uses (thumb centre runs from 8px to width − 8px for the 16px
+              // thumb), so on browsers that already support tap-to-seek
+              // (Android Chrome) both agree on the value; dragging continues
+              // natively from there.
+              if (event.pointerType !== "touch") return
+              const rect = event.currentTarget.getBoundingClientRect()
+              const usable = rect.width - VOLUME_THUMB_PX
+              if (usable <= 0) return
+              const ratio = (event.clientX - rect.left - VOLUME_THUMB_PX / 2) / usable
+              onVolumeChange(Math.round(Math.min(1, Math.max(0, ratio)) * 100))
+            }}
             aria-label={t.player.controls.volume}
             className={`relative ${
               liquid && !isWide ? "h-[44px] [&::-moz-range-track]:bg-transparent" : "h-[8px]"
@@ -308,7 +340,14 @@ export default function PlayerControls({
             }}
           />
         </div>
-        <VolumeIcon size={20} className="shrink-0 text-white" />
+        <button
+          type="button"
+          onClick={() => onVolumeChange(100)}
+          aria-label={t.player.controls.volumeMax}
+          className={VOLUME_ICON_BUTTON}
+        >
+          <VolumeIcon size={20} />
+        </button>
       </div>
     </div>
   )
