@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react"
+import { useLayoutEffect, useRef } from "react"
 import ellipse23Mobile from "../imports/CameraPermission/ellipse-23-mobile.svg"
 import ellipse24Mobile from "../imports/CameraPermission/ellipse-24-mobile.svg"
 import ellipse25Mobile from "../imports/CameraPermission/ellipse-25-mobile.svg"
@@ -6,7 +6,7 @@ import ellipse23Desktop from "../imports/CameraPermission/ellipse-23-desktop.svg
 import ellipse24Desktop from "../imports/CameraPermission/ellipse-24-desktop.svg"
 import ellipse25Desktop from "../imports/CameraPermission/ellipse-25-desktop.svg"
 import vibeResultPoster from "../imports/CameraPermission/vibe-result-poster.webp"
-import { preloadVibeResultVideo, vibeResultVideoSrc } from "./vibeResultVideo"
+import { preloadVibeResultVideo } from "./vibeResultVideo"
 
 /**
  * The camera-preview placeholder on the Camera Permission screen — a
@@ -113,15 +113,6 @@ export function gradientBorderStyle(borderWidth: string) {
   }
 }
 
-// A later, explicit task's request: the decorative video should read as
-// playing faster than its own natural speed, clearly enough for the
-// speed increase itself to be perceptible (an audited 1.5x read as too
-// subtle to notice). `HTMLMediaElement.playbackRate` (not a video
-// re-export/re-encode) is the standard way to do this; it can be set at
-// any point in the element's lifecycle, before or after playback actually
-// starts, and the browser applies it once frames are actually rendered.
-const PLAYBACK_RATE = 1.8
-
 /** This pre-permission visual is a borderless circle: same panel fill as
  *  `gradientBorderStyle`, minus its gradient border. The shared helper itself
  *  is untouched — `ScanningVisual`, Vibe Result and Player still use it.
@@ -135,66 +126,68 @@ export const CIRCLE_FILL_STYLE = { backgroundImage: PANEL_FILL_GRADIENT }
 export const MOBILE_ORB_PX = 248
 export const MOBILE_ORB_STYLE = { ...CIRCLE_FILL_STYLE, width: MOBILE_ORB_PX, height: MOBILE_ORB_PX }
 
+// Buffered media time before starting playback.
+const INITIAL_BUFFER_SECONDS = 1.25
+
 export default function CameraPermissionVisual() {
-  const mobileVideoRef = useRef<HTMLVideoElement | null>(null)
-  const desktopVideoRef = useRef<HTMLVideoElement | null>(null)
-  const [videoSrc, setVideoSrc] = useState(vibeResultVideoSrc)
+  const mobileOrbRef = useRef<HTMLDivElement>(null)
+  const desktopOrbRef = useRef<HTMLDivElement>(null)
 
-  useEffect(() => {
-    let active = true
-    void preloadVibeResultVideo().then((src) => {
-      if (active) setVideoSrc(src)
-    })
-    return () => {
-      active = false
+  useLayoutEffect(() => {
+    const mobileOrb = mobileOrbRef.current
+    const desktopOrb = desktopOrbRef.current
+    if (!mobileOrb || !desktopOrb) return
+
+    const video = preloadVibeResultVideo()
+    video.poster = vibeResultPoster
+    video.className = "scanner-orb-media pointer-events-none absolute inset-0 size-full rounded-full object-cover"
+    video.setAttribute("aria-hidden", "true")
+
+    // Keep the native buffer and playhead when the visible layout changes.
+    const attachVideo = () => {
+      const visibleOrb = desktopOrb.getClientRects().length ? desktopOrb : mobileOrb
+      if (video.parentElement !== visibleOrb) visibleOrb.prepend(video)
     }
-  }, [])
+    attachVideo()
+    const resize = new ResizeObserver(attachVideo)
+    resize.observe(mobileOrb)
+    resize.observe(desktopOrb)
 
-  // `autoPlay` alone doesn't respect `prefers-reduced-motion` — this pauses
-  // both breakpoints' `<video>` elements (only one is ever visually shown,
-  // but both are mounted, matching the Mobile/Desktop split below) whenever
-  // the user has that preference set, and resumes them if it changes
-  // mid-session. Mirrors the `matchMedia("(prefers-reduced-motion: reduce)")`
-  // listener pattern `MoodBubbleCluster` already uses for its own motion,
-  // rather than a new one-off approach.
-  useEffect(() => {
     const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)")
-    const videos = [mobileVideoRef.current, desktopVideoRef.current].filter(
-      (video): video is HTMLVideoElement => video !== null,
-    )
-
-    function applyMotionPreference() {
-      for (const video of videos) {
-        if (reducedMotion.matches) {
-          video.pause()
-        } else {
-          video.play().catch(() => {})
-        }
+    let playbackRequested = false
+    const maybeStart = () => {
+      if (playbackRequested || reducedMotion.matches || video.readyState < video.HAVE_FUTURE_DATA) return
+      const buffered = video.buffered
+      // Only the first continuous range can cover playback from the start.
+      if (!buffered.length || buffered.end(0) - buffered.start(0) < INITIAL_BUFFER_SECONDS) return
+      playbackRequested = true
+      void video.play().catch(() => {})
+    }
+    const applyMotionPreference = () => {
+      video.preload = reducedMotion.matches ? "metadata" : "auto"
+      if (reducedMotion.matches) {
+        video.pause()
+      } else if (playbackRequested) {
+        void video.play().catch(() => {})
+      } else {
+        maybeStart()
       }
     }
 
+    video.addEventListener("progress", maybeStart)
+    video.addEventListener("canplay", maybeStart)
+    if (video.error) video.load()
     applyMotionPreference()
     reducedMotion.addEventListener("change", applyMotionPreference)
-    return () => reducedMotion.removeEventListener("change", applyMotionPreference)
-  }, [videoSrc])
-
-  // `PLAYBACK_RATE` applied here (on mount, to both refs directly) rather
-  // than only via the `<video>` elements' own `onLoadedMetadata` below —
-  // this covers the case where metadata is already loaded (e.g. cached)
-  // by the time this effect runs, which `onLoadedMetadata` alone would
-  // miss (that event only fires once, the first time metadata loads).
-  // `onLoadedMetadata` stays too, as the reliable path for the normal
-  // case where metadata *hasn't* loaded yet at mount — some browsers only
-  // durably honor a `playbackRate` write once the media element has an
-  // actual decoded source to apply it to, so setting it in just one place
-  // isn't reliable across browsers/timings; both together are. Applying it
-  // doesn't touch `loop`/`autoPlay`/`muted`/`playsInline`/`controls`, the
-  // reduced-motion pause/resume above, or anything else about playback —
-  // it only changes the rate frames advance at once playback is already
-  // happening (or about to).
-  useEffect(() => {
-    for (const video of [mobileVideoRef.current, desktopVideoRef.current]) {
-      if (video) video.playbackRate = PLAYBACK_RATE
+    return () => {
+      reducedMotion.removeEventListener("change", applyMotionPreference)
+      video.removeEventListener("progress", maybeStart)
+      video.removeEventListener("canplay", maybeStart)
+      resize.disconnect()
+      video.pause()
+      video.preload = "metadata"
+      if (video.currentTime > 0) video.currentTime = 0
+      video.remove()
     }
   }, [])
 
@@ -204,23 +197,10 @@ export default function CameraPermissionVisual() {
           248px for more hero presence; the three glows below are scaled by
           the same 248/224 so the composition is unchanged. */}
       <div
+        ref={mobileOrbRef}
         className="relative shrink-0 overflow-hidden rounded-full lg:hidden"
         style={MOBILE_ORB_STYLE}
       >
-        <video
-          ref={mobileVideoRef}
-          src={videoSrc}
-          poster={vibeResultPoster}
-          autoPlay
-          muted
-          playsInline
-          controls={false}
-          aria-hidden="true"
-          onLoadedMetadata={(event) => {
-            event.currentTarget.playbackRate = PLAYBACK_RATE
-          }}
-          className="scanner-orb-media pointer-events-none absolute inset-0 size-full rounded-full object-cover"
-        />
         <div className="absolute left-[-55.03px] top-[40.82px] size-[108.02px]">
           <div className="absolute inset-[-65.73%]">
             <img alt="" className="block size-full max-w-none" src={ellipse23Mobile} />
@@ -242,23 +222,10 @@ export default function CameraPermissionVisual() {
 
       {/* Desktop (`lg` and up) — Figma node `347:336`. */}
       <div
+        ref={desktopOrbRef}
         className="relative hidden size-[491px] shrink-0 overflow-hidden rounded-full lg:block"
         style={CIRCLE_FILL_STYLE}
       >
-        <video
-          ref={desktopVideoRef}
-          src={videoSrc}
-          poster={vibeResultPoster}
-          autoPlay
-          muted
-          playsInline
-          controls={false}
-          aria-hidden="true"
-          onLoadedMetadata={(event) => {
-            event.currentTarget.playbackRate = PLAYBACK_RATE
-          }}
-          className="scanner-orb-media pointer-events-none absolute inset-0 size-full rounded-full object-cover"
-        />
         <div className="absolute left-[-108.5px] top-[77px] size-[213px]">
           <div className="absolute inset-[-65.73%]">
             <img alt="" className="block size-full max-w-none" src={ellipse23Desktop} />

@@ -1,30 +1,15 @@
-/** The Camera Permission orb's decorative video. */
-const VIBE_RESULT_VIDEO_URL = "/vibe-result.mp4"
+/** Native media element shared by the Intro preload and the permission orb. */
+let video: HTMLVideoElement | undefined
 
-let blobUrl: string | undefined
-let pending: Promise<string> | undefined
+export function preloadVibeResultVideo() {
+  if (video) return video
 
-export function vibeResultVideoSrc() {
-  return blobUrl
-}
-
-/** Share the download between Intro and Camera Permission. */
-export function preloadVibeResultVideo(): Promise<string> {
-  if (blobUrl) return Promise.resolve(blobUrl)
-
-  pending ??= fetch(VIBE_RESULT_VIDEO_URL)
-    .then((response) => {
-      if (!response.ok) throw new Error(String(response.status))
-      return response.blob()
-    })
-    .then((blob) => {
-      blobUrl = URL.createObjectURL(blob)
-      return blobUrl
-    })
-    .catch(() => VIBE_RESULT_VIDEO_URL)
-    .finally(() => {
-      pending = undefined
-    })
-
-  return pending
+  video = document.createElement("video")
+  video.preload = "metadata"
+  video.muted = true
+  video.playsInline = true
+  video.defaultPlaybackRate = 1.8
+  video.playbackRate = video.defaultPlaybackRate
+  video.src = "/vibe-result.mp4"
+  return video
 }
