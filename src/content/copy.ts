@@ -267,7 +267,7 @@ export const copy: Copy = {
     },
   },
   player: {
-    upNextHeading: "Playlist",
+    upNextHeading: "Up next",
     chooseVibeHeading: "Choose Vibe",
     upNextSubtitle: (moodName) => `from the “${moodName}” playlist`,
     upNextSheetExpandLabel: "Expand playlist",
