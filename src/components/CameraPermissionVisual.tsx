@@ -6,7 +6,7 @@ import ellipse23Desktop from "../imports/CameraPermission/ellipse-23-desktop.svg
 import ellipse24Desktop from "../imports/CameraPermission/ellipse-24-desktop.svg"
 import ellipse25Desktop from "../imports/CameraPermission/ellipse-25-desktop.svg"
 import vibeResultPoster from "../imports/CameraPermission/vibe-result-poster.webp"
-import { vibeResultVideoSrc } from "./vibeResultVideo"
+import { preloadVibeResultVideo, vibeResultVideoSrc } from "./vibeResultVideo"
 
 /**
  * The camera-preview placeholder on the Camera Permission screen — a
@@ -138,9 +138,17 @@ export const MOBILE_ORB_STYLE = { ...CIRCLE_FILL_STYLE, width: MOBILE_ORB_PX, he
 export default function CameraPermissionVisual() {
   const mobileVideoRef = useRef<HTMLVideoElement | null>(null)
   const desktopVideoRef = useRef<HTMLVideoElement | null>(null)
-  // Preloaded on the Intro when possible (in-memory blob URL), else the file
-  // URL — read once so a preload finishing mid-screen never swaps `src`.
-  const [videoSrc] = useState(vibeResultVideoSrc)
+  const [videoSrc, setVideoSrc] = useState(vibeResultVideoSrc)
+
+  useEffect(() => {
+    let active = true
+    void preloadVibeResultVideo().then((src) => {
+      if (active) setVideoSrc(src)
+    })
+    return () => {
+      active = false
+    }
+  }, [])
 
   // `autoPlay` alone doesn't respect `prefers-reduced-motion` — this pauses
   // both breakpoints' `<video>` elements (only one is ever visually shown,
@@ -168,7 +176,7 @@ export default function CameraPermissionVisual() {
     applyMotionPreference()
     reducedMotion.addEventListener("change", applyMotionPreference)
     return () => reducedMotion.removeEventListener("change", applyMotionPreference)
-  }, [])
+  }, [videoSrc])
 
   // `PLAYBACK_RATE` applied here (on mount, to both refs directly) rather
   // than only via the `<video>` elements' own `onLoadedMetadata` below —

@@ -2,12 +2,17 @@ import { Suspense, lazy, useCallback, useEffect, useRef, useState } from "react"
 import CtaPill from "../components/CtaPill"
 import TextStack from "../components/TextStack"
 import AmbientDrift from "../intro3/AmbientDrift"
+import { preloadIntroOrbTextures } from "../intro3/orbTextures"
 import { preloadVibeResultVideo } from "../components/vibeResultVideo"
 
 /** The WebGL glass-orb cluster (`three` / `@react-three/fiber`), lazy so the
  *  headline and CTA render immediately while the WebGL
  *  code downloads, and so the later screens' code never waits on it. */
-const GlassOrbCanvas = lazy(() => import("../intro3/GlassOrbCanvas"))
+let glassOrbModule: Promise<typeof import("../intro3/GlassOrbCanvas")> | undefined
+const GlassOrbCanvas = lazy(() => {
+  glassOrbModule = import("../intro3/GlassOrbCanvas")
+  return glassOrbModule
+})
 
 /**
  * MoodPlayer Intro screen — approved Intro C, "C · Portrait refraction".
@@ -43,16 +48,19 @@ export default function IntroScreen({ onCtaClick }: { onCtaClick?: () => void })
   }, [onCtaClick])
   const [isActivating, setIsActivating] = useState(false)
 
-  // Fetch the Camera Permission orb's video once the Intro is idle, so it's
-  // in memory and starts moving as soon as that screen appears (see
-  // `vibeResultVideo.ts`). `requestIdleCallback` isn't in Safari.
+  useEffect(preloadIntroOrbTextures, [])
+
+  // Observe the import already started by the lazy render.
   useEffect(() => {
-    if (typeof window.requestIdleCallback === "function") {
-      const id = window.requestIdleCallback(preloadVibeResultVideo, { timeout: 2000 })
-      return () => window.cancelIdleCallback(id)
+    let active = true
+    void glassOrbModule?.then(() => {
+      if (active && !activatingRef.current) void preloadVibeResultVideo()
+    }, () => {
+      // The lazy component handles import failures.
+    })
+    return () => {
+      active = false
     }
-    const id = window.setTimeout(preloadVibeResultVideo, 500)
-    return () => window.clearTimeout(id)
   }, [])
 
   const handleCtaClick = useCallback(() => {

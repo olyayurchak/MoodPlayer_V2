@@ -1,15 +1,6 @@
-import { Component, Suspense, useEffect, useRef, useState, type ReactNode } from "react"
-import { Canvas } from "@react-three/fiber"
-import contentUrl from "../assets/intro3/orb-happy-man-blue-v2.webp"
-import flowerUrl from "../assets/intro3/orb-flower-blue-v8.webp"
-import noteUrl from "../assets/intro3/orb-note-blue-v1.webp"
-import concertUrl from "../assets/intro3/orb-concert-stage-v1.webp"
-import noteVioletUrl from "../assets/intro3/orb-note-violet-v1.webp"
-import headphonesGirlV2Url from "../assets/intro3/orb-headphones-girl-v2.webp"
-import vinylPurpleUrl from "../assets/intro3/orb-vinyl-purple-v2.webp"
-import colorCloudBurstUrl from "../assets/intro3/orb-color-cloud-burst-v2-square.webp"
-import skyHeadphonesGirlUrl from "../assets/intro3/orb-sky-headphones-girl-v1.webp"
-import synthBlueUrl from "../assets/intro3/orb-synth-blue-v1.webp"
+import { Component, Suspense, startTransition, useEffect, useRef, useState, type ReactNode, type RefObject } from "react"
+import { Canvas, useThree } from "@react-three/fiber"
+import { INTRO1_LG_PX, orbTextures } from "./orbTextures"
 import { desktopBubbles, mobileBubbles } from "../data/introBubbles"
 import GlassOrb, {
   type OrbClusterBounds,
@@ -52,7 +43,7 @@ function clusterSlot(desktop: OrbFrameSpot, mobileId: string | null): OrbSlot {
 }
 
 /** The hero (laughing man): lower-centre focal point, front-most. */
-const HERO_SLOT = clusterSlot({ dx: 0, dy: 129, diameter: 190, order: 9 }, "flower")
+const HERO_SLOT = clusterSlot({ dx: 0, dy: 129, diameter: 190, order: 9 }, orbTextures.hero.mobileId)
 
 /**
  * Intro 1's own Desktop composition, read from
@@ -86,40 +77,40 @@ const SUPPORT_ORBS: {
     id: "flower-blue",
     // Circle measured from the asset (1254×1254): centre (626, 645.5) px,
     // radius 503 px.
-    content: { url: flowerUrl, uvCentre: { u: 0.4992, v: 0.4852 }, uvRadius: 0.4013 },
-    slot: clusterSlot({ dx: -143, dy: 139, diameter: 140, order: 7 }, "color-burst"),
+    content: { url: orbTextures.flower.url, uvCentre: { u: 0.4992, v: 0.4852 }, uvRadius: 0.4013 },
+    slot: clusterSlot({ dx: -143, dy: 139, diameter: 140, order: 7 }, orbTextures.flower.mobileId),
     intro1Id: "flower",
   },
   {
     id: "note-blue",
     // Circle measured from the asset (1254×1254): centre (626, 622) px,
     // radius 515.5 px. Composition is in the asset — no zoom override.
-    content: { url: noteUrl, uvCentre: { u: 0.4992, v: 0.504 }, uvRadius: 0.4111 },
-    slot: clusterSlot({ dx: -368, dy: 119, diameter: 152, order: 0 }, null),
+    content: { url: orbTextures.note.url, uvCentre: { u: 0.4992, v: 0.504 }, uvRadius: 0.4111 },
+    slot: clusterSlot({ dx: -368, dy: 119, diameter: 152, order: 0 }, orbTextures.note.mobileId),
     intro1Id: "note-large",
   },
   {
     id: "concert-stage",
     // Circle measured from the asset (1254×1254): centre (625, 622) px,
     // radius 554 px. Composition is in the asset — no zoom override.
-    content: { url: concertUrl, uvCentre: { u: 0.4984, v: 0.504 }, uvRadius: 0.4418 },
-    slot: clusterSlot({ dx: -270, dy: 64, diameter: 182, order: 2 }, "headphones-woman"),
+    content: { url: orbTextures.concert.url, uvCentre: { u: 0.4984, v: 0.504 }, uvRadius: 0.4418 },
+    slot: clusterSlot({ dx: -270, dy: 64, diameter: 182, order: 2 }, orbTextures.concert.mobileId),
     intro1Id: "crowd",
   },
   {
     id: "note-violet",
     // Circle measured from the asset (1254×1254): centre (626, 635) px,
     // radius 557 px. Composition is in the asset — no zoom override.
-    content: { url: noteVioletUrl, uvCentre: { u: 0.4992, v: 0.4936 }, uvRadius: 0.4441 },
-    slot: clusterSlot({ dx: 15, dy: -8, diameter: 128, order: 6 }, "note-small"),
+    content: { url: orbTextures.noteViolet.url, uvCentre: { u: 0.4992, v: 0.4936 }, uvRadius: 0.4441 },
+    slot: clusterSlot({ dx: 15, dy: -8, diameter: 128, order: 6 }, orbTextures.noteViolet.mobileId),
     intro1Id: "note-small",
   },
   {
     id: "headphones-girl-v2",
     // Circle measured from the asset (1254×1254): centre (626, 628) px,
     // radius 542 px. Composition is in the asset — no zoom override.
-    content: { url: headphonesGirlV2Url, uvCentre: { u: 0.4992, v: 0.4994 }, uvRadius: 0.4322 },
-    slot: clusterSlot({ dx: -137, dy: 9, diameter: 190, order: 4 }, "laughing-man"),
+    content: { url: orbTextures.headphonesGirl.url, uvCentre: { u: 0.4992, v: 0.4994 }, uvRadius: 0.4322 },
+    slot: clusterSlot({ dx: -137, dy: 9, diameter: 190, order: 4 }, orbTextures.headphonesGirl.mobileId),
     intro1Id: "headphones-woman",
   },
   {
@@ -129,8 +120,8 @@ const SUPPORT_ORBS: {
     // 622) px), and at this low on-screen spot the portrait image plane's
     // depth shift lifts it ~33 px more — so uvCentre is the record centre
     // compensated for that shift, to read centred in the orb. No zoom override.
-    content: { url: vinylPurpleUrl, uvCentre: { u: 0.4965, v: 0.527 }, uvRadius: 0.4564 },
-    slot: clusterSlot({ dx: 137, dy: 64, diameter: 196, order: 5 }, "vinyl"),
+    content: { url: orbTextures.vinyl.url, uvCentre: { u: 0.4965, v: 0.527 }, uvRadius: 0.4564 },
+    slot: clusterSlot({ dx: 137, dy: 64, diameter: 196, order: 5 }, orbTextures.vinyl.mobileId),
     intro1Id: "vinyl",
   },
   {
@@ -139,8 +130,8 @@ const SUPPORT_ORBS: {
     // is a copy padded to 1287×1287 with transparent rows only (pixels
     // unchanged). Circle measured from it: centre (644, 636) px, radius
     // 532 px. Composition is in the asset — no zoom override.
-    content: { url: colorCloudBurstUrl, uvCentre: { u: 0.5006, v: 0.5062 }, uvRadius: 0.413 },
-    slot: clusterSlot({ dx: 278, dy: 19, diameter: 186, order: 3 }, "crowd"),
+    content: { url: orbTextures.colorCloud.url, uvCentre: { u: 0.5006, v: 0.5062 }, uvRadius: 0.413 },
+    slot: clusterSlot({ dx: 278, dy: 19, diameter: 186, order: 3 }, orbTextures.colorCloud.mobileId),
     intro1Id: "color-burst",
   },
   {
@@ -148,16 +139,16 @@ const SUPPORT_ORBS: {
     id: "sky-headphones-girl",
     // Circle measured from the asset (1254×1254): centre (627, 627) px,
     // radius 555 px. Composition is in the asset — no zoom override.
-    content: { url: skyHeadphonesGirlUrl, uvCentre: { u: 0.5, v: 0.5 }, uvRadius: 0.4422 },
-    slot: clusterSlot({ dx: 205, dy: 163, diameter: 142, order: 8 }, "headphones-person"),
+    content: { url: orbTextures.skyHeadphonesGirl.url, uvCentre: { u: 0.5, v: 0.5 }, uvRadius: 0.4422 },
+    slot: clusterSlot({ dx: 205, dy: 163, diameter: 142, order: 8 }, orbTextures.skyHeadphonesGirl.mobileId),
     intro1Id: "headphones-person",
   },
   {
     id: "synth-blue",
     // Circle measured from the asset (1254×1254): centre (626, 631) px,
     // radius 574 px. Full-bleed scene — no zoom override.
-    content: { url: synthBlueUrl, uvCentre: { u: 0.4989, v: 0.4966 }, uvRadius: 0.4571 },
-    slot: clusterSlot({ dx: 362, dy: 109, diameter: 146, order: 1 }, null),
+    content: { url: orbTextures.synth.url, uvCentre: { u: 0.4989, v: 0.4966 }, uvRadius: 0.4571 },
+    slot: clusterSlot({ dx: 362, dy: 109, diameter: 146, order: 1 }, orbTextures.synth.mobileId),
     intro1Id: "keyboard",
   },
 ]
@@ -235,6 +226,38 @@ const DESKTOP_BOUNDS: OrbClusterBounds = boundsOf([
   ...SUPPORT_ORBS.map((orb) => intro1DesktopSlot(orb.slot, orb.intro1Id).desktop),
 ])
 
+function SupportingOrbs({
+  pointer,
+  reducedMotion,
+}: {
+  pointer: RefObject<OrbPointer>
+  reducedMotion: boolean
+}) {
+  const isDesktop = useThree((state) => state.size.width >= INTRO1_LG_PX)
+  const [includeDesktopOrbs, setIncludeDesktopOrbs] = useState(isDesktop)
+
+  useEffect(() => {
+    // Keep the revealed cluster visible while newly needed textures load.
+    startTransition(() => setIncludeDesktopOrbs(isDesktop))
+  }, [isDesktop])
+
+  return SUPPORT_ORBS
+    .filter((orb) => includeDesktopOrbs || orb.slot.mobile !== null)
+    .map((orb) => (
+      <GlassOrb
+        key={orb.id}
+        pointer={pointer}
+        reducedMotion={reducedMotion}
+        content={orb.content}
+        slot={intro1DesktopSlot(orb.slot, orb.intro1Id)}
+        mobileFit={MOBILE_BOUNDS}
+        desktopFit={DESKTOP_BOUNDS}
+        drift={SUPPORT_DRIFTS.get(orb.id)!}
+        liftDir={LIFT_DIRS.support.get(orb.id)}
+      />
+    ))
+}
+
 function canUseWebGL(): boolean {
   try {
     const canvas = document.createElement("canvas")
@@ -250,7 +273,7 @@ function OrbFallback() {
   return (
     <div className="absolute inset-0 flex items-center justify-center">
       <img
-        src={contentUrl}
+        src={orbTextures.hero.url}
         alt=""
         className="aspect-square w-[min(72vw,50vh,520px)] rounded-full opacity-90"
       />
@@ -335,19 +358,7 @@ export default function GlassOrbCanvas() {
                 drift={HERO_DRIFT}
                 liftDir={LIFT_DIRS.hero}
               />
-              {SUPPORT_ORBS.map((orb) => (
-                <GlassOrb
-                  key={orb.id}
-                  pointer={pointer}
-                  reducedMotion={reducedMotion}
-                  content={orb.content}
-                  slot={intro1DesktopSlot(orb.slot, orb.intro1Id)}
-                  mobileFit={MOBILE_BOUNDS}
-                  desktopFit={DESKTOP_BOUNDS}
-                  drift={SUPPORT_DRIFTS.get(orb.id)!}
-                  liftDir={LIFT_DIRS.support.get(orb.id)}
-                />
-              ))}
+              <SupportingOrbs pointer={pointer} reducedMotion={reducedMotion} />
             </Suspense>
           </Canvas>
         </SceneErrorBoundary>

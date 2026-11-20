@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, type RefObject } from "react"
 import { useFrame, useLoader, useThree } from "@react-three/fiber"
 import * as THREE from "three"
-import portraitUrl from "../assets/intro3/orb-happy-man-blue-v2.webp"
+import { INTRO1_LG_PX, orbTextures } from "./orbTextures"
 import OrbFresnelEdge from "./OrbFresnelEdge"
 import OrbDischarge, { type DischargeState } from "./OrbDischarge"
 import { orbDiscs } from "./orbDiscs"
@@ -36,7 +36,6 @@ export type OrbSlot = { desktop: OrbFrameSpot; mobile: OrbFrameSpot | null }
  *  `lg` breakpoint, and a fixed-px frame (430×932 Mobile, 1440×1024 Desktop)
  *  anchored top-centre, bubbles at fixed px offsets from its centre — no
  *  scaling and no on-screen clamp; the viewport simply crops the frame. */
-const INTRO1_LG_PX = 1024
 const INTRO1_FRAME_H = { mobile: 932, desktop: 1024 }
 
 /** A Mobile cluster's vertical extent in frame px (`dy` of its top and
@@ -136,7 +135,7 @@ function nearestWeight(g: THREE.Object3D, p: OrbPointer, gl: THREE.WebGLRenderer
 }
 
 const HERO_CONTENT: OrbContent = {
-  url: portraitUrl,
+  url: orbTextures.hero.url,
   uvCentre: PORTRAIT_UV_CENTRE,
   uvRadius: PORTRAIT_UV_RADIUS,
 }
