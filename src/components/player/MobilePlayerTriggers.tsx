@@ -77,6 +77,7 @@ export default function MobilePlayerTriggers({
 }) {
   const moodName = t.vibeResult.moods[activeMood].name
   const [openPopover, setOpenPopover] = useState<"vibe" | "gestures" | null>(null)
+  const isVibeOpen = openPopover === "vibe"
   const vibeTriggerRef = useRef<HTMLButtonElement>(null)
   const gesturesTriggerRef = useRef<HTMLButtonElement>(null)
 
@@ -101,21 +102,21 @@ export default function MobilePlayerTriggers({
       <button
         ref={vibeTriggerRef}
         type="button"
-        onClick={() => (openPopover === "vibe" ? closeVibe() : setOpenPopover("vibe"))}
+        onClick={() => (isVibeOpen ? closeVibe() : setOpenPopover("vibe"))}
         aria-haspopup="dialog"
-        aria-expanded={openPopover === "vibe"}
+        aria-expanded={isVibeOpen}
         aria-label={t.player.moodTriggerLabel(moodName)}
         className={`${TRIGGER_CLASS} relative w-[148px] shrink-0 px-[5px] transition-[background-color,border-color] motion-reduce:transition-none`}
-        style={{ borderColor: openPopover === "vibe" ? "transparent" : undefined }}
+        style={{ borderColor: isVibeOpen ? "transparent" : "rgba(255, 255, 255, 0.4)" }}
       >
         <span
           aria-hidden="true"
           style={{
-            background: spectrumGradient(PLAYER_SPECTRUM[activeMood], 0.55),
+            background: isVibeOpen ? spectrumGradient(PLAYER_SPECTRUM[activeMood], 0.55) : undefined,
             mask: "linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0)",
             maskComposite: "exclude",
           }}
-          className={`pointer-events-none absolute -inset-px rounded-[inherit] p-px transition-opacity duration-200 motion-reduce:transition-none ${openPopover === "vibe" ? "opacity-100" : "opacity-0"}`}
+          className={`pointer-events-none absolute -inset-px rounded-[inherit] p-px transition-opacity duration-200 motion-reduce:transition-none ${isVibeOpen ? "opacity-100" : "opacity-0"}`}
         />
         <MoodIcon mood={activeMood} size={34} className="-mx-[3px] shrink-0" />
         <span className="whitespace-nowrap text-[15px]">{moodName}</span>
@@ -139,7 +140,7 @@ export default function MobilePlayerTriggers({
       </button>
 
       <MobileChooseVibePopover
-        open={openPopover === "vibe"}
+        open={isVibeOpen}
         activeMood={activeMood}
         onSelect={handleMoodSelect}
         onClose={closeVibe}
