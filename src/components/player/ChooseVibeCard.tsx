@@ -1,5 +1,6 @@
-import { useEffect, useId, useRef, useState } from "react"
+import { useEffect, useId, useLayoutEffect, useRef, useState } from "react"
 import PlayerMoodSelector from "./PlayerMoodSelector"
+import { POINTER_SIZE_PX, POPOVER_BORDER_PX } from "./MobileTriggerPopover"
 import { MoodIcon } from "./moodIcons"
 import { copy as t } from "../../content/copy"
 import type { MoodId } from "../../data/moods"
@@ -42,11 +43,32 @@ export default function ChooseVibeCard({
 }) {
   const [isOpen, setIsOpen] = useState(false)
   const cardRef = useRef<HTMLDivElement>(null)
+  const headingRef = useRef<HTMLParagraphElement>(null)
   const tileRef = useRef<HTMLButtonElement>(null)
   const menuRef = useRef<HTMLDivElement>(null)
   const headingId = useId()
   const menuId = useId()
   const moodName = t.vibeResult.moods[activeMood].name
+
+  useLayoutEffect(() => {
+    const card = cardRef.current
+    const heading = headingRef.current
+    const tile = tileRef.current
+    const menu = menuRef.current
+    if (!isOpen || !card || !heading || !tile || !menu) return
+
+    const alignPointer = () => {
+      const tileBounds = tile.getBoundingClientRect()
+      const cardTop = card.getBoundingClientRect().top
+      menu.style.setProperty("--pointer-center", `${tileBounds.top - cardTop + tileBounds.height / 2}px`)
+    }
+    alignPointer()
+
+    const observer = new ResizeObserver(alignPointer)
+    observer.observe(card)
+    observer.observe(heading)
+    return () => observer.disconnect()
+  }, [isOpen])
 
   useEffect(() => {
     if (!isOpen) return
@@ -82,7 +104,7 @@ export default function ChooseVibeCard({
       aria-labelledby={headingId}
       className="relative flex h-[172px] w-full shrink-0 flex-col items-center justify-center gap-[16px] rounded-[24px] bg-[rgba(255,255,255,0.08)] px-[8px] backdrop-blur-[20px]"
     >
-      <p id={headingId} className="text-center text-[18px] font-medium leading-[1.25] text-white">
+      <p ref={headingRef} id={headingId} className="text-center text-[18px] font-medium leading-[1.25] text-white">
         {t.player.chooseVibeHeading}
       </p>
 
@@ -100,7 +122,7 @@ export default function ChooseVibeCard({
         <span className="whitespace-nowrap">{moodName}</span>
         <span
           aria-hidden="true"
-          style={{ ...TILE_RING_STYLE, padding: "1px", background: spectrumGradient(PLAYER_SPECTRUM[activeMood], 0.55) }}
+          style={{ ...TILE_RING_STYLE, padding: isOpen ? "2px" : "1px", background: spectrumGradient(PLAYER_SPECTRUM[activeMood], 0.55) }}
           className="pointer-events-none absolute inset-0 rounded-[12px]"
         />
       </button>
@@ -111,9 +133,35 @@ export default function ChooseVibeCard({
           id={menuId}
           role="group"
           aria-label={t.vibeResult.manualChooseLabel}
-          className="absolute top-0 right-[calc(100%+12px)] z-30 w-max rounded-[20px] border-[1.5px] border-[rgba(255,255,255,0.12)] bg-[rgba(18,14,36,0.92)] p-[24px] shadow-[0px_16px_40px_rgba(0,0,0,0.45)] backdrop-blur-[20px]"
+          className="absolute top-0 right-[calc(100%+12px)] z-30 w-max rounded-[20px] [--vibe-surface:rgba(18,14,36,0.92)] [--vibe-border:rgba(255,255,255,0.12)]"
         >
-          <PlayerMoodSelector activeMood={activeMood} onSelect={handleSelect} accent={accent} orientation="column" />
+          <div
+            style={{ borderWidth: POPOVER_BORDER_PX }}
+            className="rounded-[inherit] border-transparent bg-(--vibe-surface) p-[24px] shadow-[0px_16px_40px_rgba(0,0,0,0.45)] backdrop-blur-[20px]"
+          >
+            <PlayerMoodSelector activeMood={activeMood} onSelect={handleSelect} accent={accent} orientation="column" />
+          </div>
+          {/* Cut the opening out of the border and paint only the outer half of
+              the mobile diamond so no border or second fill crosses its base. */}
+          <span
+            aria-hidden="true"
+            style={{
+              borderWidth: POPOVER_BORDER_PX,
+              clipPath: "polygon(0 0, 100% 0, 100% calc(var(--pointer-center) - 8px), calc(100% - 2px) calc(var(--pointer-center) - 8px), calc(100% - 2px) calc(var(--pointer-center) + 8px), 100% calc(var(--pointer-center) + 8px), 100% 100%, 0 100%)",
+            }}
+            className="pointer-events-none absolute inset-0 rounded-[inherit] border-(--vibe-border)"
+          />
+          <span
+            aria-hidden="true"
+            style={{
+              width: POINTER_SIZE_PX,
+              height: POINTER_SIZE_PX,
+              borderTopWidth: POPOVER_BORDER_PX,
+              borderRightWidth: POPOVER_BORDER_PX,
+              clipPath: "polygon(0 0, 100% 0, 100% 100%)",
+            }}
+            className="pointer-events-none absolute top-(--pointer-center) left-full -translate-1/2 rotate-45 border-(--vibe-border) bg-(--vibe-surface)"
+          />
         </div>
       )}
     </div>
