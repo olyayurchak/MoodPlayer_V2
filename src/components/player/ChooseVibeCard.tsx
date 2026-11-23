@@ -10,9 +10,6 @@ import { PLAYER_SPECTRUM, spectrumGradient, type PlayerMoodAccent } from "../../
  *  pill (duplicated rather than imported, matching `UpNextPanel`/
  *  `MobileUpNextSheet`'s own precedent for this small style object). */
 const TILE_RING_STYLE = {
-  padding: "1.5px",
-  background:
-    "linear-gradient(90deg, var(--color-cta-button-from), var(--color-cta-button-via), var(--color-cta-button-to))",
   WebkitMask: "linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0)",
   WebkitMaskComposite: "xor",
   maskComposite: "exclude" as const,
@@ -116,15 +113,18 @@ export default function ChooseVibeCard({
         aria-expanded={isOpen}
         aria-controls={menuId}
         aria-label={`${t.player.chooseVibeHeading}: ${moodName}`}
-        className="relative flex h-[66px] w-[80px] shrink-0 flex-col items-center justify-center rounded-[12px] bg-[rgba(255,255,255,0.08)] px-[4px] py-[8px] text-center text-[11px] font-medium leading-[1.2] text-[#cfcfcf] shadow-[0px_12px_24px_0px_rgba(255,255,255,0.08)] transition-colors duration-200 hover:bg-[rgba(255,255,255,0.14)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+        style={{ borderColor: isOpen ? "transparent" : "rgba(255, 255, 255, 0.4)" }}
+        className="relative flex h-[66px] w-[80px] shrink-0 flex-col items-center justify-center rounded-[12px] border bg-[rgba(255,255,255,0.08)] px-[3px] py-[7px] text-center text-[11px] font-medium leading-[1.2] text-[#cfcfcf] shadow-[0px_12px_24px_0px_rgba(255,255,255,0.08)] transition-colors duration-200 hover:bg-[rgba(255,255,255,0.14)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
       >
         <MoodIcon mood={activeMood} size={36} className="shrink-0" />
         <span className="whitespace-nowrap">{moodName}</span>
-        <span
-          aria-hidden="true"
-          style={{ ...TILE_RING_STYLE, padding: isOpen ? "2px" : "1px", background: spectrumGradient(PLAYER_SPECTRUM[activeMood], 0.55) }}
-          className="pointer-events-none absolute inset-0 rounded-[12px]"
-        />
+        {isOpen && (
+          <span
+            aria-hidden="true"
+            style={{ ...TILE_RING_STYLE, background: spectrumGradient(PLAYER_SPECTRUM[activeMood], 0.55) }}
+            className="pointer-events-none absolute -inset-px rounded-[inherit] p-[2px]"
+          />
+        )}
       </button>
 
       {isOpen && (
