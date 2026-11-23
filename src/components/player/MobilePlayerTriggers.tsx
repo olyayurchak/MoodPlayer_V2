@@ -2,7 +2,7 @@ import { useCallback, useRef, useState } from "react"
 import handOpenPalm from "../../imports/Player/hand-open-palm.png"
 import { copy as t } from "../../content/copy"
 import type { MoodId } from "../../data/moods"
-import type { MoodSpectrum } from "../../data/playerMoodAccent"
+import { PLAYER_SPECTRUM, spectrumGradient, type MoodSpectrum } from "../../data/playerMoodAccent"
 import MobileChooseVibePopover from "./MobileChooseVibePopover"
 import MobileGesturePopover from "./MobileGesturePopover"
 import { MoodIcon } from "./moodIcons"
@@ -29,7 +29,7 @@ function Chevron({ size = 12, className = "" }: { size?: number; className?: str
 }
 
 const TRIGGER_CLASS =
-  "flex h-[48px] items-center justify-center gap-[6px] rounded-[16px] border border-[rgba(255,255,255,0.12)] bg-[rgba(255,255,255,0.08)] text-[14px] font-medium text-white backdrop-blur-[20px] transition-[background-color] duration-200 hover:bg-[rgba(255,255,255,0.14)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+  "flex h-[48px] items-center justify-center gap-[6px] rounded-[16px] border border-[rgba(255,255,255,0.12)] bg-[rgba(255,255,255,0.08)] text-[14px] font-medium text-white backdrop-blur-[20px] duration-200 hover:bg-[rgba(255,255,255,0.14)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
 
 /**
  * Mobile Player closed-state utility row: the current-vibe trigger and the
@@ -105,9 +105,18 @@ export default function MobilePlayerTriggers({
         aria-haspopup="dialog"
         aria-expanded={openPopover === "vibe"}
         aria-label={t.player.moodTriggerLabel(moodName)}
-        className={`${TRIGGER_CLASS} w-[148px] shrink-0 px-[5px]`}
-        style={{ borderColor: openPopover === "vibe" ? palette.start : undefined }}
+        className={`${TRIGGER_CLASS} relative w-[148px] shrink-0 px-[5px] transition-[background-color,border-color] motion-reduce:transition-none`}
+        style={{ borderColor: openPopover === "vibe" ? "transparent" : undefined }}
       >
+        <span
+          aria-hidden="true"
+          style={{
+            background: spectrumGradient(PLAYER_SPECTRUM[activeMood], 0.55),
+            mask: "linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0)",
+            maskComposite: "exclude",
+          }}
+          className={`pointer-events-none absolute -inset-px rounded-[inherit] p-px transition-opacity duration-200 motion-reduce:transition-none ${openPopover === "vibe" ? "opacity-100" : "opacity-0"}`}
+        />
         <MoodIcon mood={activeMood} size={34} className="-mx-[3px] shrink-0" />
         <span className="whitespace-nowrap text-[15px]">{moodName}</span>
         <Chevron size={14} className="-ml-[4px] opacity-70" />
@@ -119,7 +128,7 @@ export default function MobilePlayerTriggers({
         aria-haspopup="dialog"
         aria-expanded={openPopover === "gestures"}
         aria-label={`${t.player.gestures.heading}: ${gesturesOn ? t.player.gestures.on : t.player.gestures.off}`}
-        className={`${TRIGGER_CLASS} min-w-0 flex-1 px-[8px]`}
+        className={`${TRIGGER_CLASS} min-w-0 flex-1 px-[8px] transition-[background-color]`}
         style={{ borderColor: openPopover === "gestures" ? palette.start : undefined }}
       >
         <img src={handOpenPalm} alt="" className="-mx-[6px] size-[32px] shrink-0 object-contain" />
